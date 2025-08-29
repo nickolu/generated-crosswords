@@ -6,7 +6,6 @@ Stores results in JSON files named xxx.json with format {date_of_submission: tim
 """
 
 import json
-import os
 from datetime import datetime
 from pathlib import Path
 
