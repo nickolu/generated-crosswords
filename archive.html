@@ -94,16 +94,12 @@
     <script>
         class CrosswordArchive {
             constructor() {
-                this.elevenYearsAgo = new Date(new Date().getFullYear() - 11, new Date().getMonth(), new Date().getDate());
+                this.today = new Date();
+                this.elevenYearsAgo = new Date(this.today.getFullYear() - 11, this.today.getMonth(), this.today.getDate());
                 this.loadPuzzleList();
             }
 
             async loadPuzzleList() {
-                const puzzleList = document.getElementById('puzzleList');
-                await this.loadKnownPuzzles();
-            }
-
-            async loadKnownPuzzles() {
                 const puzzleList = document.getElementById('puzzleList');
                 
                 try {
@@ -135,16 +131,24 @@
                                 }
                                 
                                 const date = dateMatch ? dateMatch[1] : filename.replace('.json', '');
-                                const displayName = filename.includes('mini_') ? 
-                                    `Mini Crossword ${date}` : 
-                                    `Crossword ${date}`;
+                                const puzzleDate = new Date(date + 'T00:00:00');
                                 
-                                knownPuzzles.push({
-                                    filename: filename,
-                                    displayName: displayName,
-                                    date: date,
-                                    isToday: false // We don't have current date puzzles in this format
-                                });
+                                // Filter: only include puzzles that are 11 years ago or older
+                                if (puzzleDate <= this.elevenYearsAgo) {
+                                    const displayName = filename.includes('mini_') ? 
+                                        `Mini Crossword ${date}` : 
+                                        `Crossword ${date}`;
+                                    
+                                    // Check if this puzzle date is exactly 11 years ago from today
+                                    const isToday = puzzleDate.getTime() === this.elevenYearsAgo.getTime();
+                                    
+                                    knownPuzzles.push({
+                                        filename: filename,
+                                        displayName: displayName,
+                                        date: date,
+                                        isToday: isToday
+                                    });
+                                }
                             }
                         } catch (e) {
                             // Puzzle doesn't exist or isn't accessible, skip
@@ -189,23 +193,32 @@
                 // Sort puzzles by date (most recent first)
                 puzzles.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-                // Exclude all puzzles newer than 11 years ago today
-                puzzles = puzzles.filter(puzzle => new Date(puzzle.date) < this.elevenYearsAgo);
-
                 let html = '';
                 puzzles.forEach(puzzle => {
                     const linkClass = puzzle.isToday ? 'puzzle-item today-link' : 'puzzle-item';
                     const href = `../crossword.html?puzzle=${puzzle.filename}`;
                     
-                    html += `
-                        <a href="${href}" class="${linkClass}">
-                            <div>
-                                <div class="puzzle-name">${puzzle.displayName}</div>
-                                <div class="puzzle-date">${this.formatDate(puzzle.date)}</div>
-                            </div>
-                            <div>➤</div>
-                        </a>
-                    `;
+                    if (puzzle.isToday) {
+                        html += `
+                            <a href="${href}" class="${linkClass}">
+                                <div>
+                                    <div class="puzzle-name">Today's Puzzle</div>
+                                    <div class="puzzle-date">${this.formatDate(puzzle.date)}</div>
+                                </div>
+                                <div>➤</div>
+                            </a>
+                        `;
+                    } else {
+                        html += `
+                            <a href="${href}" class="${linkClass}">
+                                <div>
+                                    <div class="puzzle-name">${puzzle.displayName}</div>
+                                    <div class="puzzle-date">${this.formatDate(puzzle.date)}</div>
+                                </div>
+                                <div>➤</div>
+                            </a>
+                        `;
+                    }
                 });
 
                 puzzleList.innerHTML = html;
