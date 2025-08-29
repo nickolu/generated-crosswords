@@ -1,3 +1,6 @@
+crossword-generator/crosswords/
+crossword-generator/generated/
+.DS_Store
 uv.lock
 scoretracker/data/*
 **/__pycache__/*
