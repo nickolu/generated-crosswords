@@ -61,6 +61,7 @@ function generateCrosswordHTML(jsonFile, outputFile) {
             <button id="startBtn">Start</button>
             <button id="pauseBtn" disabled>Pause</button>
             <button id="persistentShareBtn" disabled>📋 Share</button>
+            <button id="leaderboardBtn">🏆 Leaderboard</button>
         </div>
         <div class="feedback-toggle">
             <label for="feedbackToggle">
@@ -84,12 +85,6 @@ function generateCrosswordHTML(jsonFile, outputFile) {
         </div>
     </div>
     
-    <div class="completion-message" id="completionMessage">
-        <div>🎉 Congratulations! 🎉</div>
-        <div>Puzzle completed in <span id="finalTime"></span></div>
-        <button id="shareBtn" class="share-button">📋 Share Score</button>
-    </div>
-
     <div class="game-overlay" id="gameOverlay">
         <div class="overlay-content">
             <h2 class="title">Manchat Daily<br /> Crossword Classic</h2>
@@ -98,6 +93,24 @@ function generateCrosswordHTML(jsonFile, outputFile) {
             <h2>Ready?</h2>
         
             <button class="start-game-btn" id="startGameBtn">Start the Game</button>
+        </div>
+    </div>
+
+    <div class="leaderboard-modal" id="leaderboardModal">
+        <div class="leaderboard-content">
+            <div class="leaderboard-header">
+                <h2>🏆 Today's Leaderboard</h2>
+                <button class="close-btn" id="closeLeaderboardBtn">✕</button>
+            </div>
+            <div class="leaderboard-body" id="leaderboardBody">
+                <div class="loading">Loading leaderboard...</div>
+            </div>
+            <div class="leaderboard-share-section" id="leaderboardShareSection">
+                <div class="completion-celebration">
+                    <div class="completion-text">🎉 Your completion time: <span id="leaderboardCompletionTime"></span> 🎉</div>
+                    <button id="leaderboardShareBtn" class="share-button">📋 Share Your Score</button>
+                </div>
+            </div>
         </div>
     </div>
 

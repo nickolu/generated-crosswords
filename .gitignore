@@ -2,5 +2,5 @@ crossword-generator/crosswords/
 crossword-generator/generated/
 .DS_Store
 uv.lock
-scoretracker/data/*
+data/*
 **/__pycache__/*

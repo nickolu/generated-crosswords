@@ -2,7 +2,8 @@
 """
 Flask app to track user scores.
 Listens for GET requests at /results?user=xxx&time=yyy
-Stores results in JSON files named xxx.json with format {date_of_submission: time}
+Stores results in JSON files named YYYY-MM-DD.json with format {username: time}
+Each date file contains a dictionary of user/time pairs updated when new results are added.
 """
 
 import json
@@ -14,18 +15,21 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 
 # Directory to store JSON files
-DATA_DIR = Path(__file__).parent / "data"
+DATA_DIR = Path(__file__).parent / ".." / "data"
 DATA_DIR.mkdir(exist_ok=True)
 
 
 @app.route('/results', methods=['GET'])
 def store_results():
     """
-    Store user results in JSON file.
+    Store user results in date-based JSON file.
     
     Expected parameters:
     - user: username (string)
     - time: time score (integer)
+    
+    Creates/updates a JSON file named YYYY-MM-DD.json containing
+    a dictionary of {username: time} for all users on that date.
     
     Returns JSON response with status.
     """
@@ -50,22 +54,22 @@ def store_results():
         # Generate current date as submission date (YYYY-MM-DD format)
         submission_date = datetime.now().strftime('%Y-%m-%d')
         
-        # Path to user's JSON file
-        user_file = DATA_DIR / f"{username}.json"
+        # Path to date-based JSON file
+        date_file = DATA_DIR / f"{submission_date}.json"
         
-        # Load existing data or create new
-        if user_file.exists():
-            with open(user_file, 'r') as f:
-                user_data = json.load(f)
+        # Load existing data for this date or create new
+        if date_file.exists():
+            with open(date_file, 'r') as f:
+                date_data = json.load(f)
         else:
-            user_data = {}
+            date_data = {}
         
-        # Add new entry
-        user_data[submission_date] = time_score
+        # Add or update user's entry for this date
+        date_data[username] = time_score
         
         # Save back to file
-        with open(user_file, 'w') as f:
-            json.dump(user_data, f, indent=2)
+        with open(date_file, 'w') as f:
+            json.dump(date_data, f, indent=2)
         
         app.logger.info(f"Stored result for user {username}: {time_score} at {submission_date}")
         
@@ -95,6 +99,7 @@ def index():
     """Root endpoint with basic information."""
     return jsonify({
         'service': 'scoretracker',
+        'description': 'Stores user scores in date-based JSON files (YYYY-MM-DD.json) with {username: time} format',
         'endpoints': {
             '/results': 'Store user results (GET with user and time parameters)',
             '/health': 'Health check endpoint'

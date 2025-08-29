@@ -11,6 +11,7 @@ class CrosswordPuzzle {
         this.isPaused = false;
         this.showFeedback = false; // Feedback is disabled by default
         this.gameStarted = false; // Track if game has been started
+        this.userName = this.getCookie('crossword_user_name') || null;
         this.init();
     }
     
@@ -20,6 +21,24 @@ class CrosswordPuzzle {
         this.setupEventListeners();
         this.blurClues();
         this.showGameOverlay();
+    }
+    
+    // Cookie utility functions
+    setCookie(name, value, days = 365) {
+        const expires = new Date();
+        expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+        document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
+    }
+    
+    getCookie(name) {
+        const nameEQ = name + "=";
+        const ca = document.cookie.split(';');
+        for (let i = 0; i < ca.length; i++) {
+            let c = ca[i];
+            while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+            if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+        }
+        return null;
     }
     
     blurClues() {
@@ -39,11 +58,79 @@ class CrosswordPuzzle {
     showGameOverlay() {
         const overlay = document.getElementById('gameOverlay');
         if (overlay) {
+            // Check if we need to ask for user's name
+            if (!this.userName) {
+                this.showNamePrompt();
+            } else {
+                this.showWelcomeOverlay();
+            }
             overlay.style.display = 'flex';
-            // Setup start button event listener
-            const startBtn = document.getElementById('startGameBtn');
-            if (startBtn) {
-                startBtn.addEventListener('click', () => this.startGame());
+        }
+    }
+    
+    showNamePrompt() {
+        const overlay = document.getElementById('gameOverlay');
+        if (overlay) {
+            const overlayContent = overlay.querySelector('.overlay-content');
+            if (overlayContent) {
+                overlayContent.innerHTML = `
+                    <h2 class="title">Welcome to<br />Manchat Daily Crossword!</h2>
+                    <p>Before we start, what's your name?</p>
+                    <div style="margin: 20px 0;">
+                        <input type="text" id="userNameInput" placeholder="Enter your name" 
+                               style="padding: 10px; font-size: 16px; border: 2px solid #333; border-radius: 5px; margin-bottom: 10px; width: 200px;">
+                    </div>
+                    <button class="start-game-btn" id="saveNameBtn">Save & Continue</button>
+                `;
+                
+                // Setup event listeners for name input
+                const nameInput = document.getElementById('userNameInput');
+                const saveBtn = document.getElementById('saveNameBtn');
+                
+                if (nameInput && saveBtn) {
+                    nameInput.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') {
+                            this.saveUserName();
+                        }
+                    });
+                    
+                    saveBtn.addEventListener('click', () => this.saveUserName());
+                    
+                    // Focus the input
+                    setTimeout(() => nameInput.focus(), 100);
+                }
+            }
+        }
+    }
+    
+    saveUserName() {
+        const nameInput = document.getElementById('userNameInput');
+        if (nameInput && nameInput.value.trim()) {
+            this.userName = nameInput.value.trim();
+            this.setCookie('crossword_user_name', this.userName);
+            this.showWelcomeOverlay();
+        }
+    }
+    
+    showWelcomeOverlay() {
+        const overlay = document.getElementById('gameOverlay');
+        if (overlay) {
+            const overlayContent = overlay.querySelector('.overlay-content');
+            if (overlayContent) {
+                const greeting = this.userName ? `Welcome back, ${this.userName}!` : 'Welcome!';
+                overlayContent.innerHTML = `
+                    <h2 class="title">Manchat Daily<br />Crossword Classic</h2>
+                    <p>${greeting}</p>
+                    <p>A classic crossword challenge.</p>
+                    <h2>Ready?</h2>
+                    <button class="start-game-btn" id="startGameBtn">Start the Game</button>
+                `;
+                
+                // Setup start button event listener
+                const startBtn = document.getElementById('startGameBtn');
+                if (startBtn) {
+                    startBtn.addEventListener('click', () => this.startGame());
+                }
             }
         }
     }
@@ -112,6 +199,7 @@ class CrosswordPuzzle {
         const pauseBtn = document.getElementById('pauseBtn');
         const persistentShareBtn = document.getElementById('persistentShareBtn');
         const feedbackToggle = document.getElementById('feedbackToggle');
+        const leaderboardBtn = document.getElementById('leaderboardBtn');
         
         startBtn.addEventListener('click', () => this.startTimer());
         pauseBtn.addEventListener('click', () => this.pauseTimer());
@@ -122,6 +210,31 @@ class CrosswordPuzzle {
         
         if (feedbackToggle) {
             feedbackToggle.addEventListener('change', (e) => this.toggleFeedback(e.target.checked));
+        }
+        
+        if (leaderboardBtn) {
+            leaderboardBtn.addEventListener('click', () => this.showLeaderboard());
+        }
+        
+        // Setup leaderboard modal close functionality
+        const closeLeaderboardBtn = document.getElementById('closeLeaderboardBtn');
+        const leaderboardModal = document.getElementById('leaderboardModal');
+        const leaderboardShareBtn = document.getElementById('leaderboardShareBtn');
+        
+        if (closeLeaderboardBtn) {
+            closeLeaderboardBtn.addEventListener('click', () => this.hideLeaderboard());
+        }
+        
+        if (leaderboardModal) {
+            leaderboardModal.addEventListener('click', (e) => {
+                if (e.target === leaderboardModal) {
+                    this.hideLeaderboard();
+                }
+            });
+        }
+        
+        if (leaderboardShareBtn) {
+            leaderboardShareBtn.addEventListener('click', () => this.shareScore());
         }
     }
     
@@ -444,21 +557,6 @@ class CrosswordPuzzle {
         this.isRunning = false;
         this.isPaused = true;
         
-        // Show completion message
-        const completionMessage = document.getElementById('completionMessage');
-        const finalTime = document.getElementById('finalTime');
-        finalTime.textContent = this.formatTime(this.elapsedTime);
-        completionMessage.style.display = 'block';
-        
-        // Setup share button
-        const shareBtn = document.getElementById('shareBtn');
-        shareBtn.addEventListener('click', () => this.shareScore());
-        
-        // Hide completion message after 5 seconds
-        setTimeout(() => {
-            completionMessage.style.display = 'none';
-        }, 5000);
-        
         document.getElementById('startBtn').disabled = true;
         document.getElementById('pauseBtn').disabled = true;
         
@@ -467,6 +565,63 @@ class CrosswordPuzzle {
         if (persistentShareBtn) {
             persistentShareBtn.disabled = false;
         }
+        
+        // Show initial completion feedback immediately
+        this.showCompletionLeaderboard();
+        
+        // Send results to server, then refresh leaderboard data
+        this.sendResultsToServer()
+            .then(() => {
+                // Update header to show submission success
+                const modal = document.getElementById('leaderboardModal');
+                const leaderboardHeader = modal?.querySelector('.leaderboard-header h2');
+                if (leaderboardHeader) {
+                    leaderboardHeader.innerHTML = '🎉 Puzzle Complete! 🎉<br/><span style="font-size: 0.8em; font-weight: normal;">Score submitted! Loading updated leaderboard...</span>';
+                }
+                
+                // Wait a brief moment for the server to process the submission
+                setTimeout(() => {
+                    // Refresh the leaderboard data to show updated rankings
+                    this.loadLeaderboardData();
+                }, 500);
+            })
+            .catch(() => {
+                // Update header to show submission failed but continue
+                const modal = document.getElementById('leaderboardModal');
+                const leaderboardHeader = modal?.querySelector('.leaderboard-header h2');
+                if (leaderboardHeader) {
+                    leaderboardHeader.innerHTML = '🎉 Puzzle Complete! 🎉<br/><span style="font-size: 0.8em; font-weight: normal;">Showing current leaderboard...</span>';
+                }
+                console.log('Results submission failed, but leaderboard is already displayed');
+            });
+    }
+    
+    sendResultsToServer() {
+        // Only send if we have a username and valid completion time
+        if (!this.userName || !this.elapsedTime || this.elapsedTime === 0) {
+            console.log('Skipping results submission: missing username or completion time');
+            return Promise.resolve(); // Return resolved promise for consistency
+        }
+        
+        // Convert milliseconds to integer seconds
+        const timeInSeconds = Math.floor(this.elapsedTime / 1000);
+        
+        // Construct the URL
+        const url = `https://manchat.men/results?user=${encodeURIComponent(this.userName)}&time=${timeInSeconds}`;
+        
+        // Send GET request and return the promise
+        return fetch(url, {
+            method: 'GET',
+            mode: 'no-cors' // Use no-cors to allow cross-origin request
+        }).then(response => {
+            // With no-cors mode, we can't check response status, so assume success
+            console.log(`Results sent successfully: ${this.userName} completed in ${timeInSeconds} seconds`);
+            return response;
+        }).catch(error => {
+            console.warn('Failed to send results to server:', error);
+            // Don't show error to user, just log it
+            throw error; // Re-throw so caller can handle
+        });
     }
     
     shareScore() {
@@ -480,7 +635,8 @@ class CrosswordPuzzle {
             return;
         }
         
-        const shareText = `🧩 ${puzzleTitle} completed!\n⏱️ Time: ${completionTime}\n\n`;
+        const userNameText = this.userName ? `👤 ${this.userName}\n` : '';
+        const shareText = `🧩 ${puzzleTitle} completed!\n${userNameText}⏱️ Time: ${completionTime}\n\n`;
         
         // Try to use the modern Clipboard API
         if (navigator.clipboard && window.isSecureContext) {
@@ -740,6 +896,173 @@ class CrosswordPuzzle {
                 this.selectCell(nextIndex);
             }
             event.preventDefault();
+        }
+    }
+    
+    // Leaderboard functionality
+    showLeaderboard() {
+        const modal = document.getElementById('leaderboardModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            this.loadLeaderboardData();
+            this.updateShareButtonVisibility();
+        }
+    }
+    
+    showCompletionLeaderboard() {
+        const modal = document.getElementById('leaderboardModal');
+        if (modal) {
+            // Show completion celebration header
+            const leaderboardHeader = modal.querySelector('.leaderboard-header h2');
+            if (leaderboardHeader) {
+                leaderboardHeader.innerHTML = '🎉 Puzzle Complete! 🎉<br/><span style="font-size: 0.8em; font-weight: normal;">Submitting your score...</span>';
+            }
+            
+            modal.style.display = 'flex';
+            this.loadLeaderboardData();
+            this.updateShareButtonVisibility();
+            
+            // Reset header after 3 seconds
+            setTimeout(() => {
+                if (leaderboardHeader) {
+                    leaderboardHeader.innerHTML = '🏆 Today\'s Leaderboard';
+                }
+            }, 3000);
+        }
+    }
+    
+    hideLeaderboard() {
+        const modal = document.getElementById('leaderboardModal');
+        if (modal) {
+            modal.style.animation = 'fadeOut 0.3s ease';
+            setTimeout(() => {
+                modal.style.display = 'none';
+                modal.style.animation = '';
+            }, 300);
+        }
+    }
+    
+    async loadLeaderboardData() {
+        const leaderboardBody = document.getElementById('leaderboardBody');
+        if (!leaderboardBody) return;
+        
+        // Show loading state
+        leaderboardBody.innerHTML = '<div class="loading">Loading today\'s leaderboard...</div>';
+        
+        try {
+            // Get today's date in YYYY-MM-DD format
+            const today = new Date().toISOString().split('T')[0];
+            const dataUrl = `https://manchat.men/data/${today}.json`;
+            
+            const response = await fetch(dataUrl, {
+                method: 'GET',
+                mode: 'cors',
+                cache: 'no-cache',
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            this.displayLeaderboardData(data);
+            
+        } catch (error) {
+            console.warn('Failed to load leaderboard data:', error);
+            this.displayLeaderboardError();
+        }
+    }
+    
+    displayLeaderboardData(data) {
+        const leaderboardBody = document.getElementById('leaderboardBody');
+        if (!leaderboardBody) return;
+        
+        if (!data || Object.keys(data).length === 0) {
+            leaderboardBody.innerHTML = '<div class="empty-leaderboard">No times recorded yet today.<br/>Be the first to complete the puzzle!</div>';
+            return;
+        }
+        
+        // Convert object to array and sort by time (ascending)
+        const entries = Object.entries(data)
+            .map(([name, timeInSeconds]) => ({
+                name,
+                timeInSeconds: parseInt(timeInSeconds),
+                timeFormatted: this.formatTimeFromSeconds(timeInSeconds)
+            }))
+            .sort((a, b) => a.timeInSeconds - b.timeInSeconds);
+        
+        // Generate leaderboard HTML
+        let html = '<ul class="leaderboard-list">';
+        entries.forEach((entry, index) => {
+            const rank = index + 1;
+            const isTopThree = rank <= 3;
+            const isCurrentUser = this.userName && entry.name === this.userName;
+            
+            let rankDisplay = rank;
+            if (rank === 1) rankDisplay = '🥇';
+            else if (rank === 2) rankDisplay = '🥈';
+            else if (rank === 3) rankDisplay = '🥉';
+            
+            const itemClasses = [];
+            if (isTopThree) itemClasses.push('top-3');
+            if (isCurrentUser) itemClasses.push('user-entry');
+            
+            html += `
+                <li class="leaderboard-item ${itemClasses.join(' ')}">
+                    <span class="leaderboard-rank">${rankDisplay}</span>
+                    <span class="leaderboard-name">${this.escapeHtml(entry.name)}</span>
+                    <span class="leaderboard-time">${entry.timeFormatted}</span>
+                </li>
+            `;
+        });
+        html += '</ul>';
+        
+        leaderboardBody.innerHTML = html;
+    }
+    
+    displayLeaderboardError() {
+        const leaderboardBody = document.getElementById('leaderboardBody');
+        if (!leaderboardBody) return;
+        
+        leaderboardBody.innerHTML = `
+            <div class="error-message">
+                ⚠️ Unable to load today's leaderboard.<br/>
+                Please check your connection and try again.
+            </div>
+        `;
+    }
+    
+    formatTimeFromSeconds(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    }
+    
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    updateShareButtonVisibility() {
+        const shareSection = document.getElementById('leaderboardShareSection');
+        if (shareSection) {
+            // Show share section only if puzzle is completed
+            const isCompleted = this.elapsedTime && this.elapsedTime > 0;
+            shareSection.style.display = isCompleted ? 'block' : 'none';
+            
+            if (isCompleted) {
+                // Update the completion time display in the modal
+                const completionTimeElement = document.getElementById('leaderboardCompletionTime');
+                if (completionTimeElement) {
+                    completionTimeElement.textContent = this.formatTime(this.elapsedTime);
+                }
+            }
         }
     }
 }
