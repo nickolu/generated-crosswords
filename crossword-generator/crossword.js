@@ -862,18 +862,29 @@ class CrosswordPuzzle {
                 }
                 break;
             case 'Backspace':
-                const currentCell = document.querySelector(`[data-index="${this.selectedCell}"]`);
-                if (currentCell && currentCell.value) {
-                    currentCell.value = '';
-                    delete this.userAnswers[this.selectedCell];
-                    currentCell.style.removeProperty('background');
-                } else if (this.selectedClue !== null) {
-                    // Move to previous cell in word
+                if (this.selectedClue !== null) {
+                    // Move to previous cell in word and delete its content
                     const clue = this.puzzle.clues[this.selectedClue];
                     const currentPosition = clue.cells.indexOf(this.selectedCell);
                     if (currentPosition > 0) {
                         const prevCellIndex = clue.cells[currentPosition - 1];
+                        // Move to previous cell
                         this.moveToCell(prevCellIndex);
+                        // Immediately delete the letter in the previous cell
+                        const prevCell = document.querySelector(`[data-index="${prevCellIndex}"]`);
+                        if (prevCell) {
+                            prevCell.value = '';
+                            delete this.userAnswers[prevCellIndex];
+                            prevCell.style.removeProperty('background');
+                        }
+                    } else {
+                        // If we're at the first cell of the word, just clear the current cell
+                        const currentCell = document.querySelector(`[data-index="${this.selectedCell}"]`);
+                        if (currentCell && currentCell.value) {
+                            currentCell.value = '';
+                            delete this.userAnswers[this.selectedCell];
+                            currentCell.style.removeProperty('background');
+                        }
                     }
                 }
                 event.preventDefault();
