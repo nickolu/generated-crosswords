@@ -196,7 +196,7 @@
                 let html = '';
                 puzzles.forEach(puzzle => {
                     const linkClass = puzzle.isToday ? 'puzzle-item today-link' : 'puzzle-item';
-                    const href = `../crossword.html?puzzle=${puzzle.filename}`;
+                    const href = `../mini?puzzle=${puzzle.filename}`;
                     
                     if (puzzle.isToday) {
                         html += `
