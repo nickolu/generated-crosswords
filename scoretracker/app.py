@@ -18,6 +18,9 @@ app = Flask(__name__)
 DATA_DIR = Path(__file__).parent / ".." / "data"
 DATA_DIR.mkdir(exist_ok=True)
 
+# Directory containing crossword JSON files
+CROSSWORDS_DIR = Path(__file__).parent / ".." / "crosswords"
+
 
 @app.route('/results', methods=['GET'])
 def store_results():
@@ -88,6 +91,39 @@ def store_results():
         return jsonify({'error': 'Internal server error'}), 500
 
 
+@app.route('/crosswords', methods=['GET'])
+def list_crosswords():
+    """
+    Return a list of all JSON files in the crosswords directory.
+    
+    Returns JSON response with a list of available crossword files.
+    """
+    try:
+        # Check if crosswords directory exists
+        if not CROSSWORDS_DIR.exists():
+            return jsonify({'error': 'Crosswords directory not found'}), 404
+        
+        # Get all JSON files in the crosswords directory
+        json_files = []
+        for file_path in CROSSWORDS_DIR.glob('*.json'):
+            json_files.append(file_path.name)
+        
+        # Sort the files for consistent ordering
+        json_files.sort()
+        
+        app.logger.info(f"Found {len(json_files)} crossword files")
+        
+        return jsonify({
+            'status': 'success',
+            'count': len(json_files),
+            'files': json_files
+        }), 200
+        
+    except Exception as e:
+        app.logger.error(f"Error listing crosswords: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint for monitoring."""
@@ -102,6 +138,7 @@ def index():
         'description': 'Stores user scores in date-based JSON files (YYYY-MM-DD.json) with {username: time} format',
         'endpoints': {
             '/results': 'Store user results (GET with user and time parameters)',
+            '/crosswords': 'List all available crossword JSON files',
             '/health': 'Health check endpoint'
         }
     }), 200

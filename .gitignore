@@ -1,5 +1,4 @@
-crossword-generator/crosswords/
-crossword-generator/generated/
+crosswords/*
 .DS_Store
 uv.lock
 data/*

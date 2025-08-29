@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manchat Crossword Archive</title>
+    <link rel="stylesheet" href="../crossword-generator/crossword.css">
+    <style>
+        .archive-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .puzzle-list {
+            display: grid;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        
+        .puzzle-item {
+            padding: 20px;
+            background: linear-gradient(145deg, var(--color-background-surface), var(--color-background-surface-secondary));
+            border: 1px solid var(--color-border-primary);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--color-text-primary);
+            transition: all 0.2s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .puzzle-item:hover {
+            background: linear-gradient(145deg, var(--color-background-surface-hover), var(--color-background-surface-hover-secondary));
+            border-color: var(--color-border-secondary);
+            box-shadow: 0 4px 12px var(--color-shadow-tertiary);
+            transform: translateY(-2px);
+        }
+        
+        .puzzle-name {
+            font-size: 18px;
+            font-weight: 600;
+            font-family: 'Oswald', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .puzzle-date {
+            color: var(--color-text-secondary);
+            font-size: 14px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--color-text-secondary);
+            font-style: italic;
+        }
+        
+        .error {
+            text-align: center;
+            padding: 40px;
+            color: var(--primitive-gold-500);
+            background: linear-gradient(145deg, var(--color-disabled-background), var(--color-disabled-background-secondary));
+            border-radius: 8px;
+            border: 1px solid var(--color-border-secondary);
+        }
+        
+        .today-link {
+            background: linear-gradient(145deg, var(--color-selected-background), var(--color-selected-background-secondary));
+            border: 2px solid var(--color-selected-border);
+            color: var(--color-text-on-accent);
+        }
+        
+        .today-link:hover {
+            background: linear-gradient(145deg, var(--color-hover-background), var(--color-hover-background-secondary));
+        }
+    </style>
+</head>
+<body>
+    <div class="archive-container">
+        <h1 class="title">Manchat Crossword Archive</h1>
+        
+        <div class="puzzle-info">
+            Select a crossword puzzle to play
+        </div>
+        
+        <div class="puzzle-list" id="puzzleList">
+            <div class="loading">Loading available puzzles...</div>
+        </div>
+    </div>
+
+    <script>
+        class CrosswordArchive {
+            constructor() {
+                this.elevenYearsAgo = new Date(new Date().getFullYear() - 11, new Date().getMonth(), new Date().getDate());
+                this.loadPuzzleList();
+            }
+
+            async loadPuzzleList() {
+                const puzzleList = document.getElementById('puzzleList');
+                await this.loadKnownPuzzles();
+            }
+
+            async loadKnownPuzzles() {
+                const puzzleList = document.getElementById('puzzleList');
+                
+                try {
+                    // Fetch the list of available crossword JSON files from the API
+                    const response = await fetch('https://manchat.men/crossword-jsons');
+                    
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch puzzle list: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    const knownPuzzleFiles = data.files || [];
+                    
+                    if (knownPuzzleFiles.length === 0) {
+                        throw new Error('No puzzle files found in API response');
+                    }
+
+                    const knownPuzzles = [];
+
+                    // Check which puzzle files actually exist and are accessible
+                    for (const filename of knownPuzzleFiles) {
+                        try {
+                            const puzzleResponse = await fetch(`https://manchat.men/crosswords/${filename}`, { method: 'HEAD' });
+                            if (puzzleResponse.ok) {
+                                // Extract date from filename (try multiple patterns)
+                                let dateMatch = filename.match(/mini_(\d{4}-\d{2}-\d{2})\.json/);
+                                if (!dateMatch) {
+                                    dateMatch = filename.match(/(\d{4}-\d{2}-\d{2})\.json/);
+                                }
+                                
+                                const date = dateMatch ? dateMatch[1] : filename.replace('.json', '');
+                                const displayName = filename.includes('mini_') ? 
+                                    `Mini Crossword ${date}` : 
+                                    `Crossword ${date}`;
+                                
+                                knownPuzzles.push({
+                                    filename: filename,
+                                    displayName: displayName,
+                                    date: date,
+                                    isToday: false // We don't have current date puzzles in this format
+                                });
+                            }
+                        } catch (e) {
+                            // Puzzle doesn't exist or isn't accessible, skip
+                            console.log(`Puzzle ${filename} not accessible`);
+                        }
+                    }
+
+                    // If no puzzles found, show error
+                    if (knownPuzzles.length === 0) {
+                        throw new Error('No accessible puzzles found');
+                    }
+
+                    this.renderPuzzleList(knownPuzzles);
+                    
+                } catch (error) {
+                    console.error('Error loading puzzle list:', error);
+                    puzzleList.innerHTML = `<div class="error">Failed to load puzzle list: ${error.message}</div>`;
+                }
+            }
+
+            generateRecentDates(count) {
+                const dates = [];
+                const today = new Date();
+                
+                for (let i = 0; i < count; i++) {
+                    const date = new Date(today);
+                    date.setDate(today.getDate() - i);
+                    dates.push(date.toISOString().split('T')[0]);
+                }
+                
+                return dates;
+            }
+
+            renderPuzzleList(puzzles) {
+                const puzzleList = document.getElementById('puzzleList');
+                
+                if (puzzles.length === 0) {
+                    puzzleList.innerHTML = '<div class="error">No puzzles found. Please check that puzzle files exist in the data/ directory.</div>';
+                    return;
+                }
+
+                // Sort puzzles by date (most recent first)
+                puzzles.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                // Exclude all puzzles newer than 11 years ago today
+                puzzles = puzzles.filter(puzzle => new Date(puzzle.date) < this.elevenYearsAgo);
+
+                let html = '';
+                puzzles.forEach(puzzle => {
+                    const linkClass = puzzle.isToday ? 'puzzle-item today-link' : 'puzzle-item';
+                    const href = `../crossword.html?puzzle=${puzzle.filename}`;
+                    
+                    html += `
+                        <a href="${href}" class="${linkClass}">
+                            <div>
+                                <div class="puzzle-name">${puzzle.displayName}</div>
+                                <div class="puzzle-date">${this.formatDate(puzzle.date)}</div>
+                            </div>
+                            <div>➤</div>
+                        </a>
+                    `;
+                });
+
+                puzzleList.innerHTML = html;
+            }
+
+            formatDate(dateString) {
+                const date = new Date(dateString + 'T00:00:00');
+                return date.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+            }
+        }
+
+        // Initialize when page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            new CrosswordArchive();
+        });
+    </script>
+</body>
+</html>

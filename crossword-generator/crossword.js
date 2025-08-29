@@ -573,17 +573,7 @@ class CrosswordPuzzle {
         this.sendResultsToServer()
             .then(() => {
                 // Update header to show submission success
-                const modal = document.getElementById('leaderboardModal');
-                const leaderboardHeader = modal?.querySelector('.leaderboard-header h2');
-                if (leaderboardHeader) {
-                    leaderboardHeader.innerHTML = '🎉 Puzzle Complete! 🎉<br/><span style="font-size: 0.8em; font-weight: normal;">Score submitted! Loading updated leaderboard...</span>';
-                }
-                
-                // Wait a brief moment for the server to process the submission
-                setTimeout(() => {
-                    // Refresh the leaderboard data to show updated rankings
-                    this.loadLeaderboardData();
-                }, 500);
+                this.loadLeaderboardData();
             })
             .catch(() => {
                 // Update header to show submission failed but continue
@@ -915,7 +905,7 @@ class CrosswordPuzzle {
             // Show completion celebration header
             const leaderboardHeader = modal.querySelector('.leaderboard-header h2');
             if (leaderboardHeader) {
-                leaderboardHeader.innerHTML = '🎉 Puzzle Complete! 🎉<br/><span style="font-size: 0.8em; font-weight: normal;">Submitting your score...</span>';
+                leaderboardHeader.innerHTML = '🎉 Puzzle Complete! 🎉';
             }
             
             modal.style.display = 'flex';
@@ -1073,4 +1063,5 @@ window.addEventListener('DOMContentLoaded', () => {
     if (typeof puzzleData !== 'undefined') {
         crosswordInstance = new CrosswordPuzzle(puzzleData);
     }
+    // Note: When used with dynamic loading, crosswordInstance will be set by the loader
 });
