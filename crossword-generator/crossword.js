@@ -421,9 +421,6 @@ class CrosswordPuzzle {
         // Clear previous selections
         wrappers.forEach(wrapper => {
             wrapper.classList.remove('selected', 'highlighted', 'empty');
-            // Remove any existing cursor elements
-            const cursor = wrapper.querySelector('.cursor-blink');
-            if (cursor) cursor.remove();
         });
         blackCells.forEach(cell => cell.classList.remove('selected', 'highlighted', 'empty'));
         clueItems.forEach(item => item.classList.remove('selected'));
@@ -485,9 +482,6 @@ class CrosswordPuzzle {
         const blackCells = document.querySelectorAll('.cell.black');
         wrappers.forEach(wrapper => {
             wrapper.classList.remove('selected', 'highlighted', 'empty');
-            // Remove any existing cursor elements
-            const cursor = wrapper.querySelector('.cursor-blink');
-            if (cursor) cursor.remove();
         });
         blackCells.forEach(cell => cell.classList.remove('selected', 'highlighted', 'empty'));
         
@@ -593,22 +587,10 @@ class CrosswordPuzzle {
         // Add or remove 'empty' class and cursor element based on whether the cell has content
         const hasContent = this.userAnswers[cellIndex] && this.userAnswers[cellIndex].length > 0;
         
-        // Remove existing cursor element if it exists
-        const existingCursor = wrapperElement.querySelector('.cursor-blink');
-        if (existingCursor) {
-            existingCursor.remove();
-        }
-        
         if (hasContent) {
             wrapperElement.classList.remove('empty');
         } else {
             wrapperElement.classList.add('empty');
-            // Add cursor element for empty selected cells
-            if (wrapperElement.classList.contains('selected')) {
-                const cursor = document.createElement('div');
-                cursor.className = 'cursor-blink';
-                wrapperElement.appendChild(cursor);
-            }
         }
     }
     
@@ -809,9 +791,6 @@ class CrosswordPuzzle {
         // Remove selected class from current cell
         wrappers.forEach(wrapper => {
             wrapper.classList.remove('selected', 'empty');
-            // Remove any existing cursor elements
-            const cursor = wrapper.querySelector('.cursor-blink');
-            if (cursor) cursor.remove();
         });
         blackCells.forEach(cell => cell.classList.remove('selected', 'empty'));
         

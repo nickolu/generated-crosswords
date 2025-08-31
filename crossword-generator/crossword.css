@@ -634,22 +634,6 @@ body {
     caret-color: transparent !important;
 }
 
-/* Cursor element for empty selected cells */
-.cursor-blink {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: 1px;
-    height: 70%;
-    background-color: var(--primitive-black);
-    border-radius: 1px;
-    animation: cursorBlink 1.2s ease-in-out infinite;
-    z-index: 10;
-    box-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
-    pointer-events: none;
-}
-
 .cell.selected {
     caret-color: transparent !important;
 }
