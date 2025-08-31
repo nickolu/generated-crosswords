@@ -437,8 +437,9 @@ class CrosswordPuzzle {
         if (targetWrapper && targetInput) {
             targetWrapper.classList.add('selected');
             this.updateCellEmptyState(targetWrapper, index);
-            targetInput.focus();
-            targetInput.select(); // Auto-select existing text for easy replacement
+            // Don't focus readonly inputs to prevent caret appearance
+            // targetInput.focus();
+            // targetInput.select(); // Auto-select existing text for easy replacement
         }
         
         // Highlight the word and clue
@@ -515,8 +516,9 @@ class CrosswordPuzzle {
         const targetWrapper = wrappers[targetCellIndex];
         const targetInput = targetWrapper?.querySelector('.cell');
         if (targetWrapper && targetInput) {
-            targetInput.focus();
-            targetInput.select(); // Auto-select existing text for easy replacement
+            // Don't focus readonly inputs to prevent caret appearance
+            // targetInput.focus();
+            // targetInput.select(); // Auto-select existing text for easy replacement
             this.selectedCell = targetCellIndex;
             targetWrapper.classList.add('selected');
             this.updateCellEmptyState(targetWrapper, targetCellIndex);
@@ -822,8 +824,9 @@ class CrosswordPuzzle {
         if (targetWrapper && targetInput) {
             targetWrapper.classList.add('selected');
             this.updateCellEmptyState(targetWrapper, index);
-            targetInput.focus();
-            targetInput.select(); // Auto-select existing text for easy replacement
+            // Don't focus readonly inputs to prevent caret appearance
+            // targetInput.focus();
+            // targetInput.select(); // Auto-select existing text for easy replacement
         }
     }
     
@@ -938,8 +941,11 @@ class CrosswordPuzzle {
             const cell = this.puzzle.cells[this.selectedCell];
             
             if (currentCell && cell) {
-                // Set the letter in the cell
+                // Temporarily remove readonly to allow value setting
+                currentCell.removeAttribute('readonly');
                 currentCell.value = letter;
+                // Immediately restore readonly to prevent caret
+                currentCell.setAttribute('readonly', 'readonly');
                 this.userAnswers[this.selectedCell] = letter;
                 
                 // Update empty state for cursor display
@@ -999,8 +1005,11 @@ class CrosswordPuzzle {
                     
                     // Check if current cell has content
                     if (currentCell && currentCell.value) {
-                        // Delete current cell content
+                        // Temporarily remove readonly to allow value deletion
+                        currentCell.removeAttribute('readonly');
                         currentCell.value = '';
+                        // Immediately restore readonly to prevent caret
+                        currentCell.setAttribute('readonly', 'readonly');
                         delete this.userAnswers[this.selectedCell];
                         currentCell.style.removeProperty('background');
                         

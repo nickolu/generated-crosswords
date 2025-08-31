@@ -660,13 +660,90 @@ input.cell {
     caret-color: transparent !important;
     -webkit-caret-color: transparent !important;
     -moz-caret-color: transparent !important;
+    -ms-caret-color: transparent !important;
+    text-shadow: none !important;
 }
 
 input.cell:focus {
     caret-color: transparent !important;
     -webkit-caret-color: transparent !important;
     -moz-caret-color: transparent !important;
-    outline: none;
+    -ms-caret-color: transparent !important;
+    outline: none !important;
+    text-shadow: none !important;
+}
+
+/* Additional caret hiding for all possible states */
+.cell, .cell:focus, .cell:active, .cell:hover {
+    caret-color: transparent !important;
+    -webkit-caret-color: transparent !important;
+    -moz-caret-color: transparent !important;
+    -ms-caret-color: transparent !important;
+}
+
+/* Force hide cursor using alternative methods */
+input.cell::selection {
+    background: transparent !important;
+}
+
+input.cell::-moz-selection {
+    background: transparent !important;
+}
+
+/* Most aggressive caret hiding approach */
+.grid input.cell,
+.crossword-grid input.cell,
+div input.cell,
+input.cell.cell {
+    caret-color: transparent !important;
+    -webkit-caret-color: transparent !important;
+    -moz-caret-color: transparent !important;
+    -ms-caret-color: transparent !important;
+    -webkit-text-fill-color: var(--color-text-cell) !important;
+    
+    /* Additional properties to prevent caret */
+    -webkit-user-modify: read-only !important;
+    -moz-user-modify: read-only !important;
+    user-modify: read-only !important;
+}
+
+.grid input.cell:focus,
+.crossword-grid input.cell:focus,
+div input.cell:focus,
+input.cell.cell:focus {
+    caret-color: transparent !important;
+    -webkit-caret-color: transparent !important;
+    -moz-caret-color: transparent !important;
+    -ms-caret-color: transparent !important;
+    -webkit-text-fill-color: var(--color-text-cell) !important;
+    outline: none !important;
+}
+
+/* Final fallback: use readonly attribute simulation */
+input.cell[readonly] {
+    caret-color: transparent !important;
+    -webkit-caret-color: transparent !important;
+}
+
+/* Use a pseudo-element to cover any remaining caret */
+input.cell:focus::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    z-index: 999;
+    pointer-events: none;
+}
+
+/* Force readonly behavior to prevent caret */
+input.cell[readonly], 
+input.cell[readonly]:focus {
+    caret-color: transparent !important;
+    -webkit-caret-color: transparent !important;
+    -moz-caret-color: transparent !important;
+    -ms-caret-color: transparent !important;
+    cursor: pointer !important;
 }
 
 
