@@ -643,26 +643,6 @@ body {
     caret-color: transparent !important;
 }
 
-/* Ultimate caret hiding solution using text color manipulation */
-input.cell {
-    color: transparent !important;
-    text-shadow: 0 0 0 var(--color-text-cell) !important;
-    caret-color: transparent !important;
-    -webkit-caret-color: transparent !important;
-    -moz-caret-color: transparent !important;
-    -ms-caret-color: transparent !important;
-}
-
-input.cell:focus {
-    color: transparent !important;
-    text-shadow: 0 0 0 var(--color-text-cell) !important;
-    caret-color: transparent !important;
-    -webkit-caret-color: transparent !important;
-    -moz-caret-color: transparent !important;
-    -ms-caret-color: transparent !important;
-    outline: none !important;
-}
-
 /* Ensure selection is also transparent */
 input.cell::selection {
     background: transparent !important;
