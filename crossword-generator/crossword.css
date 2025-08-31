@@ -103,7 +103,7 @@
   --color-background-overlay-secondary: var(--primitive-gray-alpha-95);
 
   --color-background-cell: var(--primitive-light-gray-25);
-  --color-background-cell-selected: var(--primitive-ocean-400);
+  --color-background-cell-selected: var(--primitive-ocean-600);
   --color-background-cell-selected-secondary: var(--primitive-ocean-300);
   --color-background-cell-secondary: var(--primitive-light-gray-50);
   --color-background-cell-black: var(--primitive-black);
@@ -476,7 +476,7 @@ button:disabled {
     top: 0;
 
   --color-background-cell: var(--primitive-light-gray-25);
-  --color-background-cell-selected: var(--primitive-ocean-200);
+  --color-background-cell-selected: var(--primitive-ocean-600);
   --color-background-cell-selected-secondary: var(--primitive-ocean-300);
   --color-background-cell-secondary: var(--primitive-light-gray-50);
   --color-background-cell-black: var(--primitive-black);
@@ -653,6 +653,20 @@ body {
 .cell.selected:focus {
     outline: none;
     caret-color: transparent !important;
+}
+
+/* Ensure all input elements used as cells have transparent caret */
+input.cell {
+    caret-color: transparent !important;
+    -webkit-caret-color: transparent !important;
+    -moz-caret-color: transparent !important;
+}
+
+input.cell:focus {
+    caret-color: transparent !important;
+    -webkit-caret-color: transparent !important;
+    -moz-caret-color: transparent !important;
+    outline: none;
 }
 
 
