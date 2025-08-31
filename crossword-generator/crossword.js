@@ -558,9 +558,26 @@ class CrosswordPuzzle {
             // Ensure the input value is clean (single letter)
             event.target.value = firstValidChar;
             
+            // Update userAnswers to match the input value
+            this.userAnswers[cellIndex] = firstValidChar;
+            
+            // Only show feedback if enabled
+            if (this.showFeedback && cell) {
+                if (cell.answer === firstValidChar) {
+                    event.target.style.setProperty('background', '#c8e6c9', 'important');
+                } else {
+                    event.target.style.setProperty('background', '#ffcdd2', 'important');
+                }
+            } else {
+                event.target.style.removeProperty('background');
+            }
+            
             // Update empty state for cursor display
             const wrapper = event.target.closest('.cell-wrapper');
             if (wrapper) this.updateCellEmptyState(wrapper, cellIndex);
+            
+            // Check for puzzle completion
+            this.checkPuzzleCompletion();
         } else {
             event.target.value = '';
             delete this.userAnswers[cellIndex];
@@ -917,7 +934,7 @@ class CrosswordPuzzle {
         // Handle letter input directly in keydown for immediate response
         if (event.key.match(/^[A-Za-z]$/)) {
             const letter = event.key.toUpperCase();
-            const currentCell = document.querySelector(`[data-index="${this.selectedCell}"]`);
+            const currentCell = document.querySelector(`input.cell[data-index="${this.selectedCell}"]`);
             const cell = this.puzzle.cells[this.selectedCell];
             
             if (currentCell && cell) {
@@ -978,7 +995,7 @@ class CrosswordPuzzle {
                 break;
             case 'Backspace':
                 if (this.selectedClue !== null) {
-                    const currentCell = document.querySelector(`[data-index="${this.selectedCell}"]`);
+                    const currentCell = document.querySelector(`input.cell[data-index="${this.selectedCell}"]`);
                     
                     // Check if current cell has content
                     if (currentCell && currentCell.value) {
@@ -999,7 +1016,7 @@ class CrosswordPuzzle {
                             // Move to previous cell
                             this.moveToCell(prevCellIndex);
                             // Immediately delete the letter in the previous cell
-                            const prevCell = document.querySelector(`[data-index="${prevCellIndex}"]`);
+                            const prevCell = document.querySelector(`input.cell[data-index="${prevCellIndex}"]`);
                             if (prevCell) {
                                 prevCell.value = '';
                                 delete this.userAnswers[prevCellIndex];
