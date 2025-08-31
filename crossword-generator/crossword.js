@@ -546,6 +546,8 @@ class CrosswordPuzzle {
     }
     
     handleInput(event, cellIndex) {
+        // This event handler is now primarily for cleanup and fallback
+        // Most letter input is handled in handleKeyPress for better responsiveness
         const value = event.target.value.toUpperCase();
         const cell = this.puzzle.cells[cellIndex];
         
@@ -553,29 +555,12 @@ class CrosswordPuzzle {
         const firstValidChar = value.match(/[A-Z]/)?.[0] || '';
         
         if (firstValidChar) {
-            this.userAnswers[cellIndex] = firstValidChar;
+            // Ensure the input value is clean (single letter)
             event.target.value = firstValidChar;
             
             // Update empty state for cursor display
             const wrapper = event.target.closest('.cell-wrapper');
             if (wrapper) this.updateCellEmptyState(wrapper, cellIndex);
-            
-            // Only show feedback if enabled
-            if (this.showFeedback && cell) {
-                if (cell.answer === firstValidChar) {
-                    event.target.style.setProperty('background', '#c8e6c9', 'important');
-                } else {
-                    event.target.style.setProperty('background', '#ffcdd2', 'important');
-                }
-            } else {
-                event.target.style.removeProperty('background');
-            }
-            
-            // Check for puzzle completion
-            this.checkPuzzleCompletion();
-            
-            // Move to next cell
-            this.moveToNextCell(cellIndex);
         } else {
             event.target.value = '';
             delete this.userAnswers[cellIndex];
@@ -929,6 +914,42 @@ class CrosswordPuzzle {
         
         let nextIndex = null;
         
+        // Handle letter input directly in keydown for immediate response
+        if (event.key.match(/^[A-Za-z]$/)) {
+            const letter = event.key.toUpperCase();
+            const currentCell = document.querySelector(`[data-index="${this.selectedCell}"]`);
+            const cell = this.puzzle.cells[this.selectedCell];
+            
+            if (currentCell && cell) {
+                // Set the letter in the cell
+                currentCell.value = letter;
+                this.userAnswers[this.selectedCell] = letter;
+                
+                // Update empty state for cursor display
+                const wrapper = currentCell.closest('.cell-wrapper');
+                if (wrapper) this.updateCellEmptyState(wrapper, this.selectedCell);
+                
+                // Only show feedback if enabled
+                if (this.showFeedback && cell) {
+                    if (cell.answer === letter) {
+                        currentCell.style.setProperty('background', '#c8e6c9', 'important');
+                    } else {
+                        currentCell.style.setProperty('background', '#ffcdd2', 'important');
+                    }
+                } else {
+                    currentCell.style.removeProperty('background');
+                }
+                
+                // Check for puzzle completion
+                this.checkPuzzleCompletion();
+                
+                // Move to next cell
+                this.moveToNextCell(this.selectedCell);
+            }
+            event.preventDefault();
+            return;
+        }
+        
         switch (event.key) {
             case 'Tab':
                 // Move to next word in current direction, or switch direction if at end
@@ -965,6 +986,10 @@ class CrosswordPuzzle {
                         currentCell.value = '';
                         delete this.userAnswers[this.selectedCell];
                         currentCell.style.removeProperty('background');
+                        
+                        // Update empty state for cursor display
+                        const wrapper = currentCell.closest('.cell-wrapper');
+                        if (wrapper) this.updateCellEmptyState(wrapper, this.selectedCell);
                     } else {
                         // Current cell is empty, move to previous cell and delete its content
                         const clue = this.puzzle.clues[this.selectedClue];
@@ -979,6 +1004,10 @@ class CrosswordPuzzle {
                                 prevCell.value = '';
                                 delete this.userAnswers[prevCellIndex];
                                 prevCell.style.removeProperty('background');
+                                
+                                // Update empty state for cursor display
+                                const wrapper = prevCell.closest('.cell-wrapper');
+                                if (wrapper) this.updateCellEmptyState(wrapper, prevCellIndex);
                             }
                         }
                     }
