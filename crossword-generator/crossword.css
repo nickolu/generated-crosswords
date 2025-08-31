@@ -625,6 +625,7 @@ body {
 }
 
 .cell-wrapper.selected .cell {
+    outline: none;
     background: linear-gradient(145deg, var(--color-background-cell-selected), var(--color-background-cell-selected-secondary)) !important;
     border: 6px solid var(--primitive-gold-600);
     color: var(--color-text-cell);
@@ -635,6 +636,7 @@ body {
 }
 
 .cell.selected {
+    outline: none;
     caret-color: transparent !important;
 }
 
