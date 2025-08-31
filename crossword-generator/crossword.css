@@ -650,6 +650,10 @@ body {
     pointer-events: none;
 }
 
+.cell.selected {
+    caret-color: transparent !important;
+}
+
 .cell.selected:focus {
     outline: none;
     caret-color: transparent !important;
