@@ -256,7 +256,7 @@ body {
     position: absolute;
     top: 2px;
     left: 2px;
-    font-size: 10px;
+    font-size: 20px;
     font-weight: bold;
     color: var(--color-text-cell-number);
     pointer-events: none;
