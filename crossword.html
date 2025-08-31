@@ -195,7 +195,7 @@
                         gridHTML += `<div class="cell black" data-index="${index}"></div>`;
                     } else {
                         gridHTML += `<div class="cell-wrapper" data-index="${index}" style="position: relative;">
-                            <input class="cell" type="text" maxlength="1" data-index="${index}" readonly tabindex="-1">
+                            <input class="cell" type="text" maxlength="1" data-index="${index}">
                             ${cell.label ? `<span class="cell-number">${cell.label}</span>` : ''}
                         </div>`;
                     }
