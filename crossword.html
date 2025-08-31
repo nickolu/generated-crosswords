@@ -20,7 +20,7 @@
             <button id="pauseBtn" disabled>Pause</button>
             <button id="persistentShareBtn" disabled>📋 Share</button>
             <button id="leaderboardBtn">🏆 Leaderboard</button>
-            <button id="archiveBtn" onclick="window.location.href='mini/archive'">📚 Archive</button>
+            <button id="archiveBtn" onclick="window.location.href='mini-archive'">📚 Archive</button>
         </div>
         <div class="feedback-toggle">
             <label for="feedbackToggle">
@@ -177,8 +177,10 @@
                     if (!cell || Object.keys(cell).length === 0) {
                         gridHTML += `<div class="cell black" data-index="${index}"></div>`;
                     } else {
-                        const numberHTML = cell.label ? `<span class="cell-number">${cell.label}</span>` : '';
-                        gridHTML += `<input class="cell" type="text" maxlength="1" data-index="${index}">${numberHTML}`;
+                        gridHTML += `<div class="cell-wrapper" style="position: relative;">
+                            <input class="cell" type="text" maxlength="1" data-index="${index}">
+                            ${cell.label ? `<span class="cell-number">${cell.label}</span>` : ''}
+                        </div>`;
                     }
                 });
                 

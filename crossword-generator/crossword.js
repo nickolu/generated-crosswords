@@ -597,7 +597,7 @@ class CrosswordPuzzle {
         const timeInSeconds = Math.floor(this.elapsedTime / 1000);
         
         // Construct the URL
-        const url = `https://manchat.men/results?user=${encodeURIComponent(this.userName)}&time=${timeInSeconds}`;
+        const url = `results?user=${encodeURIComponent(this.userName)}&time=${timeInSeconds}`;
         
         // Send GET request and return the promise
         return fetch(url, {
@@ -953,7 +953,7 @@ class CrosswordPuzzle {
         try {
             // Get today's date in YYYY-MM-DD format
             const today = new Date().toISOString().split('T')[0];
-            const dataUrl = `https://manchat.men/data/${today}.json`;
+            const dataUrl = `data/${today}.json`;
             
             const response = await fetch(dataUrl, {
                 method: 'GET',

@@ -191,6 +191,11 @@ body {
     /* Grid columns will be set dynamically via JavaScript */
 }
 
+.cell-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
 .cell {
     width: 76px;
     height: 76px;
