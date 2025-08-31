@@ -238,6 +238,7 @@ body {
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
+    caret-color: transparent !important;
 }
 
 .cell::selection {
@@ -253,8 +254,6 @@ body {
     border: 2px solid var(--color-border-cell-black);
     cursor: default;
 }
-
-
 
 .cell-wrapper.highlighted .cell {
     background: linear-gradient(145deg, var(--color-highlighted-background-light), var(--color-highlighted-background-light-secondary));
@@ -608,6 +607,7 @@ body {
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
+    caret-color: transparent !important;
 }
 
 .cell::selection {
@@ -631,7 +631,7 @@ body {
     box-shadow: 
         0 0 0 2px var(--primitive-gold-400),
         inset 0 1px 3px var(--color-shadow-light);
-    caret-color: transparent;
+    caret-color: transparent !important;
 }
 
 /* Cursor element for empty selected cells */
@@ -652,8 +652,12 @@ body {
 
 .cell.selected:focus {
     outline: none;
-    caret-color: transparent;
+    caret-color: transparent !important;
 }
+
+
+
+
 
 .cell-wrapper.highlighted .cell {
     background: linear-gradient(145deg, var(--color-highlighted-background-light), var(--color-highlighted-background-light-secondary));

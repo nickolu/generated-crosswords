@@ -549,9 +549,12 @@ class CrosswordPuzzle {
         const value = event.target.value.toUpperCase();
         const cell = this.puzzle.cells[cellIndex];
         
-        if (value && value.match(/[A-Z]/)) {
-            this.userAnswers[cellIndex] = value;
-            event.target.value = value;
+        // Only take the first valid letter character
+        const firstValidChar = value.match(/[A-Z]/)?.[0] || '';
+        
+        if (firstValidChar) {
+            this.userAnswers[cellIndex] = firstValidChar;
+            event.target.value = firstValidChar;
             
             // Update empty state for cursor display
             const wrapper = event.target.closest('.cell-wrapper');
@@ -559,7 +562,7 @@ class CrosswordPuzzle {
             
             // Only show feedback if enabled
             if (this.showFeedback && cell) {
-                if (cell.answer === value) {
+                if (cell.answer === firstValidChar) {
                     event.target.style.setProperty('background', '#c8e6c9', 'important');
                 } else {
                     event.target.style.setProperty('background', '#ffcdd2', 'important');
