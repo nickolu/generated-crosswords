@@ -37,6 +37,23 @@
             <div id="crossword" class="grid">
                 <!-- Grid will be populated dynamically -->
             </div>
+            
+            <!-- Mobile Clue Navigator - positioned below grid -->
+            <div class="mobile-clue-navigator" id="mobileClueNavigator">
+                <button class="nav-btn prev-btn" id="prevClueBtn" aria-label="Previous clue">
+                    <span class="nav-arrow">‹</span>
+                </button>
+                <div class="clue-display">
+                    <div class="clue-info">
+                        <span class="clue-number" id="mobileClueNumber">1</span>
+                        <span class="clue-direction" id="mobileClueDirection">Across</span>
+                    </div>
+                    <div class="clue-text" id="mobileClueText">Select a clue to begin</div>
+                </div>
+                <button class="nav-btn next-btn" id="nextClueBtn" aria-label="Next clue">
+                    <span class="nav-arrow">›</span>
+                </button>
+            </div>
         </div>
         
         <div class="clues-section">
@@ -169,8 +186,8 @@
                 const grid = document.getElementById('crossword');
                 const { width, height } = this.puzzle.dimensions;
                 
-                // Set grid template columns
-                grid.style.gridTemplateColumns = `repeat(${width}, 80px)`;
+                // Set grid template columns with responsive sizing
+                grid.style.gridTemplateColumns = `repeat(${width}, var(--cell-size, 80px))`;
                 
                 let gridHTML = '';
                 this.puzzle.cells.forEach((cell, index) => {

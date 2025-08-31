@@ -1,5 +1,6 @@
-crosswords/*
+crosswords
 .DS_Store
 uv.lock
 data/*
 **/__pycache__/*
+**/.venv/*

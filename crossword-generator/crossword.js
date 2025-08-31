@@ -19,6 +19,7 @@ class CrosswordPuzzle {
         this.setupGrid();
         this.setupTimer();
         this.setupEventListeners();
+        this.setupMobileClueNavigator();
         this.blurClues();
         this.showGameOverlay();
     }
@@ -187,11 +188,25 @@ class CrosswordPuzzle {
     }
     
     setupGrid() {
-        // Set the grid columns dynamically based on puzzle width
+        // Set the grid columns dynamically based on puzzle width with responsive sizing
         const grid = document.querySelector('.grid');
         if (grid && this.puzzle.dimensions) {
-            grid.style.gridTemplateColumns = `repeat(${this.puzzle.dimensions.width}, 80px)`;
+            // Use CSS custom property for responsive cell sizing
+            grid.style.gridTemplateColumns = `repeat(${this.puzzle.dimensions.width}, var(--cell-size, 76px))`;
         }
+    }
+    
+    setupMobileClueNavigator() {
+        const prevBtn = document.getElementById('prevClueBtn');
+        const nextBtn = document.getElementById('nextClueBtn');
+        
+        if (prevBtn && nextBtn) {
+            prevBtn.addEventListener('click', () => this.navigateToPreviousClue());
+            nextBtn.addEventListener('click', () => this.navigateToNextClue());
+        }
+        
+        // Initialize with empty state
+        this.updateMobileClueDisplay();
     }
     
     setupTimer() {
@@ -424,6 +439,9 @@ class CrosswordPuzzle {
         if (this.gameStarted && !this.isRunning && !this.isPaused) {
             this.startTimer();
         }
+        
+        // Update mobile clue navigator
+        this.updateMobileClueDisplay();
     }
     
     handleCellClick(index) {
@@ -484,6 +502,9 @@ class CrosswordPuzzle {
         if (this.gameStarted && !this.isRunning && !this.isPaused) {
             this.startTimer();
         }
+        
+        // Update mobile clue navigator
+        this.updateMobileClueDisplay();
     }
     
     highlightWord(clueIndex) {
@@ -1063,6 +1084,134 @@ class CrosswordPuzzle {
                 if (completionTimeElement) {
                     completionTimeElement.textContent = this.formatTime(this.elapsedTime);
                 }
+            }
+        }
+    }
+    
+    // Mobile Clue Navigator Methods
+    updateMobileClueDisplay() {
+        const clueNumberEl = document.getElementById('mobileClueNumber');
+        const clueDirectionEl = document.getElementById('mobileClueDirection');
+        const clueTextEl = document.getElementById('mobileClueText');
+        const prevBtn = document.getElementById('prevClueBtn');
+        const nextBtn = document.getElementById('nextClueBtn');
+        
+        if (!clueNumberEl || !clueDirectionEl || !clueTextEl || !prevBtn || !nextBtn) {
+            return;
+        }
+        
+        if (this.selectedClue === null) {
+            clueNumberEl.textContent = '';
+            clueDirectionEl.textContent = '';
+            clueTextEl.textContent = 'Select a clue to begin';
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+            return;
+        }
+        
+        const clue = this.puzzle.clues[this.selectedClue];
+        const direction = this.getClueDirection(this.selectedClue);
+        
+        if (clue && direction) {
+            clueNumberEl.textContent = clue.label;
+            clueDirectionEl.textContent = direction.charAt(0).toUpperCase() + direction.slice(1);
+            clueTextEl.textContent = clue.text[0].plain;
+            
+            // Update button states
+            const { hasPrev, hasNext } = this.getNavigationState();
+            prevBtn.disabled = !hasPrev;
+            nextBtn.disabled = !hasNext;
+        }
+    }
+    
+    getNavigationState() {
+        if (this.selectedClue === null) {
+            return { hasPrev: false, hasNext: false };
+        }
+        
+        const currentDirection = this.getClueDirection(this.selectedClue);
+        const currentClueList = this.puzzle.clueLists.find(list => 
+            list.name.toLowerCase() === currentDirection.toLowerCase()
+        );
+        
+        if (!currentClueList) {
+            return { hasPrev: false, hasNext: false };
+        }
+        
+        const currentIndex = currentClueList.clues.indexOf(this.selectedClue);
+        const isFirstInDirection = currentIndex === 0;
+        const isLastInDirection = currentIndex === currentClueList.clues.length - 1;
+        
+        // Check if there are clues in the opposite direction
+        const oppositeDirection = currentDirection === 'across' ? 'down' : 'across';
+        const oppositeClueList = this.puzzle.clueLists.find(list => 
+            list.name.toLowerCase() === oppositeDirection.toLowerCase()
+        );
+        
+        const hasOppositeDirection = oppositeClueList && oppositeClueList.clues.length > 0;
+        
+        const hasPrev = !isFirstInDirection || hasOppositeDirection;
+        const hasNext = !isLastInDirection || hasOppositeDirection;
+        
+        return { hasPrev, hasNext };
+    }
+    
+    navigateToPreviousClue() {
+        if (this.selectedClue === null) return;
+        
+        const currentDirection = this.getClueDirection(this.selectedClue);
+        const currentClueList = this.puzzle.clueLists.find(list => 
+            list.name.toLowerCase() === currentDirection.toLowerCase()
+        );
+        
+        if (!currentClueList) return;
+        
+        const currentIndex = currentClueList.clues.indexOf(this.selectedClue);
+        
+        if (currentIndex > 0) {
+            // Move to previous clue in same direction
+            const prevClueIndex = currentClueList.clues[currentIndex - 1];
+            this.selectClue(prevClueIndex);
+        } else {
+            // Move to last clue in opposite direction
+            const oppositeDirection = currentDirection === 'across' ? 'down' : 'across';
+            const oppositeClueList = this.puzzle.clueLists.find(list => 
+                list.name.toLowerCase() === oppositeDirection.toLowerCase()
+            );
+            
+            if (oppositeClueList && oppositeClueList.clues.length > 0) {
+                const lastClueIndex = oppositeClueList.clues[oppositeClueList.clues.length - 1];
+                this.selectClue(lastClueIndex);
+            }
+        }
+    }
+    
+    navigateToNextClue() {
+        if (this.selectedClue === null) return;
+        
+        const currentDirection = this.getClueDirection(this.selectedClue);
+        const currentClueList = this.puzzle.clueLists.find(list => 
+            list.name.toLowerCase() === currentDirection.toLowerCase()
+        );
+        
+        if (!currentClueList) return;
+        
+        const currentIndex = currentClueList.clues.indexOf(this.selectedClue);
+        
+        if (currentIndex < currentClueList.clues.length - 1) {
+            // Move to next clue in same direction
+            const nextClueIndex = currentClueList.clues[currentIndex + 1];
+            this.selectClue(nextClueIndex);
+        } else {
+            // Move to first clue in opposite direction
+            const oppositeDirection = currentDirection === 'across' ? 'down' : 'across';
+            const oppositeClueList = this.puzzle.clueLists.find(list => 
+                list.name.toLowerCase() === oppositeDirection.toLowerCase()
+            );
+            
+            if (oppositeClueList && oppositeClueList.clues.length > 0) {
+                const firstClueIndex = oppositeClueList.clues[0];
+                this.selectClue(firstClueIndex);
             }
         }
     }
