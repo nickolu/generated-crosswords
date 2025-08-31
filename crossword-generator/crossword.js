@@ -360,10 +360,13 @@ class CrosswordPuzzle {
         });
         
         // Setup cell event listeners
-        document.querySelectorAll('.cell:not(.black)').forEach((cell, index) => {
-            const cellIndex = parseInt(cell.dataset.index);
-            cell.addEventListener('click', (e) => this.handleCellClick(cellIndex));
-            cell.addEventListener('input', (e) => this.handleInput(e, cellIndex));
+        document.querySelectorAll('.cell-wrapper').forEach((wrapper, index) => {
+            const cellIndex = parseInt(wrapper.dataset.index);
+            const input = wrapper.querySelector('.cell');
+            if (input) {
+                wrapper.addEventListener('click', (e) => this.handleCellClick(cellIndex));
+                input.addEventListener('input', (e) => this.handleInput(e, cellIndex));
+            }
         });
         
         // Setup clue event listeners
@@ -384,7 +387,8 @@ class CrosswordPuzzle {
     }
     
     selectCell(index, forceToggle = false) {
-        const cells = document.querySelectorAll('.cell');
+        const wrappers = document.querySelectorAll('.cell-wrapper');
+        const blackCells = document.querySelectorAll('.cell.black');
         const clueItems = document.querySelectorAll('.clue-item');
         const cell = this.puzzle.cells[index];
         
@@ -415,16 +419,27 @@ class CrosswordPuzzle {
         }
         
         // Clear previous selections
-        cells.forEach(cell => cell.classList.remove('selected', 'highlighted'));
+        wrappers.forEach(wrapper => {
+            wrapper.classList.remove('selected', 'highlighted', 'empty');
+            // Remove any existing cursor elements
+            const cursor = wrapper.querySelector('.cursor-blink');
+            if (cursor) cursor.remove();
+        });
+        blackCells.forEach(cell => cell.classList.remove('selected', 'highlighted', 'empty'));
         clueItems.forEach(item => item.classList.remove('selected'));
         
         // Set new selection
         this.selectedCell = index;
         this.selectedClue = targetClueIndex;
         
-        cells[index].classList.add('selected');
-        cells[index].focus();
-        cells[index].select(); // Auto-select existing text for easy replacement
+        const targetWrapper = wrappers[index];
+        const targetInput = targetWrapper.querySelector('.cell');
+        if (targetWrapper && targetInput) {
+            targetWrapper.classList.add('selected');
+            this.updateCellEmptyState(targetWrapper, index);
+            targetInput.focus();
+            targetInput.select(); // Auto-select existing text for easy replacement
+        }
         
         // Highlight the word and clue
         if (targetClueIndex !== null) {
@@ -466,8 +481,15 @@ class CrosswordPuzzle {
         const clueItems = document.querySelectorAll('.clue-item');
         clueItems.forEach(item => item.classList.remove('selected'));
         
-        const cells = document.querySelectorAll('.cell');
-        cells.forEach(cell => cell.classList.remove('selected', 'highlighted'));
+        const wrappers = document.querySelectorAll('.cell-wrapper');
+        const blackCells = document.querySelectorAll('.cell.black');
+        wrappers.forEach(wrapper => {
+            wrapper.classList.remove('selected', 'highlighted', 'empty');
+            // Remove any existing cursor elements
+            const cursor = wrapper.querySelector('.cursor-blink');
+            if (cursor) cursor.remove();
+        });
+        blackCells.forEach(cell => cell.classList.remove('selected', 'highlighted', 'empty'));
         
         this.selectedClue = clueIndex;
         
@@ -490,12 +512,14 @@ class CrosswordPuzzle {
             }
         }
         
-        const targetCell = cells[targetCellIndex];
-        if (targetCell) {
-            targetCell.focus();
-            targetCell.select(); // Auto-select existing text for easy replacement
+        const targetWrapper = wrappers[targetCellIndex];
+        const targetInput = targetWrapper?.querySelector('.cell');
+        if (targetWrapper && targetInput) {
+            targetInput.focus();
+            targetInput.select(); // Auto-select existing text for easy replacement
             this.selectedCell = targetCellIndex;
-            targetCell.classList.add('selected');
+            targetWrapper.classList.add('selected');
+            this.updateCellEmptyState(targetWrapper, targetCellIndex);
         }
         
         // Start timer on first interaction (only if game has been started)
@@ -509,11 +533,14 @@ class CrosswordPuzzle {
     
     highlightWord(clueIndex) {
         const clue = this.puzzle.clues[clueIndex];
-        const cells = document.querySelectorAll('.cell');
+        const wrappers = document.querySelectorAll('.cell-wrapper');
+        const blackCells = document.querySelectorAll('.cell.black');
         
         clue.cells.forEach(cellIndex => {
-            if (cells[cellIndex]) {
-                cells[cellIndex].classList.add('highlighted');
+            if (wrappers[cellIndex]) {
+                wrappers[cellIndex].classList.add('highlighted');
+            } else if (blackCells[cellIndex]) {
+                blackCells[cellIndex].classList.add('highlighted');
             }
         });
     }
@@ -525,6 +552,10 @@ class CrosswordPuzzle {
         if (value && value.match(/[A-Z]/)) {
             this.userAnswers[cellIndex] = value;
             event.target.value = value;
+            
+            // Update empty state for cursor display
+            const wrapper = event.target.closest('.cell-wrapper');
+            if (wrapper) this.updateCellEmptyState(wrapper, cellIndex);
             
             // Only show feedback if enabled
             if (this.showFeedback && cell) {
@@ -546,6 +577,33 @@ class CrosswordPuzzle {
             event.target.value = '';
             delete this.userAnswers[cellIndex];
             event.target.style.removeProperty('background');
+            
+            // Update empty state for cursor display
+            const wrapper = event.target.closest('.cell-wrapper');
+            if (wrapper) this.updateCellEmptyState(wrapper, cellIndex);
+        }
+    }
+    
+    updateCellEmptyState(wrapperElement, cellIndex) {
+        // Add or remove 'empty' class and cursor element based on whether the cell has content
+        const hasContent = this.userAnswers[cellIndex] && this.userAnswers[cellIndex].length > 0;
+        
+        // Remove existing cursor element if it exists
+        const existingCursor = wrapperElement.querySelector('.cursor-blink');
+        if (existingCursor) {
+            existingCursor.remove();
+        }
+        
+        if (hasContent) {
+            wrapperElement.classList.remove('empty');
+        } else {
+            wrapperElement.classList.add('empty');
+            // Add cursor element for empty selected cells
+            if (wrapperElement.classList.contains('selected')) {
+                const cursor = document.createElement('div');
+                cursor.className = 'cursor-blink';
+                wrapperElement.appendChild(cursor);
+            }
         }
     }
     
@@ -740,16 +798,28 @@ class CrosswordPuzzle {
     
     moveToCell(index) {
         // Simple cell movement without changing word selection
-        const cells = document.querySelectorAll('.cell');
+        const wrappers = document.querySelectorAll('.cell-wrapper');
+        const blackCells = document.querySelectorAll('.cell.black');
         
         // Remove selected class from current cell
-        cells.forEach(cell => cell.classList.remove('selected'));
+        wrappers.forEach(wrapper => {
+            wrapper.classList.remove('selected', 'empty');
+            // Remove any existing cursor elements
+            const cursor = wrapper.querySelector('.cursor-blink');
+            if (cursor) cursor.remove();
+        });
+        blackCells.forEach(cell => cell.classList.remove('selected', 'empty'));
         
         // Set new selected cell
         this.selectedCell = index;
-        cells[index].classList.add('selected');
-        cells[index].focus();
-        cells[index].select(); // Auto-select existing text for easy replacement
+        const targetWrapper = wrappers[index];
+        const targetInput = targetWrapper?.querySelector('.cell');
+        if (targetWrapper && targetInput) {
+            targetWrapper.classList.add('selected');
+            this.updateCellEmptyState(targetWrapper, index);
+            targetInput.focus();
+            targetInput.select(); // Auto-select existing text for easy replacement
+        }
     }
     
     moveToNextWord() {
@@ -884,27 +954,29 @@ class CrosswordPuzzle {
                 break;
             case 'Backspace':
                 if (this.selectedClue !== null) {
-                    // Move to previous cell in word and delete its content
-                    const clue = this.puzzle.clues[this.selectedClue];
-                    const currentPosition = clue.cells.indexOf(this.selectedCell);
-                    if (currentPosition > 0) {
-                        const prevCellIndex = clue.cells[currentPosition - 1];
-                        // Move to previous cell
-                        this.moveToCell(prevCellIndex);
-                        // Immediately delete the letter in the previous cell
-                        const prevCell = document.querySelector(`[data-index="${prevCellIndex}"]`);
-                        if (prevCell) {
-                            prevCell.value = '';
-                            delete this.userAnswers[prevCellIndex];
-                            prevCell.style.removeProperty('background');
-                        }
+                    const currentCell = document.querySelector(`[data-index="${this.selectedCell}"]`);
+                    
+                    // Check if current cell has content
+                    if (currentCell && currentCell.value) {
+                        // Delete current cell content
+                        currentCell.value = '';
+                        delete this.userAnswers[this.selectedCell];
+                        currentCell.style.removeProperty('background');
                     } else {
-                        // If we're at the first cell of the word, just clear the current cell
-                        const currentCell = document.querySelector(`[data-index="${this.selectedCell}"]`);
-                        if (currentCell && currentCell.value) {
-                            currentCell.value = '';
-                            delete this.userAnswers[this.selectedCell];
-                            currentCell.style.removeProperty('background');
+                        // Current cell is empty, move to previous cell and delete its content
+                        const clue = this.puzzle.clues[this.selectedClue];
+                        const currentPosition = clue.cells.indexOf(this.selectedCell);
+                        if (currentPosition > 0) {
+                            const prevCellIndex = clue.cells[currentPosition - 1];
+                            // Move to previous cell
+                            this.moveToCell(prevCellIndex);
+                            // Immediately delete the letter in the previous cell
+                            const prevCell = document.querySelector(`[data-index="${prevCellIndex}"]`);
+                            if (prevCell) {
+                                prevCell.value = '';
+                                delete this.userAnswers[prevCellIndex];
+                                prevCell.style.removeProperty('background');
+                            }
                         }
                     }
                 }
