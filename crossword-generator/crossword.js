@@ -12,6 +12,7 @@ class CrosswordPuzzle {
         this.showFeedback = false; // Feedback is disabled by default
         this.gameStarted = false; // Track if game has been started
         this.userName = this.getCookie('crossword_user_name') || null;
+        this.currentLeaderboardData = null; // Store current leaderboard data for sharing
         this.init();
     }
     
@@ -252,6 +253,7 @@ class CrosswordPuzzle {
         const closeLeaderboardBtn = document.getElementById('closeLeaderboardBtn');
         const leaderboardModal = document.getElementById('leaderboardModal');
         const leaderboardShareBtn = document.getElementById('leaderboardShareBtn');
+        const shareLeaderboardBtn = document.getElementById('shareLeaderboardBtn');
         
         if (closeLeaderboardBtn) {
             closeLeaderboardBtn.addEventListener('click', () => this.hideLeaderboard());
@@ -267,6 +269,10 @@ class CrosswordPuzzle {
         
         if (leaderboardShareBtn) {
             leaderboardShareBtn.addEventListener('click', () => this.shareScore());
+        }
+        
+        if (shareLeaderboardBtn) {
+            shareLeaderboardBtn.addEventListener('click', () => this.shareLeaderboard());
         }
 
         // Auto-pause when browser tab loses focus
@@ -695,7 +701,7 @@ class CrosswordPuzzle {
         }
         
         const userNameText = this.userName ? `👤 ${this.userName}\n` : '';
-        const shareText = `🧩 ${puzzleTitle} completed!\n${userNameText}⏱️ Time: ${completionTime}\n\n`;
+        const shareText = `🧩 ${puzzleTitle} completed!\n${userNameText}⏱️ Time: ${completionTime}\n\n🔗 Play today's crossword: manchat.men/mini`;
         
         // Try to use the modern Clipboard API
         if (navigator.clipboard && window.isSecureContext) {
@@ -710,7 +716,7 @@ class CrosswordPuzzle {
         }
     }
     
-    fallbackCopyToClipboard(text) {
+    fallbackCopyToClipboard(text, isLeaderboard = false) {
         // Create a temporary textarea element
         const textArea = document.createElement('textarea');
         textArea.value = text;
@@ -723,9 +729,17 @@ class CrosswordPuzzle {
         
         try {
             document.execCommand('copy');
-            this.showPersistentShareFeedback('Score copied to clipboard!');
+            if (isLeaderboard) {
+                this.showShareLeaderboardFeedback('Leaderboard copied to clipboard!');
+            } else {
+                this.showPersistentShareFeedback('Score copied to clipboard!');
+            }
         } catch (err) {
-            this.showPersistentShareFeedback('Unable to copy to clipboard');
+            if (isLeaderboard) {
+                this.showShareLeaderboardFeedback('Unable to copy to clipboard');
+            } else {
+                this.showPersistentShareFeedback('Unable to copy to clipboard');
+            }
         }
         
         document.body.removeChild(textArea);
@@ -741,6 +755,57 @@ class CrosswordPuzzle {
             shareBtn.textContent = originalText;
             shareBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
         }, 2000);
+    }
+    
+    shareLeaderboard() {
+        const puzzleTitle = document.querySelector('.title').textContent;
+        const puzzleDate = puzzleTitle.split(' ')[1]; // Extract date from title like "mini 2014-08-21"
+        
+        // Get current leaderboard data
+        const leaderboardData = this.currentLeaderboardData;
+        if (!leaderboardData || Object.keys(leaderboardData).length === 0) {
+            this.showShareLeaderboardFeedback('No leaderboard data available');
+            return;
+        }
+        
+        // Convert to sorted array
+        const entries = Object.entries(leaderboardData)
+            .map(([name, timeInSeconds]) => ({
+                name,
+                timeInSeconds: parseInt(timeInSeconds),
+                timeFormatted: this.formatTimeFromSeconds(timeInSeconds)
+            }))
+            .sort((a, b) => a.timeInSeconds - b.timeInSeconds);
+        
+        // Build the share text
+        let shareText = `🏆 ${puzzleTitle} Leaderboard\n\n`;
+        
+        entries.forEach((entry, index) => {
+            const rank = index + 1;
+            let rankEmoji = `${rank}.`;
+            
+            if (rank === 1) rankEmoji = '🥇';
+            else if (rank === 2) rankEmoji = '🥈';
+            else if (rank === 3) rankEmoji = '🥉';
+            else if (rank === 4) rankEmoji = '🦥';
+            else if (rank === 5) rankEmoji = '🐌';
+            else rankEmoji = '🐢';
+            
+            shareText += `${rankEmoji} ${entry.name} - ${entry.timeFormatted}\n`;
+        });
+        
+        shareText += `\n🔗 Play today's crossword: manchat.men/mini`;
+        
+        // Copy to clipboard
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(shareText).then(() => {
+                this.showShareLeaderboardFeedback('Leaderboard copied to clipboard!');
+            }).catch(() => {
+                this.fallbackCopyToClipboard(shareText, true);
+            });
+        } else {
+            this.fallbackCopyToClipboard(shareText, true);
+        }
     }
     
     showPersistentShareFeedback(message) {
@@ -764,6 +829,19 @@ class CrosswordPuzzle {
             
             setTimeout(() => {
                 leaderboardShareBtn.textContent = originalText;
+            }, 2000);
+        }
+    }
+    
+    showShareLeaderboardFeedback(message) {
+        const shareLeaderboardBtn = document.getElementById('shareLeaderboardBtn');
+        
+        if (shareLeaderboardBtn) {
+            const originalText = shareLeaderboardBtn.textContent;
+            shareLeaderboardBtn.textContent = message;
+            
+            setTimeout(() => {
+                shareLeaderboardBtn.textContent = originalText;
             }, 2000);
         }
     }
@@ -1121,6 +1199,9 @@ class CrosswordPuzzle {
     displayLeaderboardData(data) {
         const leaderboardBody = document.getElementById('leaderboardBody');
         if (!leaderboardBody) return;
+        
+        // Store the leaderboard data for sharing
+        this.currentLeaderboardData = data;
         
         if (!data || Object.keys(data).length === 0) {
             leaderboardBody.innerHTML = '<div class="empty-leaderboard">No times recorded yet today.<br/>Be the first to complete the puzzle!</div>';
