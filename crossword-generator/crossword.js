@@ -380,7 +380,7 @@ class CrosswordPuzzle {
     
     setupEventListeners() {
         document.addEventListener('keydown', (e) => {
-            this.handleKeyPress(e);
+            this.handleKeyDown(e);
         });
         
         // Setup cell event listeners
@@ -389,7 +389,8 @@ class CrosswordPuzzle {
             const input = wrapper.querySelector('.cell');
             if (input) {
                 wrapper.addEventListener('click', (e) => this.handleCellClick(cellIndex));
-                input.addEventListener('input', (e) => this.handleInput(e, cellIndex));
+                // Add input cleanup for paste/edge cases (but don't handle normal typing)
+                input.addEventListener('input', (e) => this.cleanupInput(e, cellIndex));
             }
         });
         
@@ -563,48 +564,26 @@ class CrosswordPuzzle {
         });
     }
     
-    handleInput(event, cellIndex) {
-        // This event handler is now primarily for cleanup and fallback
-        // Most letter input is handled in handleKeyPress for better responsiveness
+
+    
+    cleanupInput(event, cellIndex) {
+        // Simple cleanup for paste/edge cases - only ensures valid single letter
         const value = event.target.value.toUpperCase();
-        const cell = this.puzzle.cells[cellIndex];
-        
-        // Only take the first valid letter character
         const firstValidChar = value.match(/[A-Z]/)?.[0] || '';
         
-        if (firstValidChar) {
-            // Ensure the input value is clean (single letter)
+        if (firstValidChar && firstValidChar !== value) {
+            // Input has invalid characters or multiple characters, clean it
             event.target.value = firstValidChar;
-            
-            // Update userAnswers to match the input value
             this.userAnswers[cellIndex] = firstValidChar;
-            
-            // Only show feedback if enabled
-            if (this.showFeedback && cell) {
-                if (cell.answer === firstValidChar) {
-                    event.target.style.setProperty('background', '#c8e6c9', 'important');
-                } else {
-                    event.target.style.setProperty('background', '#ffcdd2', 'important');
-                }
-            } else {
-                event.target.style.removeProperty('background');
-            }
-            
-            // Update empty state for cursor display
-            const wrapper = event.target.closest('.cell-wrapper');
-            if (wrapper) this.updateCellEmptyState(wrapper, cellIndex);
-            
-            // Check for puzzle completion
-            this.checkPuzzleCompletion();
-        } else {
+        } else if (!firstValidChar && value) {
+            // Input has no valid characters but has content, clear it
             event.target.value = '';
             delete this.userAnswers[cellIndex];
-            event.target.style.removeProperty('background');
-            
-            // Update empty state for cursor display
-            const wrapper = event.target.closest('.cell-wrapper');
-            if (wrapper) this.updateCellEmptyState(wrapper, cellIndex);
         }
+        
+        // Update visual state to match
+        const wrapper = event.target.closest('.cell-wrapper');
+        if (wrapper) this.updateCellEmptyState(wrapper, cellIndex);
     }
     
     updateCellEmptyState(wrapperElement, cellIndex) {
@@ -925,7 +904,7 @@ class CrosswordPuzzle {
         return clueList.clues[0];
     }
     
-    handleKeyPress(event) {
+    handleKeyDown(event) {
         if (this.selectedCell === null) return;
         
         const { width, height } = this.puzzle.dimensions;
@@ -963,8 +942,10 @@ class CrosswordPuzzle {
                 // Check for puzzle completion
                 this.checkPuzzleCompletion();
                 
-                // Move to next cell
-                this.moveToNextCell(this.selectedCell);
+                // Only move to next cell if puzzle is not completed
+                if (this.isRunning) {  // Timer is stopped when puzzle completes
+                    this.moveToNextCell(this.selectedCell);
+                }
             }
             event.preventDefault();
             return;
