@@ -391,7 +391,7 @@ class CrosswordPuzzle {
             const cellIndex = parseInt(wrapper.dataset.index);
             const input = wrapper.querySelector('.cell');
             if (input) {
-                wrapper.addEventListener('click', (e) => this.handleCellClick(cellIndex));
+                wrapper.addEventListener('click', () => this.handleCellClick(cellIndex));
                 // Add input cleanup for paste/edge cases (but don't handle normal typing)
                 input.addEventListener('input', (e) => this.cleanupInput(e, cellIndex));
             }
@@ -1468,12 +1468,180 @@ class CrosswordPuzzle {
     }
 }
 
-// Initialize the crossword puzzle when the page loads
-// eslint-disable-next-line no-unused-vars
-let crosswordInstance;
-window.addEventListener('DOMContentLoaded', () => {
-    if (typeof puzzleData !== 'undefined') {
-        crosswordInstance = new CrosswordPuzzle(puzzleData);
+class CrosswordLoader {
+    constructor() {
+        this.puzzle = null;
+        this.crosswordInstance = null;
     }
-    // Note: When used with dynamic loading, crosswordInstance will be set by the loader
+
+    async loadPuzzle(jsonPath = null) {
+        try {
+            // If no specific path provided, determine path from URL parameters or use today's date
+            if (!jsonPath) {
+                const pathResult = this.determinePuzzlePath();
+                if (pathResult.tooRecent) {
+                    this.showPuzzleNotPlayableMessage();
+                    return;
+                }
+                jsonPath = pathResult.path;
+            } else {
+                // Check if manually provided path has a date that's too recent
+                if (this.isDateTooRecent(jsonPath)) {
+                    this.showPuzzleNotPlayableMessage();
+                    return;
+                }
+            }
+
+            const response = await fetch(jsonPath);
+            if (!response.ok) {
+                throw new Error(`Failed to load puzzle: ${response.status}`);
+            }
+
+            const puzzleData = await response.json();
+            this.puzzle = puzzleData.body[0];
+            
+            // Update page title and info
+            this.updatePuzzleInfo(puzzleData, jsonPath);
+            
+            // Generate the grid and clues
+            this.generateGrid();
+            this.generateClues();
+            
+            // Initialize the crossword puzzle directly without global variables
+            this.crosswordInstance = new CrosswordPuzzle(this.puzzle);
+            
+        } catch (error) {
+            console.error('Error loading puzzle:', error);
+            this.showError(error.message);
+        }
+    }
+
+    determinePuzzlePath() {
+        // Check URL parameters first
+        const urlParams = new URLSearchParams(window.location.search);
+        const puzzleParam = urlParams.get('puzzle');
+        
+        if (puzzleParam) {
+            // If puzzle parameter is provided, check if date is too recent
+            let filePath;
+            if (puzzleParam.endsWith('.json')) {
+                filePath = `crosswords/${puzzleParam}`;
+            } else {
+                filePath = `crosswords/${puzzleParam}.json`;
+            }
+            
+            const tooRecent = this.isDateTooRecent(filePath);
+            return { path: filePath, tooRecent: tooRecent };
+        }
+
+        // Calculate today's date minus 11 years
+        const today = new Date();
+        const elevenYearsAgo = new Date(today.getFullYear() - 11, today.getMonth(), today.getDate());
+        const year = elevenYearsAgo.getFullYear();
+        const month = String(elevenYearsAgo.getMonth() + 1).padStart(2, '0');
+        const day = String(elevenYearsAgo.getDate()).padStart(2, '0');
+        const dateString = `${year}-${month}-${day}`;
+        
+        return { path: `crosswords/mini_${dateString}.json`, tooRecent: false };
+    }
+
+    updatePuzzleInfo(puzzleData, jsonPath) {
+        const date = puzzleData.publicationDate || 'Unknown';
+        const constructor = puzzleData.constructors ? puzzleData.constructors.join(', ') : 'Unknown';
+        const puzzleName = jsonPath.split('/').pop().replace('.json', '');
+        
+        document.getElementById('puzzleTitle').textContent = puzzleName.split('_').join(' ').replace('.json', '');
+        document.getElementById('puzzleInfo').innerHTML = `<strong>Date:</strong> ${date} | <strong>Constructor:</strong> ${constructor}`;
+        document.title = `${puzzleName} - Interactive Crossword`;
+    }
+
+    generateGrid() {
+        const grid = document.getElementById('crossword');
+        const { width } = this.puzzle.dimensions;
+        
+        // Set grid template columns with responsive sizing
+        grid.style.gridTemplateColumns = `repeat(${width}, var(--cell-size, 80px))`;
+        
+        let gridHTML = '';
+        this.puzzle.cells.forEach((cell, index) => {
+            if (!cell || Object.keys(cell).length === 0) {
+                gridHTML += `<div class="cell black" data-index="${index}"></div>`;
+            } else {
+                gridHTML += `<div class="cell-wrapper" data-index="${index}" style="position: relative;">
+                    <input class="cell" type="text" maxlength="1" data-index="${index}">
+                    ${cell.label ? `<span class="cell-number">${cell.label}</span>` : ''}
+                </div>`;
+            }
+        });
+        
+        grid.innerHTML = gridHTML;
+    }
+
+    generateClues() {
+        const container = document.getElementById('cluesContainer');
+        let cluesHTML = '';
+        
+        this.puzzle.clueLists.forEach(clueList => {
+            cluesHTML += `<div class="clue-group">
+                <h3>${clueList.name}</h3>
+                <ul class="clue-list">`;
+            
+            clueList.clues.forEach(clueIndex => {
+                const clue = this.puzzle.clues[clueIndex];
+                const clueText = clue.text[0].plain;
+                cluesHTML += `<li class="clue-item" data-clue-index="${clueIndex}">
+                    <span class="clue-number">${clue.label}</span> ${clueText}
+                </li>`;
+            });
+            
+            cluesHTML += `</ul></div>`;
+        });
+        
+        container.innerHTML = cluesHTML;
+    }
+
+    isDateTooRecent(filePath) {
+        // Extract date from filename (mini_YYYY-MM-DD.json or YYYY-MM-DD.json)
+        const dateMatch = filePath.match(/(\d{4}-\d{2}-\d{2})/);
+        if (!dateMatch) {
+            return false; // If no date found, allow it
+        }
+        
+        const puzzleDate = new Date(dateMatch[1]);
+        const today = new Date();
+        const elevenYearsAgo = new Date(today.getFullYear() - 11, today.getMonth(), today.getDate());
+        
+        return puzzleDate > elevenYearsAgo;
+    }
+
+    showPuzzleNotPlayableMessage() {
+        // Hide the main content areas
+        document.querySelector('.container').style.display = 'none';
+        document.querySelector('.timer').style.display = 'none';
+        
+        // Hide specific buttons
+        document.getElementById('pauseBtn').style.display = 'none';
+        document.getElementById('leaderboardBtn').style.display = 'none';
+        document.getElementById('persistentShareBtn').style.display = 'none';
+        
+        // Hide the game overlay (start the game popup)
+        document.getElementById('gameOverlay').style.display = 'none';
+        
+        // Update page title
+        document.getElementById('puzzleTitle').textContent = 'Puzzle Not Available';
+        document.getElementById('puzzleInfo').innerHTML = 'This puzzle is not yet available for play.';
+    }
+
+    showError(message) {
+        document.getElementById('puzzleTitle').textContent = 'Error Loading Puzzle';
+        document.getElementById('puzzleInfo').innerHTML = `<strong>Error:</strong> ${message}`;
+        document.getElementById('crossword').innerHTML = `<div style="padding: 20px; text-align: center; color: #ff6b6b;">Failed to load puzzle. Please check the URL or try again later.</div>`;
+        document.getElementById('cluesContainer').innerHTML = '';
+    }
+}
+
+// Initialize when page loads
+window.addEventListener('DOMContentLoaded', async () => {
+    const loader = new CrosswordLoader();
+    await loader.loadPuzzle();
 });
