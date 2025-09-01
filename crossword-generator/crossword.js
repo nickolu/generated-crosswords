@@ -1218,9 +1218,7 @@ class CrosswordPuzzle {
         leaderboardBody.innerHTML = '<div class="loading">Loading today\'s leaderboard...</div>';
         
         try {
-            // Get today's date in YYYY-MM-DD format
-            const today = new Date().toISOString().split('T')[0];
-            const dataUrl = `data/${today}.json`;
+            const dataUrl = `data/${this.puzzle.date}.json`;
             
             const response = await fetch(dataUrl, {
                 method: 'GET',
