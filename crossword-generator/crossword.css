@@ -499,7 +499,7 @@ button:disabled {
   --color-text-secondary: var(--primitive-light-gray-300);
   --color-text-muted: var(--primitive-gray-50);
   --color-text-cell: var(--primitive-gray-800);
-  --color-text-cell-number: var(--primitive-gray-300);
+  --color-text-cell-number: var(--primitive-gray-600);
   --color-text-accent: var(--primitive-ocean-600);
   --color-text-on-accent: var(--primitive-white);
   --color-text-selected-cell: var(--primitive-black);
