@@ -450,7 +450,6 @@ class CrosswordPuzzle {
         wrappers.forEach(wrapper => {
             wrapper.classList.remove('selected', 'highlighted', 'empty');
         });
-        blackCells.forEach(cell => cell.classList.remove('selected', 'highlighted', 'empty'));
         clueItems.forEach(item => item.classList.remove('selected'));
         
         // Set new selection
@@ -507,11 +506,9 @@ class CrosswordPuzzle {
         clueItems.forEach(item => item.classList.remove('selected'));
         
         const wrappers = document.querySelectorAll('.cell-wrapper');
-        const blackCells = document.querySelectorAll('.cell.black');
         wrappers.forEach(wrapper => {
             wrapper.classList.remove('selected', 'highlighted', 'empty');
         });
-        blackCells.forEach(cell => cell.classList.remove('selected', 'highlighted', 'empty'));
         
         this.selectedClue = clueIndex;
         
@@ -556,13 +553,12 @@ class CrosswordPuzzle {
     highlightWord(clueIndex) {
         const clue = this.puzzle.clues[clueIndex];
         const wrappers = document.querySelectorAll('.cell-wrapper');
-        const blackCells = document.querySelectorAll('.cell.black');
         
         clue.cells.forEach(cellIndex => {
-            if (wrappers[cellIndex]) {
+            // Only highlight valid, non-black cells that are part of this clue
+            const cell = this.puzzle.cells[cellIndex];
+            if (cell && Object.keys(cell).length > 0 && wrappers[cellIndex]) {
                 wrappers[cellIndex].classList.add('highlighted');
-            } else if (blackCells[cellIndex]) {
-                blackCells[cellIndex].classList.add('highlighted');
             }
         });
     }
@@ -877,13 +873,11 @@ class CrosswordPuzzle {
     moveToCell(index) {
         // Simple cell movement without changing word selection
         const wrappers = document.querySelectorAll('.cell-wrapper');
-        const blackCells = document.querySelectorAll('.cell.black');
         
         // Remove selected class from current cell
         wrappers.forEach(wrapper => {
             wrapper.classList.remove('selected', 'empty');
         });
-        blackCells.forEach(cell => cell.classList.remove('selected', 'empty'));
         
         // Set new selected cell
         this.selectedCell = index;
@@ -990,6 +984,61 @@ class CrosswordPuzzle {
         
         // Return the first clue in the direction
         return clueList.clues[0];
+    }
+    
+    findNextValidCell(startIndex, direction) {
+        const { width, height } = this.puzzle.dimensions;
+        let currentIndex = startIndex;
+        
+        // Define step based on direction
+        let step;
+        switch (direction) {
+            case 'ArrowUp':
+                step = -width;
+                break;
+            case 'ArrowDown':
+                step = width;
+                break;
+            case 'ArrowLeft':
+                step = -1;
+                break;
+            case 'ArrowRight':
+                step = 1;
+                break;
+            default:
+                return null;
+        }
+        
+        // Search for next valid cell in the given direction
+        let attempts = 0;
+        const maxAttempts = Math.max(width, height); // Prevent infinite loops
+        
+        while (attempts < maxAttempts) {
+            // Check bounds based on direction
+            const currentRow = Math.floor(currentIndex / width);
+            const currentCol = currentIndex % width;
+            
+            if (direction === 'ArrowUp' && currentRow <= 0) break;
+            if (direction === 'ArrowDown' && currentRow >= height - 1) break;
+            if (direction === 'ArrowLeft' && currentCol <= 0) break;
+            if (direction === 'ArrowRight' && currentCol >= width - 1) break;
+            
+            // Check if we would wrap around rows when moving left/right
+            if (direction === 'ArrowLeft' && currentCol === 0) break;
+            if (direction === 'ArrowRight' && currentCol === width - 1) break;
+            
+            const cell = this.puzzle.cells[currentIndex];
+            
+            // A valid cell has content (not empty object) and has clues
+            if (cell && Object.keys(cell).length > 0 && cell.clues && cell.clues.length > 0) {
+                return currentIndex;
+            }
+            
+            currentIndex += step;
+            attempts++;
+        }
+        
+        return null; // No valid cell found
     }
     
     handleKeyDown(event) {
@@ -1106,9 +1155,10 @@ class CrosswordPuzzle {
         }
         
         if (nextIndex !== null) {
-            const nextCell = this.puzzle.cells[nextIndex];
-            if (nextCell && Object.keys(nextCell).length > 0) {
-                this.selectCell(nextIndex);
+            // Find the next valid cell (skip black squares)
+            const validIndex = this.findNextValidCell(nextIndex, event.key);
+            if (validIndex !== null) {
+                this.selectCell(validIndex);
             }
             event.preventDefault();
         }
