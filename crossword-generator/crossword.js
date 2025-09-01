@@ -224,8 +224,35 @@ class CrosswordPuzzle {
             nextBtn.addEventListener('click', () => this.navigateToNextClue());
         }
         
+        // Safari iOS initial layout fix
+        if (this.isSafariIOS()) {
+            this.initializeSafariLayoutFix();
+        }
+        
         // Initialize with empty state
         this.updateMobileClueDisplay();
+    }
+    
+    // Detect Safari iOS
+    isSafariIOS() {
+        return /iPad|iPhone|iPod/.test(navigator.userAgent) && 
+               /Safari/.test(navigator.userAgent) && 
+               !/Chrome/.test(navigator.userAgent) &&
+               !/Edge/.test(navigator.userAgent);
+    }
+    
+    // Initialize Safari iOS layout fix on page load
+    initializeSafariLayoutFix() {
+        const mobileNavigator = document.getElementById('mobileClueNavigator');
+        const clueDisplay = mobileNavigator?.querySelector('.clue-display');
+        
+        if (clueDisplay) {
+            // Set initial dimensions for Safari iOS
+            clueDisplay.style.minWidth = '280px';
+            clueDisplay.style.width = '100%';
+            clueDisplay.style.maxWidth = '100%';
+            clueDisplay.style.boxSizing = 'border-box';
+        }
     }
     
     setupTimer() {
@@ -1412,12 +1439,22 @@ class CrosswordPuzzle {
             return;
         }
         
+        // Safari iOS layout fix: Store current dimensions before updating text
+        const mobileNavigator = document.getElementById('mobileClueNavigator');
+        const clueDisplay = mobileNavigator?.querySelector('.clue-display');
+        let originalWidth = null;
+        
+        if (this.isSafariIOS() && clueDisplay) {
+            originalWidth = clueDisplay.getBoundingClientRect().width;
+        }
+        
         if (this.selectedClue === null) {
             clueNumberEl.textContent = '';
             clueDirectionEl.textContent = '';
             clueTextEl.textContent = 'Select a clue to begin';
             prevBtn.disabled = true;
             nextBtn.disabled = true;
+            this.forceSafariLayoutFix(clueDisplay, originalWidth);
             return;
         }
         
@@ -1433,7 +1470,38 @@ class CrosswordPuzzle {
             const { hasPrev, hasNext } = this.getNavigationState();
             prevBtn.disabled = !hasPrev;
             nextBtn.disabled = !hasNext;
+            
+            // Safari iOS layout fix: Force width after text update
+            this.forceSafariLayoutFix(clueDisplay, originalWidth);
         }
+    }
+    
+    // Force Safari iOS to maintain proper width
+    forceSafariLayoutFix(clueDisplay, originalWidth) {
+        if (!this.isSafariIOS() || !clueDisplay) return;
+        
+        requestAnimationFrame(() => {
+            // Force minimum width for Safari iOS
+            const minWidth = Math.max(originalWidth || 200, 200);
+            clueDisplay.style.minWidth = `${minWidth}px`;
+            clueDisplay.style.width = '100%';
+            clueDisplay.style.maxWidth = '100%';
+            clueDisplay.style.boxSizing = 'border-box';
+            
+            // Force layout recalculation
+            const computed = window.getComputedStyle(clueDisplay);
+            // Trigger reflow by accessing computed styles
+            void computed.width;
+            
+            // Additional safety check after a short delay
+            setTimeout(() => {
+                const currentWidth = clueDisplay.getBoundingClientRect().width;
+                if (currentWidth < 180) {
+                    clueDisplay.style.minWidth = '280px';
+                    clueDisplay.style.width = '100%';
+                }
+            }, 50);
+        });
     }
     
     getNavigationState() {
