@@ -307,6 +307,69 @@ input.cell::-moz-selection {
     background: transparent !important;
 }
 
+/* Mobile-specific text selection prevention */
+@media (max-width: 768px) {
+    .cell {
+        -webkit-user-select: none !important;
+        -webkit-touch-callout: none !important;
+        -webkit-tap-highlight-color: transparent !important;
+        user-select: none !important;
+        -moz-user-select: none !important;
+        -ms-user-select: none !important;
+    }
+    
+    .cell::selection {
+        background: transparent !important;
+        color: inherit !important;
+    }
+    
+    .cell::-moz-selection {
+        background: transparent !important;
+        color: inherit !important;
+    }
+    
+    /* Prevent highlighting on touch and focus */
+    .cell:focus::selection {
+        background: transparent !important;
+        color: inherit !important;
+    }
+    
+    .cell:focus::-moz-selection {
+        background: transparent !important;
+        color: inherit !important;
+    }
+    
+    /* Additional mobile-specific input handling */
+    input.cell {
+        -webkit-user-select: none !important;
+        -webkit-touch-callout: none !important;
+        -webkit-tap-highlight-color: transparent !important;
+        user-select: none !important;
+        -moz-user-select: none !important;
+        -ms-user-select: none !important;
+    }
+    
+    input.cell::selection {
+        background: transparent !important;
+        color: inherit !important;
+    }
+    
+    input.cell::-moz-selection {
+        background: transparent !important;
+        color: inherit !important;
+    }
+    
+    input.cell:focus::selection {
+        background: transparent !important;
+        color: inherit !important;
+    }
+    
+    input.cell:focus::-moz-selection {
+        background: transparent !important;
+        color: inherit !important;
+    }
+}
+
 .cell-wrapper.highlighted .cell {
     background: linear-gradient(145deg, var(--color-highlighted-background-light), var(--color-highlighted-background-light-secondary));
     border: 0.5px solid var(--color-border-highlighted);

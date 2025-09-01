@@ -464,9 +464,8 @@ class CrosswordPuzzle {
             
             // On mobile, prevent default scroll behavior and apply our own
             if (window.innerWidth <= 640) {
-                // Focus without scrolling
+                // Focus without scrolling, but don't select text to prevent highlighting
                 targetInput.focus({ preventScroll: true });
-                targetInput.select();
                 
                 // Apply our custom scroll after a brief delay
                 setTimeout(() => {
@@ -554,9 +553,8 @@ class CrosswordPuzzle {
             
             // On mobile, prevent default scroll behavior and apply our own
             if (window.innerWidth <= 640) {
-                // Focus without scrolling
+                // Focus without scrolling, but don't select text to prevent highlighting
                 targetInput.focus({ preventScroll: true });
-                targetInput.select();
                 
                 // Apply our custom scroll after a brief delay
                 setTimeout(() => {
@@ -918,9 +916,8 @@ class CrosswordPuzzle {
             
             // On mobile, prevent default scroll behavior and apply our own
             if (window.innerWidth <= 640) {
-                // Focus without scrolling
+                // Focus without scrolling, but don't select text to prevent highlighting
                 targetInput.focus({ preventScroll: true });
-                targetInput.select();
                 
                 // Apply our custom scroll after a brief delay
                 setTimeout(() => {
