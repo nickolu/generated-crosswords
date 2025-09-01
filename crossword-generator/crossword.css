@@ -894,16 +894,63 @@ button:disabled {
     }
 }
 
-/* Large mobile - keep side-by-side if possible */
+/* Large mobile - force mobile layout */
 @media (max-width: 640px) {
     :root {
-        --cell-size: 48px;
-        --cell-font-size: 24px;
-        --cell-number-size: 12px;
+        --cell-size: 42px; /* Smaller cells for large mobile */
+        --cell-font-size: 22px;
+        --cell-number-size: 11px;
+    }
+    
+    body {
+        padding: 8px;
+    }
+    
+    .container {
+        flex-direction: column; /* Force vertical stacking on all mobile devices */
+        gap: 12px;
+        padding: 8px;
+        margin: 0;
+        max-width: 100%;
+    }
+    
+    .crossword-grid {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
     }
     
     .clues-section {
-        min-width: 250px;
+        display: none; /* Hide desktop clues on mobile */
+    }
+    
+    .title {
+        font-size: 1.6em;
+        margin-bottom: 12px;
+    }
+    
+    .puzzle-info {
+        font-size: 13px;
+        margin-bottom: 12px;
+    }
+    
+    .timer-section {
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+    
+    .timer {
+        font-size: 26px;
+        margin-bottom: 10px;
+    }
+    
+    /* Show mobile clue navigator for all mobile devices */
+    .mobile-clue-navigator {
+        display: flex;
+        margin-top: 12px;
+        padding: 12px;
+        min-height: 90px;
     }
 }
 
@@ -1009,19 +1056,19 @@ button:disabled {
 /* Mobile - stack and scale aggressively */
 @media (max-width: 430px) {
     :root {
-        --cell-size: 56px;
-        --cell-font-size: 28px;
-        --cell-number-size: 12px;
+        --cell-size: 40px; /* Much smaller cells for mobile */
+        --cell-font-size: 20px;
+        --cell-number-size: 10px;
     }
     
     body {
-        padding: 10px;
+        padding: 5px;
     }
     
     .container {
         flex-direction: column;
-        gap: 15px;
-        padding: 10px;
+        gap: 10px;
+        padding: 5px;
         margin: 0;
         max-width: 100%;
     }
@@ -1039,54 +1086,8 @@ button:disabled {
     }
     
     .title {
-        font-size: 1.8em;
-        letter-spacing: 1px;
-        margin-bottom: 15px;
-    }
-    
-    .puzzle-info {
-        font-size: 14px;
-        margin-bottom: 15px;
-    }
-    
-    .timer-section {
-        padding: 15px;
-        margin-bottom: 15px;
-    }
-    
-    .timer {
-        font-size: 28px;
-        margin-bottom: 12px;
-    }
-    
-    .timer-controls {
-        flex-wrap: wrap;
-        gap: 8px;
-        justify-content: center;
-    }
-    
-    .timer-controls button {
-        padding: 10px 16px;
-        font-size: 14px;
-        min-width: 44px; /* Ensure touch-friendly size */
-    }
-    
-    /* Show mobile clue navigator */
-    .mobile-clue-navigator {
-        display: flex;
-    }
-}
-
-/* Mobile keyboard optimization - when viewport height is reduced (keyboard visible) */
-/* Small mobile devices */
-@media (max-width: 430px) and (max-height: 600px) {
-    body {
-        padding: 5px;
-        min-height: auto; /* Remove min-height to prevent scroll */
-    }
-    
-    .title {
         font-size: 1.5em;
+        letter-spacing: 1px;
         margin-bottom: 10px;
     }
     
@@ -1105,54 +1106,110 @@ button:disabled {
         margin-bottom: 8px;
     }
     
+    .timer-controls {
+        flex-wrap: wrap;
+        gap: 6px;
+        justify-content: center;
+    }
+    
+    .timer-controls button {
+        padding: 8px 12px;
+        font-size: 12px;
+        min-width: 44px; /* Ensure touch-friendly size */
+    }
+    
+    /* Show mobile clue navigator */
+    .mobile-clue-navigator {
+        display: flex;
+        margin-top: 10px;
+        padding: 10px;
+        min-height: 80px;
+    }
+}
+
+/* Mobile keyboard optimization - when viewport height is reduced (keyboard visible) */
+/* Small mobile devices */
+@media (max-width: 430px) and (max-height: 600px) {
+    body {
+        padding: 3px;
+        min-height: auto; /* Remove min-height to prevent scroll */
+    }
+    
+    .title {
+        font-size: 1.2em;
+        margin-bottom: 6px;
+    }
+    
+    .puzzle-info {
+        font-size: 11px;
+        margin-bottom: 6px;
+    }
+    
+    .timer-section {
+        padding: 6px;
+        margin-bottom: 6px;
+    }
+    
+    .timer {
+        font-size: 20px;
+        margin-bottom: 4px;
+    }
+    
     .container {
-        gap: 10px;
-        padding: 5px;
+        gap: 6px;
+        padding: 3px;
     }
     
     .mobile-clue-navigator {
-        margin-top: 10px;
-        padding: 12px;
-        min-height: 60px; /* Reduce min-height for keyboard mode */
+        margin-top: 6px;
+        padding: 8px;
+        min-height: 50px; /* Very compact for keyboard mode */
+    }
+    
+    .mobile-clue-navigator .clue-text {
+        font-size: 12px;
+        max-height: 5em; /* Ensure clue text is still readable */
+        -webkit-line-clamp: 4;
+        line-clamp: 4;
     }
     
     :root {
-        --cell-size: 48px; /* Smaller cells when keyboard is visible */
-        --cell-font-size: 24px;
-        --cell-number-size: 10px;
+        --cell-size: 35px; /* Much smaller cells when keyboard is visible */
+        --cell-font-size: 18px;
+        --cell-number-size: 8px;
     }
 }
 
 /* Large mobile devices (iPhone Pro Max, Samsung Galaxy, etc.) - keyboard optimization */
 @media (min-width: 431px) and (max-width: 768px) and (max-height: 600px) {
     body {
-        padding: 8px;
+        padding: 5px;
         min-height: auto; /* Remove min-height to prevent scroll */
     }
     
     .title {
-        font-size: 1.6em;
-        margin-bottom: 12px;
+        font-size: 1.3em;
+        margin-bottom: 8px;
     }
     
     .puzzle-info {
-        font-size: 13px;
-        margin-bottom: 12px;
+        font-size: 12px;
+        margin-bottom: 8px;
     }
     
     .timer-section {
-        padding: 12px;
-        margin-bottom: 12px;
+        padding: 8px;
+        margin-bottom: 8px;
     }
     
     .timer {
-        font-size: 26px;
-        margin-bottom: 10px;
+        font-size: 22px;
+        margin-bottom: 6px;
     }
     
     .container {
-        gap: 12px;
-        padding: 8px;
+        gap: 8px;
+        padding: 5px;
         flex-direction: column; /* Stack vertically on large mobile when keyboard is visible */
     }
     
@@ -1169,15 +1226,15 @@ button:disabled {
     
     .mobile-clue-navigator {
         display: flex; /* Show mobile navigator when keyboard is visible */
-        margin-top: 12px;
-        padding: 14px;
-        min-height: 80px;
+        margin-top: 8px;
+        padding: 10px;
+        min-height: 60px;
     }
     
     :root {
-        --cell-size: 52px; /* Slightly smaller cells for large mobile with keyboard */
-        --cell-font-size: 26px;
-        --cell-number-size: 12px;
+        --cell-size: 38px; /* Much smaller cells for large mobile with keyboard */
+        --cell-font-size: 20px;
+        --cell-number-size: 9px;
     }
 }
 
