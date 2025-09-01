@@ -1218,6 +1218,8 @@ class CrosswordPuzzle {
         
         try {
             const dataUrl = `data/${this.puzzle.date}.json`;
+
+            console.log(dataUrl);
             
             const response = await fetch(dataUrl, {
                 method: 'GET',
