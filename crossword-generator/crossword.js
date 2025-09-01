@@ -128,6 +128,12 @@ class CrosswordPuzzle {
                     <h2>Ready?</h2>
                     <button class="start-game-btn" id="startGameBtn">Start the Game</button>
                 `;
+                
+                // Setup start button event listener
+                const startGameBtn = document.getElementById('startGameBtn');
+                if (startGameBtn) {
+                    startGameBtn.addEventListener('click', () => this.startGame());
+                }
             }
         }
     }
