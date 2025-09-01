@@ -178,6 +178,13 @@ html {
     html {
         height: 100%;
         overflow-x: hidden;
+        scroll-behavior: smooth; /* Ensure smooth scrolling */
+    }
+    
+    /* Prevent automatic scrolling to focused inputs on mobile */
+    .cell:focus {
+        scroll-margin: 0;
+        scroll-padding: 0;
     }
     
     /* Handle iOS Safari viewport units issue */

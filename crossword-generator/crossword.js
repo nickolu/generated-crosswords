@@ -461,11 +461,21 @@ class CrosswordPuzzle {
         if (targetWrapper && targetInput) {
             targetWrapper.classList.add('selected');
             this.updateCellEmptyState(targetWrapper, index);
-            targetInput.focus();
-            targetInput.select(); // Auto-select existing text for easy replacement
             
-            // Scroll to puzzle area on mobile when typing
-            this.scrollToPuzzleOnMobile();
+            // On mobile, prevent default scroll behavior and apply our own
+            if (window.innerWidth <= 640) {
+                // Focus without scrolling
+                targetInput.focus({ preventScroll: true });
+                targetInput.select();
+                
+                // Apply our custom scroll after a brief delay
+                setTimeout(() => {
+                    this.scrollToPuzzleOnMobile();
+                }, 10);
+            } else {
+                targetInput.focus();
+                targetInput.select();
+            }
         }
         
         // Highlight the word and clue
@@ -538,14 +548,24 @@ class CrosswordPuzzle {
         const targetWrapper = document.querySelector(`.cell-wrapper[data-index="${targetCellIndex}"]`);
         const targetInput = targetWrapper?.querySelector('.cell');
         if (targetWrapper && targetInput) {
-            targetInput.focus();
-            targetInput.select(); // Auto-select existing text for easy replacement
             this.selectedCell = targetCellIndex;
             targetWrapper.classList.add('selected');
             this.updateCellEmptyState(targetWrapper, targetCellIndex);
             
-            // Scroll to puzzle area on mobile when typing
-            this.scrollToPuzzleOnMobile();
+            // On mobile, prevent default scroll behavior and apply our own
+            if (window.innerWidth <= 640) {
+                // Focus without scrolling
+                targetInput.focus({ preventScroll: true });
+                targetInput.select();
+                
+                // Apply our custom scroll after a brief delay
+                setTimeout(() => {
+                    this.scrollToPuzzleOnMobile();
+                }, 10);
+            } else {
+                targetInput.focus();
+                targetInput.select();
+            }
         }
         
         // Start timer on first interaction (only if game has been started)
@@ -895,11 +915,21 @@ class CrosswordPuzzle {
         if (targetWrapper && targetInput) {
             targetWrapper.classList.add('selected');
             this.updateCellEmptyState(targetWrapper, index);
-            targetInput.focus();
-            targetInput.select(); // Auto-select existing text for easy replacement
             
-            // Scroll to puzzle area on mobile when typing
-            this.scrollToPuzzleOnMobile();
+            // On mobile, prevent default scroll behavior and apply our own
+            if (window.innerWidth <= 640) {
+                // Focus without scrolling
+                targetInput.focus({ preventScroll: true });
+                targetInput.select();
+                
+                // Apply our custom scroll after a brief delay
+                setTimeout(() => {
+                    this.scrollToPuzzleOnMobile();
+                }, 10);
+            } else {
+                targetInput.focus();
+                targetInput.select();
+            }
         }
     }
     
@@ -1353,14 +1383,22 @@ class CrosswordPuzzle {
         if (window.innerWidth <= 640) {
             const crosswordGrid = document.querySelector('.crossword-grid');
             if (crosswordGrid) {
-                // Scroll to top of crossword grid with some offset for better visibility
-                const headerHeight = 80; // Approximate height of title/timer section
-                const targetPosition = crosswordGrid.offsetTop - headerHeight;
+                // Use multiple timeouts to override browser scroll behavior
+                const scrollToPuzzleTop = () => {
+                    crosswordGrid.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start', // Align to top
+                        inline: 'nearest'
+                    });
+                };
                 
-                window.scrollTo({
-                    top: Math.max(0, targetPosition),
-                    behavior: 'smooth'
-                });
+                // Immediate scroll
+                scrollToPuzzleTop();
+                
+                // Override any browser auto-scroll after focus
+                setTimeout(scrollToPuzzleTop, 50);
+                setTimeout(scrollToPuzzleTop, 150);
+                setTimeout(scrollToPuzzleTop, 300);
             }
         }
     }
