@@ -794,7 +794,7 @@ class CrosswordPuzzle {
             shareText += `${rankEmoji} ${entry.name} - ${entry.timeFormatted}\n`;
         });
         
-        shareText += `\n🔗 Play today's crossword: manchat.men/mini`;
+        shareText += `\n🔗 Play today's crossword: https://manchat.men/mini`;
         
         // Copy to clipboard
         if (navigator.clipboard && window.isSecureContext) {
@@ -1278,10 +1278,21 @@ class CrosswordPuzzle {
             shareSection.style.display = isCompleted ? 'block' : 'none';
             
             if (isCompleted) {
+                // Make completion time visible
+                const completionTimeSection = shareSection.querySelector('.completion-time');
+                if (completionTimeSection) {
+                    completionTimeSection.style.display = 'block';
+                }
                 // Update the completion time display in the modal
                 const completionTimeElement = document.getElementById('leaderboardCompletionTime');
                 if (completionTimeElement) {
                     completionTimeElement.textContent = this.formatTime(this.elapsedTime);
+                }
+            } else {
+                // Make completion time section hidden
+                const completionTimeSection = shareSection.querySelector('.completion-time');
+                if (completionTimeSection) {
+                    completionTimeSection.style.display = 'none';
                 }
             }
         }
