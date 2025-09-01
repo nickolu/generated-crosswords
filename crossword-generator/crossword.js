@@ -1469,10 +1469,70 @@ class CrosswordPuzzle {
     }
 }
 
+/**
+ * CrosswordLoader - Handles loading and displaying crossword puzzles with configurable year offset.
+ * 
+ * The yearOffset parameter controls the delay between puzzle publication and display dates.
+ * For example, with yearOffset=11, a puzzle published on 2014-08-29 will be displayed
+ * and have its scores/leaderboard tracked as 2025-08-29.
+ */
 class CrosswordLoader {
-    constructor() {
+    constructor(yearOffset = 11) {
         this.puzzle = null;
         this.crosswordInstance = null;
+        this.yearOffset = yearOffset; // Number of years to add to publication date for display
+    }
+
+    /**
+     * Extract date from filename (supports both mini_YYYY-MM-DD.json and YYYY-MM-DD.json formats)
+     * @param {string} filePath - Path to the puzzle file
+     * @returns {string|null} - Date string in YYYY-MM-DD format, or null if not found
+     */
+    extractDateFromPath(filePath) {
+        const dateMatch = filePath.match(/(\d{4}-\d{2}-\d{2})/);
+        return dateMatch ? dateMatch[1] : null;
+    }
+
+    /**
+     * Calculate the display date by adding the yearOffset to the publication date
+     * @param {string} publicationDate - Date string in YYYY-MM-DD format
+     * @returns {string} - Display date string in YYYY-MM-DD format
+     */
+    calculateDisplayDate(publicationDate) {
+        const pubDate = new Date(publicationDate);
+        const displayDate = new Date(pubDate.setFullYear(pubDate.getFullYear() + this.yearOffset));
+        return displayDate.toISOString().split('T')[0];
+    }
+
+    /**
+     * Calculate today's date minus yearOffset to determine which puzzle should be shown
+     * @returns {string} - Date string in YYYY-MM-DD format
+     */
+    calculateTodaysPuzzleDate() {
+        const today = new Date();
+        const puzzleDate = new Date(today.getFullYear() - this.yearOffset, today.getMonth(), today.getDate());
+        const year = puzzleDate.getFullYear();
+        const month = String(puzzleDate.getMonth() + 1).padStart(2, '0');
+        const day = String(puzzleDate.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    /**
+     * Check if a puzzle date is too recent (beyond today minus yearOffset)
+     * @param {string} filePath - Path to the puzzle file
+     * @returns {boolean} - True if the puzzle date is too recent
+     */
+    isPuzzleDateTooRecent(filePath) {
+        const puzzleDate = this.extractDateFromPath(filePath);
+        if (!puzzleDate) {
+            return false; // If no date found, allow it
+        }
+        
+        const puzzleDateObj = new Date(puzzleDate);
+        const today = new Date();
+        const allowedDate = new Date(today.getFullYear() - this.yearOffset, today.getMonth(), today.getDate());
+        
+        return puzzleDateObj > allowedDate;
     }
 
     async loadPuzzle(jsonPath = null) {
@@ -1487,18 +1547,20 @@ class CrosswordLoader {
                 jsonPath = pathResult.path;
             } else {
                 // Check if manually provided path has a date that's too recent
-                if (this.isDateTooRecent(jsonPath)) {
+                if (this.isPuzzleDateTooRecent(jsonPath)) {
                     this.showPuzzleNotPlayableMessage();
                     return;
                 }
             }
 
             // Extract date from the filename
-            const dateMatch = jsonPath.match(/(\d{4}-\d{2}-\d{2})/);
-            if (!dateMatch) {
+            const publicationDate = this.extractDateFromPath(jsonPath);
+            if (!publicationDate) {
                 throw new Error('Failed to extract date from filename');
             }
-            const date = dateMatch[1];
+
+            // Calculate the display date using the year offset
+            const displayDate = this.calculateDisplayDate(publicationDate);
 
             const response = await fetch(jsonPath);
             if (!response.ok) {
@@ -1507,7 +1569,7 @@ class CrosswordLoader {
 
             const puzzleData = await response.json();
             this.puzzle = puzzleData.body[0];
-            this.puzzle.date = date;
+            this.puzzle.date = displayDate;
             
             // Update page title and info
             this.updatePuzzleInfo(puzzleData, jsonPath);
@@ -1539,17 +1601,12 @@ class CrosswordLoader {
                 filePath = `crosswords/${puzzleParam}.json`;
             }
             
-            const tooRecent = this.isDateTooRecent(filePath);
+            const tooRecent = this.isPuzzleDateTooRecent(filePath);
             return { path: filePath, tooRecent: tooRecent };
         }
 
-        // Calculate today's date minus 11 years
-        const today = new Date();
-        const elevenYearsAgo = new Date(today.getFullYear() - 11, today.getMonth(), today.getDate());
-        const year = elevenYearsAgo.getFullYear();
-        const month = String(elevenYearsAgo.getMonth() + 1).padStart(2, '0');
-        const day = String(elevenYearsAgo.getDate()).padStart(2, '0');
-        const dateString = `${year}-${month}-${day}`;
+        // Calculate today's puzzle date using yearOffset
+        const dateString = this.calculateTodaysPuzzleDate();
         
         return { path: `crosswords/mini_${dateString}.json`, tooRecent: false };
     }
@@ -1609,19 +1666,7 @@ class CrosswordLoader {
         container.innerHTML = cluesHTML;
     }
 
-    isDateTooRecent(filePath) {
-        // Extract date from filename (mini_YYYY-MM-DD.json or YYYY-MM-DD.json)
-        const dateMatch = filePath.match(/(\d{4}-\d{2}-\d{2})/);
-        if (!dateMatch) {
-            return false; // If no date found, allow it
-        }
-        
-        const puzzleDate = new Date(dateMatch[1]);
-        const today = new Date();
-        const elevenYearsAgo = new Date(today.getFullYear() - 11, today.getMonth(), today.getDate());
-        
-        return puzzleDate > elevenYearsAgo;
-    }
+
 
     showPuzzleNotPlayableMessage() {
         // Hide the main content areas
@@ -1649,8 +1694,29 @@ class CrosswordLoader {
     }
 }
 
-// Initialize when page loads
+/**
+ * Initialize crossword when page loads
+ * 
+ * Configuration options for yearOffset (default: 11):
+ * 1. Set window.CROSSWORD_YEAR_OFFSET = number before this script loads
+ * 2. Add data-year-offset="number" attribute to <body> tag
+ * 3. Use default value of 11 years
+ * 
+ * Example configurations:
+ * - <script>window.CROSSWORD_YEAR_OFFSET = 10;</script>
+ * - <body data-year-offset="12">
+ */
 window.addEventListener('DOMContentLoaded', async () => {
-    const loader = new CrosswordLoader();
+    // Check for custom yearOffset configuration
+    // Priority: 1) global variable 2) data attribute on body 3) default (11)
+    let yearOffset = 11; // default
+    
+    if (typeof window.CROSSWORD_YEAR_OFFSET !== 'undefined') {
+        yearOffset = window.CROSSWORD_YEAR_OFFSET;
+    } else if (document.body.dataset.yearOffset) {
+        yearOffset = parseInt(document.body.dataset.yearOffset, 10);
+    }
+    
+    const loader = new CrosswordLoader(yearOffset);
     await loader.loadPuzzle();
 });
