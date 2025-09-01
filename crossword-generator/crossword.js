@@ -128,12 +128,6 @@ class CrosswordPuzzle {
                     <h2>Ready?</h2>
                     <button class="start-game-btn" id="startGameBtn">Start the Game</button>
                 `;
-                
-                // Setup start button event listener
-                const startBtn = document.getElementById('startGameBtn');
-                if (startBtn) {
-                    startBtn.addEventListener('click', () => this.startGame());
-                }
             }
         }
     }
@@ -229,13 +223,11 @@ class CrosswordPuzzle {
     }
     
     setupTimer() {
-        const startBtn = document.getElementById('startBtn');
         const pauseBtn = document.getElementById('pauseBtn');
         const persistentShareBtn = document.getElementById('persistentShareBtn');
         const feedbackToggle = document.getElementById('feedbackToggle');
         const leaderboardBtn = document.getElementById('leaderboardBtn');
         
-        startBtn.addEventListener('click', () => this.startTimer());
         pauseBtn.addEventListener('click', () => this.pauseTimer());
         
         if (persistentShareBtn) {
@@ -300,7 +292,6 @@ class CrosswordPuzzle {
         
         this.startTimerAnimation();
         
-        document.getElementById('startBtn').disabled = true;
         document.getElementById('pauseBtn').disabled = false;
     }
     
@@ -340,7 +331,6 @@ class CrosswordPuzzle {
         this.showPauseOverlay();
         this.blurClues();
         
-        document.getElementById('startBtn').disabled = false;
         document.getElementById('pauseBtn').disabled = true;
     }
     
@@ -634,7 +624,6 @@ class CrosswordPuzzle {
         this.isPaused = true;
         this.isCompleted = true;
         
-        document.getElementById('startBtn').disabled = true;
         document.getElementById('pauseBtn').disabled = true;
         
         // Enable the persistent share button
