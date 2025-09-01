@@ -387,7 +387,7 @@ class CrosswordPuzzle {
         });
         
         // Setup cell event listeners
-        document.querySelectorAll('.cell-wrapper').forEach((wrapper, index) => {
+        document.querySelectorAll('.cell-wrapper').forEach((wrapper) => {
             const cellIndex = parseInt(wrapper.dataset.index);
             const input = wrapper.querySelector('.cell');
             if (input) {
@@ -669,7 +669,7 @@ class CrosswordPuzzle {
         const timeInSeconds = Math.floor(this.elapsedTime / 1000);
         
         // Construct the URL
-        const url = `results?user=${encodeURIComponent(this.userName)}&time=${timeInSeconds}`;
+        const url = `results?user=${encodeURIComponent(this.userName)}&time=${timeInSeconds}&date=${this.puzzle.date}`;
         
         // Send GET request and return the promise
         return fetch(url, {
@@ -689,7 +689,6 @@ class CrosswordPuzzle {
     shareScore() {
         const puzzleTitle = document.querySelector('.title').textContent;
         const completionTime = this.formatTime(this.elapsedTime);
-        const puzzleDate = puzzleTitle.split(' ')[1]; // Extract date from title like "mini 2014-08-21"
         
         // Check if puzzle is actually completed
         if (!this.elapsedTime || this.elapsedTime === 0) {
@@ -731,7 +730,7 @@ class CrosswordPuzzle {
             } else {
                 this.showPersistentShareFeedback('Score copied to clipboard!');
             }
-        } catch (err) {
+        } catch {
             if (isLeaderboard) {
                 this.showShareLeaderboardFeedback('Unable to copy to clipboard');
             } else {
@@ -756,7 +755,6 @@ class CrosswordPuzzle {
     
     shareLeaderboard() {
         const puzzleTitle = document.querySelector('.title').textContent;
-        const puzzleDate = puzzleTitle.split(' ')[1]; // Extract date from title like "mini 2014-08-21"
         
         // Get current leaderboard data
         const leaderboardData = this.currentLeaderboardData;
@@ -1473,6 +1471,7 @@ class CrosswordPuzzle {
 }
 
 // Initialize the crossword puzzle when the page loads
+// eslint-disable-next-line no-unused-vars
 let crosswordInstance;
 window.addEventListener('DOMContentLoaded', () => {
     if (typeof puzzleData !== 'undefined') {

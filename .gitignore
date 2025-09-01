@@ -4,3 +4,5 @@ uv.lock
 data/*
 **/__pycache__/*
 **/.venv/*
+node_modules/*
+package-lock.json
