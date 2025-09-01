@@ -1021,6 +1021,9 @@ button:disabled {
         margin-top: 12px;
         padding: 12px;
         min-height: 90px;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
     }
 }
 
@@ -1038,6 +1041,8 @@ button:disabled {
     min-height: 80px; /* Reduced from 120px since no buttons */
     width: 100%;
     max-width: 100%;
+    box-sizing: border-box; /* Include padding and border in width calculation */
+    overflow: hidden; /* Prevent content overflow */
 }
 
 .mobile-clue-navigator .nav-btn {
@@ -1072,6 +1077,8 @@ button:disabled {
     text-align: center;
     padding: 0 8px; /* Add padding so text doesn't touch edges */
     max-width: calc(100% - 16px); /* Ensure it's slightly smaller than container */
+    width: 100%; /* Ensure full width is used */
+    box-sizing: border-box; /* Include padding in width calculation */
 }
 
 .mobile-clue-navigator .clue-info {
@@ -1110,6 +1117,9 @@ button:disabled {
     -webkit-box-orient: vertical;
     max-height: 7em; /* Increased from 4.2em to 7em */
     text-align: center;
+    width: 100%; /* Ensure full width */
+    word-wrap: break-word; /* Handle long words */
+    hyphens: auto; /* Allow hyphenation if needed */
 }
 
 /* Mobile - stack and scale aggressively */
@@ -1183,6 +1193,9 @@ button:disabled {
         margin-top: 10px;
         padding: 10px;
         min-height: 80px;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
     }
 }
 
@@ -1223,6 +1236,9 @@ button:disabled {
         margin-top: 6px;
         padding: 8px;
         min-height: 50px; /* Very compact for keyboard mode */
+        width: 100%; /* Ensure full width on small mobile */
+        max-width: 100%;
+        box-sizing: border-box;
     }
     
     .mobile-clue-navigator .clue-text {
@@ -1288,6 +1304,9 @@ button:disabled {
         margin-top: 8px;
         padding: 10px;
         min-height: 60px;
+        width: 100%; /* Ensure full width on large mobile */
+        max-width: 100%;
+        box-sizing: border-box;
     }
     
     :root {
@@ -1328,6 +1347,9 @@ button:disabled {
         margin-top: 8px;
         padding: 10px;
         min-height: 60px;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
     }
     
     :root {
@@ -1371,6 +1393,9 @@ button:disabled {
         margin-top: 15px;
         gap: 8px;
         min-height: 100px; /* Increased from default for small screens */
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
     }
     
     .mobile-clue-navigator .nav-btn {
