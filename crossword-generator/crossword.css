@@ -173,6 +173,21 @@ html {
     overflow-x: hidden;
 }
 
+/* Mobile viewport handling for keyboard optimization */
+@media (max-width: 430px) {
+    html {
+        height: 100%;
+        overflow-x: hidden;
+    }
+    
+    /* Handle iOS Safari viewport units issue */
+    @supports (-webkit-touch-callout: none) {
+        body {
+            height: -webkit-fill-available;
+        }
+    }
+}
+
 body {
     font-family: 'Roboto Condensed', sans-serif;
     max-width: 1200px;
@@ -903,7 +918,7 @@ button:disabled {
     box-shadow: 0 4px 20px var(--color-shadow-secondary);
     align-items: center;
     gap: 12px;
-    min-height: 80px;
+    min-height: 120px; /* Increased from 80px to 120px for better clue display */
     width: 100%;
     max-width: 100%;
 }
@@ -984,10 +999,10 @@ button:disabled {
     overflow: hidden;
     text-overflow: ellipsis;
     display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
+    -webkit-line-clamp: 5; /* Increased from 3 to 5 lines */
+    line-clamp: 5;
     -webkit-box-orient: vertical;
-    max-height: 4.2em;
+    max-height: 7em; /* Increased from 4.2em to 7em */
     text-align: center;
 }
 
@@ -1062,6 +1077,51 @@ button:disabled {
     }
 }
 
+/* Mobile keyboard optimization - when viewport height is reduced (keyboard visible) */
+@media (max-width: 430px) and (max-height: 600px) {
+    body {
+        padding: 5px;
+        min-height: auto; /* Remove min-height to prevent scroll */
+    }
+    
+    .title {
+        font-size: 1.5em;
+        margin-bottom: 10px;
+    }
+    
+    .puzzle-info {
+        font-size: 12px;
+        margin-bottom: 10px;
+    }
+    
+    .timer-section {
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .timer {
+        font-size: 24px;
+        margin-bottom: 8px;
+    }
+    
+    .container {
+        gap: 10px;
+        padding: 5px;
+    }
+    
+    .mobile-clue-navigator {
+        margin-top: 10px;
+        padding: 12px;
+        min-height: 60px; /* Reduce min-height for keyboard mode */
+    }
+    
+    :root {
+        --cell-size: 48px; /* Smaller cells when keyboard is visible */
+        --cell-font-size: 24px;
+        --cell-number-size: 10px;
+    }
+}
+
 /* Extra small screens */
 @media (max-width: 320px) {
     :root {
@@ -1095,6 +1155,7 @@ button:disabled {
         padding: 12px;
         margin-top: 15px;
         gap: 8px;
+        min-height: 100px; /* Increased from default for small screens */
     }
     
     .mobile-clue-navigator .nav-btn {
@@ -1108,7 +1169,9 @@ button:disabled {
     
     .mobile-clue-navigator .clue-text {
         font-size: 13px;
-        max-height: 3.9em;
+        max-height: 6.5em; /* Increased from 3.9em to 6.5em */
+        -webkit-line-clamp: 5; /* Ensure consistency across screen sizes */
+        line-clamp: 5;
     }
     
     .mobile-clue-navigator .clue-number {
