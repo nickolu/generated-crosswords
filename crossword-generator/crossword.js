@@ -165,6 +165,17 @@ class CrosswordPuzzle {
     
     resumeFromPause() {
         this.startTimer();
+        // Restore focus to the currently selected cell
+        if (this.selectedCell !== null) {
+            const wrappers = document.querySelectorAll('.cell-wrapper');
+            const targetWrapper = wrappers[this.selectedCell];
+            const targetInput = targetWrapper?.querySelector('.cell');
+            if (targetInput) {
+                setTimeout(() => {
+                    targetInput.focus();
+                }, 100);
+            }
+        }
     }
     
     startGame() {
@@ -251,6 +262,13 @@ class CrosswordPuzzle {
         if (leaderboardShareBtn) {
             leaderboardShareBtn.addEventListener('click', () => this.shareScore());
         }
+
+        // Auto-pause when browser tab loses focus
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && this.isRunning && !this.isPaused && this.gameStarted) {
+                this.pauseTimer();
+            }
+        });
     }
     
     startTimer() {
