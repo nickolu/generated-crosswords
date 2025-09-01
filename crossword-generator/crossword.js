@@ -645,7 +645,7 @@ class CrosswordPuzzle {
         this.sendResultsToServer()
             .then(() => {
                 // Update header to show submission success
-                this.loadLeaderboardData();
+                this.loadLeaderboardData(this.puzzle.date);
             })
             .catch(() => {
                 // Update header to show submission failed but continue
@@ -1187,7 +1187,6 @@ class CrosswordPuzzle {
             }
             
             modal.style.display = 'flex';
-            this.loadLeaderboardData();
             this.updateShareButtonVisibility();
             
             // Reset header after 3 seconds
