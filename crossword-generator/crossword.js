@@ -745,14 +745,27 @@ class CrosswordPuzzle {
     
     showPersistentShareFeedback(message) {
         const persistentShareBtn = document.getElementById('persistentShareBtn');
-        if (!persistentShareBtn) return;
+        const leaderboardShareBtn = document.getElementById('leaderboardShareBtn');
         
-        const originalText = persistentShareBtn.textContent;
-        persistentShareBtn.textContent = message;
+        // Update persistent share button if it exists
+        if (persistentShareBtn) {
+            const originalText = persistentShareBtn.textContent;
+            persistentShareBtn.textContent = message;
+            
+            setTimeout(() => {
+                persistentShareBtn.textContent = originalText;
+            }, 2000);
+        }
         
-        setTimeout(() => {
-            persistentShareBtn.textContent = originalText;
-        }, 2000);
+        // Update leaderboard share button if it exists
+        if (leaderboardShareBtn) {
+            const originalText = leaderboardShareBtn.textContent;
+            leaderboardShareBtn.textContent = message;
+            
+            setTimeout(() => {
+                leaderboardShareBtn.textContent = originalText;
+            }, 2000);
+        }
     }
     
     moveToNextCell(currentIndex) {
