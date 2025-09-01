@@ -697,7 +697,7 @@ class CrosswordPuzzle {
         }
         
         const userNameText = this.userName ? `👤 ${this.userName}\n` : '';
-        const shareText = `🧩 ${puzzleTitle} completed!\n${userNameText}⏱️ Time: ${completionTime}\n\n🔗 Play today's crossword: manchat.men/mini`;
+        const shareText = `🧩 ${puzzleTitle} completed!\n${userNameText}⏱️ Time: ${completionTime}\n\n🔗 Play today's crossword: https://manchat.men/mini`;
         
         // Try to use the modern Clipboard API
         if (navigator.clipboard && window.isSecureContext) {
