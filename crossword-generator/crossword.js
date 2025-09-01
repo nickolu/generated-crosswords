@@ -9,9 +9,11 @@ class CrosswordPuzzle {
         this.timerAnimationId = null;
         this.isRunning = false;
         this.isPaused = false;
+        this.isCompleted = false;
         this.showFeedback = false; // Feedback is disabled by default
         this.gameStarted = false; // Track if game has been started
         this.userName = this.getCookie('crossword_user_name') || null;
+        this.currentLeaderboardData = null; // Store current leaderboard data for sharing
         this.init();
     }
     
@@ -128,9 +130,9 @@ class CrosswordPuzzle {
                 `;
                 
                 // Setup start button event listener
-                const startBtn = document.getElementById('startGameBtn');
-                if (startBtn) {
-                    startBtn.addEventListener('click', () => this.startGame());
+                const startGameBtn = document.getElementById('startGameBtn');
+                if (startGameBtn) {
+                    startGameBtn.addEventListener('click', () => this.startGame());
                 }
             }
         }
@@ -155,8 +157,14 @@ class CrosswordPuzzle {
                 overlayContent.innerHTML = `
                     <h2>Game Paused ⏸️</h2>
                     <p>Your progress is saved. Click "Resume" to continue your puzzle.</p>
-                    <button class="start-game-btn" onclick="crosswordInstance.resumeFromPause()">Resume Game</button>
+                    <button class="start-game-btn" id="resumeGameBtn">Resume Game</button>
                 `;
+                
+                // Add event listener to the resume button
+                const resumeBtn = overlayContent.querySelector('#resumeGameBtn');
+                if (resumeBtn) {
+                    resumeBtn.addEventListener('click', () => this.resumeFromPause());
+                }
             }
             overlay.style.display = 'flex';
             overlay.style.animation = 'fadeIn 0.3s ease';
@@ -165,6 +173,17 @@ class CrosswordPuzzle {
     
     resumeFromPause() {
         this.startTimer();
+        // Restore focus to the currently selected cell
+        if (this.selectedCell !== null) {
+            const wrappers = document.querySelectorAll('.cell-wrapper');
+            const targetWrapper = wrappers[this.selectedCell];
+            const targetInput = targetWrapper?.querySelector('.cell');
+            if (targetInput) {
+                setTimeout(() => {
+                    targetInput.focus();
+                }, 100);
+            }
+        }
     }
     
     startGame() {
@@ -210,13 +229,11 @@ class CrosswordPuzzle {
     }
     
     setupTimer() {
-        const startBtn = document.getElementById('startBtn');
         const pauseBtn = document.getElementById('pauseBtn');
         const persistentShareBtn = document.getElementById('persistentShareBtn');
         const feedbackToggle = document.getElementById('feedbackToggle');
         const leaderboardBtn = document.getElementById('leaderboardBtn');
         
-        startBtn.addEventListener('click', () => this.startTimer());
         pauseBtn.addEventListener('click', () => this.pauseTimer());
         
         if (persistentShareBtn) {
@@ -235,6 +252,7 @@ class CrosswordPuzzle {
         const closeLeaderboardBtn = document.getElementById('closeLeaderboardBtn');
         const leaderboardModal = document.getElementById('leaderboardModal');
         const leaderboardShareBtn = document.getElementById('leaderboardShareBtn');
+        const shareLeaderboardBtn = document.getElementById('shareLeaderboardBtn');
         
         if (closeLeaderboardBtn) {
             closeLeaderboardBtn.addEventListener('click', () => this.hideLeaderboard());
@@ -251,6 +269,17 @@ class CrosswordPuzzle {
         if (leaderboardShareBtn) {
             leaderboardShareBtn.addEventListener('click', () => this.shareScore());
         }
+        
+        if (shareLeaderboardBtn) {
+            shareLeaderboardBtn.addEventListener('click', () => this.shareLeaderboard());
+        }
+
+        // Auto-pause when browser tab loses focus
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && this.isRunning && !this.isPaused && this.gameStarted) {
+                this.pauseTimer();
+            }
+        });
     }
     
     startTimer() {
@@ -269,7 +298,6 @@ class CrosswordPuzzle {
         
         this.startTimerAnimation();
         
-        document.getElementById('startBtn').disabled = true;
         document.getElementById('pauseBtn').disabled = false;
     }
     
@@ -309,7 +337,6 @@ class CrosswordPuzzle {
         this.showPauseOverlay();
         this.blurClues();
         
-        document.getElementById('startBtn').disabled = false;
         document.getElementById('pauseBtn').disabled = true;
     }
     
@@ -356,16 +383,17 @@ class CrosswordPuzzle {
     
     setupEventListeners() {
         document.addEventListener('keydown', (e) => {
-            this.handleKeyPress(e);
+            this.handleKeyDown(e);
         });
         
         // Setup cell event listeners
-        document.querySelectorAll('.cell-wrapper').forEach((wrapper, index) => {
+        document.querySelectorAll('.cell-wrapper').forEach((wrapper) => {
             const cellIndex = parseInt(wrapper.dataset.index);
             const input = wrapper.querySelector('.cell');
             if (input) {
-                wrapper.addEventListener('click', (e) => this.handleCellClick(cellIndex));
-                input.addEventListener('input', (e) => this.handleInput(e, cellIndex));
+                wrapper.addEventListener('click', () => this.handleCellClick(cellIndex));
+                // Add input cleanup for paste/edge cases (but don't handle normal typing)
+                input.addEventListener('input', (e) => this.cleanupInput(e, cellIndex));
             }
         });
         
@@ -388,7 +416,6 @@ class CrosswordPuzzle {
     
     selectCell(index, forceToggle = false) {
         const wrappers = document.querySelectorAll('.cell-wrapper');
-        const blackCells = document.querySelectorAll('.cell.black');
         const clueItems = document.querySelectorAll('.clue-item');
         const cell = this.puzzle.cells[index];
         
@@ -422,15 +449,15 @@ class CrosswordPuzzle {
         wrappers.forEach(wrapper => {
             wrapper.classList.remove('selected', 'highlighted', 'empty');
         });
-        blackCells.forEach(cell => cell.classList.remove('selected', 'highlighted', 'empty'));
         clueItems.forEach(item => item.classList.remove('selected'));
         
         // Set new selection
         this.selectedCell = index;
         this.selectedClue = targetClueIndex;
         
-        const targetWrapper = wrappers[index];
-        const targetInput = targetWrapper.querySelector('.cell');
+        // Find the target wrapper using data-index attribute
+        const targetWrapper = document.querySelector(`.cell-wrapper[data-index="${index}"]`);
+        const targetInput = targetWrapper?.querySelector('.cell');
         if (targetWrapper && targetInput) {
             targetWrapper.classList.add('selected');
             this.updateCellEmptyState(targetWrapper, index);
@@ -479,11 +506,9 @@ class CrosswordPuzzle {
         clueItems.forEach(item => item.classList.remove('selected'));
         
         const wrappers = document.querySelectorAll('.cell-wrapper');
-        const blackCells = document.querySelectorAll('.cell.black');
         wrappers.forEach(wrapper => {
             wrapper.classList.remove('selected', 'highlighted', 'empty');
         });
-        blackCells.forEach(cell => cell.classList.remove('selected', 'highlighted', 'empty'));
         
         this.selectedClue = clueIndex;
         
@@ -506,7 +531,8 @@ class CrosswordPuzzle {
             }
         }
         
-        const targetWrapper = wrappers[targetCellIndex];
+        // Find the target wrapper using data-index attribute
+        const targetWrapper = document.querySelector(`.cell-wrapper[data-index="${targetCellIndex}"]`);
         const targetInput = targetWrapper?.querySelector('.cell');
         if (targetWrapper && targetInput) {
             targetInput.focus();
@@ -527,60 +553,40 @@ class CrosswordPuzzle {
     
     highlightWord(clueIndex) {
         const clue = this.puzzle.clues[clueIndex];
-        const wrappers = document.querySelectorAll('.cell-wrapper');
-        const blackCells = document.querySelectorAll('.cell.black');
         
         clue.cells.forEach(cellIndex => {
-            if (wrappers[cellIndex]) {
-                wrappers[cellIndex].classList.add('highlighted');
-            } else if (blackCells[cellIndex]) {
-                blackCells[cellIndex].classList.add('highlighted');
+            // Only highlight valid, non-black cells that are part of this clue
+            const cell = this.puzzle.cells[cellIndex];
+            if (cell && Object.keys(cell).length > 0) {
+                // Find the wrapper element using data-index attribute
+                const wrapper = document.querySelector(`.cell-wrapper[data-index="${cellIndex}"]`);
+                if (wrapper) {
+                    wrapper.classList.add('highlighted');
+                }
             }
         });
     }
     
-    handleInput(event, cellIndex) {
-        // This event handler is now primarily for cleanup and fallback
-        // Most letter input is handled in handleKeyPress for better responsiveness
+
+    
+    cleanupInput(event, cellIndex) {
+        // Simple cleanup for paste/edge cases - only ensures valid single letter
         const value = event.target.value.toUpperCase();
-        const cell = this.puzzle.cells[cellIndex];
-        
-        // Only take the first valid letter character
         const firstValidChar = value.match(/[A-Z]/)?.[0] || '';
         
-        if (firstValidChar) {
-            // Ensure the input value is clean (single letter)
+        if (firstValidChar && firstValidChar !== value) {
+            // Input has invalid characters or multiple characters, clean it
             event.target.value = firstValidChar;
-            
-            // Update userAnswers to match the input value
             this.userAnswers[cellIndex] = firstValidChar;
-            
-            // Only show feedback if enabled
-            if (this.showFeedback && cell) {
-                if (cell.answer === firstValidChar) {
-                    event.target.style.setProperty('background', '#c8e6c9', 'important');
-                } else {
-                    event.target.style.setProperty('background', '#ffcdd2', 'important');
-                }
-            } else {
-                event.target.style.removeProperty('background');
-            }
-            
-            // Update empty state for cursor display
-            const wrapper = event.target.closest('.cell-wrapper');
-            if (wrapper) this.updateCellEmptyState(wrapper, cellIndex);
-            
-            // Check for puzzle completion
-            this.checkPuzzleCompletion();
-        } else {
+        } else if (!firstValidChar && value) {
+            // Input has no valid characters but has content, clear it
             event.target.value = '';
             delete this.userAnswers[cellIndex];
-            event.target.style.removeProperty('background');
-            
-            // Update empty state for cursor display
-            const wrapper = event.target.closest('.cell-wrapper');
-            if (wrapper) this.updateCellEmptyState(wrapper, cellIndex);
         }
+        
+        // Update visual state to match
+        const wrapper = event.target.closest('.cell-wrapper');
+        if (wrapper) this.updateCellEmptyState(wrapper, cellIndex);
     }
     
     updateCellEmptyState(wrapperElement, cellIndex) {
@@ -622,8 +628,8 @@ class CrosswordPuzzle {
         }
         this.isRunning = false;
         this.isPaused = true;
+        this.isCompleted = true;
         
-        document.getElementById('startBtn').disabled = true;
         document.getElementById('pauseBtn').disabled = true;
         
         // Enable the persistent share button
@@ -639,7 +645,7 @@ class CrosswordPuzzle {
         this.sendResultsToServer()
             .then(() => {
                 // Update header to show submission success
-                this.loadLeaderboardData();
+                this.loadLeaderboardData(this.puzzle.date);
             })
             .catch(() => {
                 // Update header to show submission failed but continue
@@ -663,7 +669,7 @@ class CrosswordPuzzle {
         const timeInSeconds = Math.floor(this.elapsedTime / 1000);
         
         // Construct the URL
-        const url = `results?user=${encodeURIComponent(this.userName)}&time=${timeInSeconds}`;
+        const url = `results?user=${encodeURIComponent(this.userName)}&time=${timeInSeconds}&date=${this.puzzle.date}`;
         
         // Send GET request and return the promise
         return fetch(url, {
@@ -683,7 +689,6 @@ class CrosswordPuzzle {
     shareScore() {
         const puzzleTitle = document.querySelector('.title').textContent;
         const completionTime = this.formatTime(this.elapsedTime);
-        const puzzleDate = puzzleTitle.split(' ')[1]; // Extract date from title like "mini 2014-08-21"
         
         // Check if puzzle is actually completed
         if (!this.elapsedTime || this.elapsedTime === 0) {
@@ -692,7 +697,7 @@ class CrosswordPuzzle {
         }
         
         const userNameText = this.userName ? `👤 ${this.userName}\n` : '';
-        const shareText = `🧩 ${puzzleTitle} completed!\n${userNameText}⏱️ Time: ${completionTime}\n\n`;
+        const shareText = `🧩 ${puzzleTitle} completed!\n${userNameText}⏱️ Time: ${completionTime}\n\n🔗 Play today's crossword: https://manchat.men/mini`;
         
         // Try to use the modern Clipboard API
         if (navigator.clipboard && window.isSecureContext) {
@@ -707,7 +712,7 @@ class CrosswordPuzzle {
         }
     }
     
-    fallbackCopyToClipboard(text) {
+    fallbackCopyToClipboard(text, isLeaderboard = false) {
         // Create a temporary textarea element
         const textArea = document.createElement('textarea');
         textArea.value = text;
@@ -720,9 +725,17 @@ class CrosswordPuzzle {
         
         try {
             document.execCommand('copy');
-            this.showPersistentShareFeedback('Score copied to clipboard!');
-        } catch (err) {
-            this.showPersistentShareFeedback('Unable to copy to clipboard');
+            if (isLeaderboard) {
+                this.showShareLeaderboardFeedback('Leaderboard copied to clipboard!');
+            } else {
+                this.showPersistentShareFeedback('Score copied to clipboard!');
+            }
+        } catch {
+            if (isLeaderboard) {
+                this.showShareLeaderboardFeedback('Unable to copy to clipboard');
+            } else {
+                this.showPersistentShareFeedback('Unable to copy to clipboard');
+            }
         }
         
         document.body.removeChild(textArea);
@@ -740,16 +753,92 @@ class CrosswordPuzzle {
         }, 2000);
     }
     
+    shareLeaderboard() {
+        const puzzleTitle = document.querySelector('.title').textContent;
+        
+        // Get current leaderboard data
+        const leaderboardData = this.currentLeaderboardData;
+        if (!leaderboardData || Object.keys(leaderboardData).length === 0) {
+            this.showShareLeaderboardFeedback('No leaderboard data available');
+            return;
+        }
+        
+        // Convert to sorted array
+        const entries = Object.entries(leaderboardData)
+            .map(([name, timeInSeconds]) => ({
+                name,
+                timeInSeconds: parseInt(timeInSeconds),
+                timeFormatted: this.formatTimeFromSeconds(timeInSeconds)
+            }))
+            .sort((a, b) => a.timeInSeconds - b.timeInSeconds);
+        
+        // Build the share text
+        let shareText = `🏆 ${puzzleTitle} Leaderboard\n\n`;
+        
+        entries.forEach((entry, index) => {
+            const rank = index + 1;
+            let rankEmoji = `${rank}.`;
+            
+            if (rank === 1) rankEmoji = '🥇';
+            else if (rank === 2) rankEmoji = '🥈';
+            else if (rank === 3) rankEmoji = '🥉';
+            else if (rank === 4) rankEmoji = '🦥';
+            else if (rank === 5) rankEmoji = '🐌';
+            else rankEmoji = '🐢';
+            
+            shareText += `${rankEmoji} ${entry.name} - ${entry.timeFormatted}\n`;
+        });
+        
+        shareText += `\n🔗 Play today's crossword: https://manchat.men/mini`;
+        
+        // Copy to clipboard
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(shareText).then(() => {
+                this.showShareLeaderboardFeedback('Leaderboard copied to clipboard!');
+            }).catch(() => {
+                this.fallbackCopyToClipboard(shareText, true);
+            });
+        } else {
+            this.fallbackCopyToClipboard(shareText, true);
+        }
+    }
+    
     showPersistentShareFeedback(message) {
         const persistentShareBtn = document.getElementById('persistentShareBtn');
-        if (!persistentShareBtn) return;
+        const leaderboardShareBtn = document.getElementById('leaderboardShareBtn');
         
-        const originalText = persistentShareBtn.textContent;
-        persistentShareBtn.textContent = message;
+        // Update persistent share button if it exists
+        if (persistentShareBtn) {
+            const originalText = persistentShareBtn.textContent;
+            persistentShareBtn.textContent = message;
+            
+            setTimeout(() => {
+                persistentShareBtn.textContent = originalText;
+            }, 2000);
+        }
         
-        setTimeout(() => {
-            persistentShareBtn.textContent = originalText;
-        }, 2000);
+        // Update leaderboard share button if it exists
+        if (leaderboardShareBtn) {
+            const originalText = leaderboardShareBtn.textContent;
+            leaderboardShareBtn.textContent = message;
+            
+            setTimeout(() => {
+                leaderboardShareBtn.textContent = originalText;
+            }, 2000);
+        }
+    }
+    
+    showShareLeaderboardFeedback(message) {
+        const shareLeaderboardBtn = document.getElementById('shareLeaderboardBtn');
+        
+        if (shareLeaderboardBtn) {
+            const originalText = shareLeaderboardBtn.textContent;
+            shareLeaderboardBtn.textContent = message;
+            
+            setTimeout(() => {
+                shareLeaderboardBtn.textContent = originalText;
+            }, 2000);
+        }
     }
     
     moveToNextCell(currentIndex) {
@@ -786,17 +875,16 @@ class CrosswordPuzzle {
     moveToCell(index) {
         // Simple cell movement without changing word selection
         const wrappers = document.querySelectorAll('.cell-wrapper');
-        const blackCells = document.querySelectorAll('.cell.black');
         
         // Remove selected class from current cell
         wrappers.forEach(wrapper => {
             wrapper.classList.remove('selected', 'empty');
         });
-        blackCells.forEach(cell => cell.classList.remove('selected', 'empty'));
         
         // Set new selected cell
         this.selectedCell = index;
-        const targetWrapper = wrappers[index];
+        // Find the target wrapper using data-index attribute
+        const targetWrapper = document.querySelector(`.cell-wrapper[data-index="${index}"]`);
         const targetInput = targetWrapper?.querySelector('.cell');
         if (targetWrapper && targetInput) {
             targetWrapper.classList.add('selected');
@@ -901,7 +989,62 @@ class CrosswordPuzzle {
         return clueList.clues[0];
     }
     
-    handleKeyPress(event) {
+    findNextValidCell(startIndex, direction) {
+        const { width, height } = this.puzzle.dimensions;
+        let currentIndex = startIndex;
+        
+        // Define step based on direction
+        let step;
+        switch (direction) {
+            case 'ArrowUp':
+                step = -width;
+                break;
+            case 'ArrowDown':
+                step = width;
+                break;
+            case 'ArrowLeft':
+                step = -1;
+                break;
+            case 'ArrowRight':
+                step = 1;
+                break;
+            default:
+                return null;
+        }
+        
+        // Search for next valid cell in the given direction
+        let attempts = 0;
+        const maxAttempts = Math.max(width, height); // Prevent infinite loops
+        
+        while (attempts < maxAttempts) {
+            // Check bounds based on direction
+            const currentRow = Math.floor(currentIndex / width);
+            const currentCol = currentIndex % width;
+            
+            if (direction === 'ArrowUp' && currentRow <= 0) break;
+            if (direction === 'ArrowDown' && currentRow >= height - 1) break;
+            if (direction === 'ArrowLeft' && currentCol <= 0) break;
+            if (direction === 'ArrowRight' && currentCol >= width - 1) break;
+            
+            // Check if we would wrap around rows when moving left/right
+            if (direction === 'ArrowLeft' && currentCol === 0) break;
+            if (direction === 'ArrowRight' && currentCol === width - 1) break;
+            
+            const cell = this.puzzle.cells[currentIndex];
+            
+            // A valid cell has content (not empty object) and has clues
+            if (cell && Object.keys(cell).length > 0 && cell.clues && cell.clues.length > 0) {
+                return currentIndex;
+            }
+            
+            currentIndex += step;
+            attempts++;
+        }
+        
+        return null; // No valid cell found
+    }
+    
+    handleKeyDown(event) {
         if (this.selectedCell === null) return;
         
         const { width, height } = this.puzzle.dimensions;
@@ -939,8 +1082,10 @@ class CrosswordPuzzle {
                 // Check for puzzle completion
                 this.checkPuzzleCompletion();
                 
-                // Move to next cell
-                this.moveToNextCell(this.selectedCell);
+                // Only move to next cell if puzzle is not completed
+                if (this.isRunning) {  // Timer is stopped when puzzle completes
+                    this.moveToNextCell(this.selectedCell);
+                }
             }
             event.preventDefault();
             return;
@@ -1013,9 +1158,10 @@ class CrosswordPuzzle {
         }
         
         if (nextIndex !== null) {
-            const nextCell = this.puzzle.cells[nextIndex];
-            if (nextCell && Object.keys(nextCell).length > 0) {
-                this.selectCell(nextIndex);
+            // Find the next valid cell (skip black squares)
+            const validIndex = this.findNextValidCell(nextIndex, event.key);
+            if (validIndex !== null) {
+                this.selectCell(validIndex);
             }
             event.preventDefault();
         }
@@ -1041,7 +1187,6 @@ class CrosswordPuzzle {
             }
             
             modal.style.display = 'flex';
-            this.loadLeaderboardData();
             this.updateShareButtonVisibility();
             
             // Reset header after 3 seconds
@@ -1072,9 +1217,7 @@ class CrosswordPuzzle {
         leaderboardBody.innerHTML = '<div class="loading">Loading today\'s leaderboard...</div>';
         
         try {
-            // Get today's date in YYYY-MM-DD format
-            const today = new Date().toISOString().split('T')[0];
-            const dataUrl = `data/${today}.json`;
+            const dataUrl = `data/${this.puzzle.date}.json`;
             
             const response = await fetch(dataUrl, {
                 method: 'GET',
@@ -1103,6 +1246,9 @@ class CrosswordPuzzle {
     displayLeaderboardData(data) {
         const leaderboardBody = document.getElementById('leaderboardBody');
         if (!leaderboardBody) return;
+        
+        // Store the leaderboard data for sharing
+        this.currentLeaderboardData = data;
         
         if (!data || Object.keys(data).length === 0) {
             leaderboardBody.innerHTML = '<div class="empty-leaderboard">No times recorded yet today.<br/>Be the first to complete the puzzle!</div>';
@@ -1171,19 +1317,23 @@ class CrosswordPuzzle {
         return div.innerHTML;
     }
     
-    updateShareButtonVisibility() {
+    updateShareButtonVisibility() {        
         const shareSection = document.getElementById('leaderboardShareSection');
         if (shareSection) {
             // Show share section only if puzzle is completed
-            const isCompleted = this.elapsedTime && this.elapsedTime > 0;
-            shareSection.style.display = isCompleted ? 'block' : 'none';
-            
-            if (isCompleted) {
-                // Update the completion time display in the modal
-                const completionTimeElement = document.getElementById('leaderboardCompletionTime');
-                if (completionTimeElement) {
-                    completionTimeElement.textContent = this.formatTime(this.elapsedTime);
-                }
+            shareSection.style.display = this.isCompleted ? 'block' : 'none';
+        }
+
+        const completionTimeSection = shareSection.querySelector('.completion-time');
+        if (completionTimeSection) {
+            completionTimeSection.style.display = this.isCompleted ? 'block' : 'none';
+        }
+
+        if (this.isCompleted) {
+            // Update the completion time display in the modal
+            const completionTimeElement = document.getElementById('leaderboardCompletionTime');
+            if (completionTimeElement) {
+                completionTimeElement.textContent = this.formatTime(this.elapsedTime);
             }
         }
     }
@@ -1317,11 +1467,254 @@ class CrosswordPuzzle {
     }
 }
 
-// Initialize the crossword puzzle when the page loads
-let crosswordInstance;
-window.addEventListener('DOMContentLoaded', () => {
-    if (typeof puzzleData !== 'undefined') {
-        crosswordInstance = new CrosswordPuzzle(puzzleData);
+/**
+ * CrosswordLoader - Handles loading and displaying crossword puzzles with configurable year offset.
+ * 
+ * The yearOffset parameter controls the delay between puzzle publication and display dates.
+ * For example, with yearOffset=11, a puzzle published on 2014-08-29 will be displayed
+ * and have its scores/leaderboard tracked as 2025-08-29.
+ */
+class CrosswordLoader {
+    constructor(yearOffset = 11) {
+        this.puzzle = null;
+        this.crosswordInstance = null;
+        this.yearOffset = yearOffset; // Number of years to add to publication date for display
     }
-    // Note: When used with dynamic loading, crosswordInstance will be set by the loader
+
+    /**
+     * Extract date from filename (supports both mini_YYYY-MM-DD.json and YYYY-MM-DD.json formats)
+     * @param {string} filePath - Path to the puzzle file
+     * @returns {string|null} - Date string in YYYY-MM-DD format, or null if not found
+     */
+    extractDateFromPath(filePath) {
+        const dateMatch = filePath.match(/(\d{4}-\d{2}-\d{2})/);
+        return dateMatch ? dateMatch[1] : null;
+    }
+
+    /**
+     * Calculate the display date by adding the yearOffset to the publication date
+     * @param {string} publicationDate - Date string in YYYY-MM-DD format
+     * @returns {string} - Display date string in YYYY-MM-DD format
+     */
+    calculateDisplayDate(publicationDate) {
+        const pubDate = new Date(publicationDate);
+        const displayDate = new Date(pubDate.setFullYear(pubDate.getFullYear() + this.yearOffset));
+        return displayDate.toISOString().split('T')[0];
+    }
+
+    /**
+     * Calculate today's date minus yearOffset to determine which puzzle should be shown
+     * @returns {string} - Date string in YYYY-MM-DD format
+     */
+    calculateTodaysPuzzleDate() {
+        const today = new Date();
+        const puzzleDate = new Date(today.getFullYear() - this.yearOffset, today.getMonth(), today.getDate());
+        const year = puzzleDate.getFullYear();
+        const month = String(puzzleDate.getMonth() + 1).padStart(2, '0');
+        const day = String(puzzleDate.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    /**
+     * Check if a puzzle date is too recent (beyond today minus yearOffset)
+     * @param {string} filePath - Path to the puzzle file
+     * @returns {boolean} - True if the puzzle date is too recent
+     */
+    isPuzzleDateTooRecent(filePath) {
+        const puzzleDate = this.extractDateFromPath(filePath);
+        if (!puzzleDate) {
+            return false; // If no date found, allow it
+        }
+        
+        const puzzleDateObj = new Date(puzzleDate);
+        const today = new Date();
+        const allowedDate = new Date(today.getFullYear() - this.yearOffset, today.getMonth(), today.getDate());
+        
+        return puzzleDateObj > allowedDate;
+    }
+
+    async loadPuzzle(jsonPath = null) {
+        try {
+            // If no specific path provided, determine path from URL parameters or use today's date
+            if (!jsonPath) {
+                const pathResult = this.determinePuzzlePath();
+                if (pathResult.tooRecent) {
+                    this.showPuzzleNotPlayableMessage();
+                    return;
+                }
+                jsonPath = pathResult.path;
+            } else {
+                // Check if manually provided path has a date that's too recent
+                if (this.isPuzzleDateTooRecent(jsonPath)) {
+                    this.showPuzzleNotPlayableMessage();
+                    return;
+                }
+            }
+
+            // Extract date from the filename
+            const publicationDate = this.extractDateFromPath(jsonPath);
+            if (!publicationDate) {
+                throw new Error('Failed to extract date from filename');
+            }
+
+            // Calculate the display date using the year offset
+            const displayDate = this.calculateDisplayDate(publicationDate);
+
+            const response = await fetch(jsonPath);
+            if (!response.ok) {
+                throw new Error(`Failed to load puzzle: ${response.status}`);
+            }
+
+            const puzzleData = await response.json();
+            this.puzzle = puzzleData.body[0];
+            this.puzzle.date = displayDate;
+            
+            // Update page title and info
+            this.updatePuzzleInfo(puzzleData, jsonPath);
+            
+            // Generate the grid and clues
+            this.generateGrid();
+            this.generateClues();
+            
+            // Initialize the crossword puzzle directly without global variables
+            this.crosswordInstance = new CrosswordPuzzle(this.puzzle);
+            
+        } catch (error) {
+            console.error('Error loading puzzle:', error);
+            this.showError(error.message);
+        }
+    }
+
+    determinePuzzlePath() {
+        // Check URL parameters first
+        const urlParams = new URLSearchParams(window.location.search);
+        const puzzleParam = urlParams.get('puzzle');
+        
+        if (puzzleParam) {
+            // If puzzle parameter is provided, check if date is too recent
+            let filePath;
+            if (puzzleParam.endsWith('.json')) {
+                filePath = `crosswords/${puzzleParam}`;
+            } else {
+                filePath = `crosswords/${puzzleParam}.json`;
+            }
+            
+            const tooRecent = this.isPuzzleDateTooRecent(filePath);
+            return { path: filePath, tooRecent: tooRecent };
+        }
+
+        // Calculate today's puzzle date using yearOffset
+        const dateString = this.calculateTodaysPuzzleDate();
+        
+        return { path: `crosswords/mini_${dateString}.json`, tooRecent: false };
+    }
+
+    updatePuzzleInfo(puzzleData, jsonPath) {
+        const date = puzzleData.publicationDate || 'Unknown';
+        const constructor = puzzleData.constructors ? puzzleData.constructors.join(', ') : 'Unknown';
+        const puzzleName = jsonPath.split('/').pop().replace('.json', '');
+        
+        document.getElementById('puzzleTitle').textContent = puzzleName.split('_').join(' ').replace('.json', '');
+        document.getElementById('puzzleInfo').innerHTML = `<strong>Date:</strong> ${date} | <strong>Constructor:</strong> ${constructor}`;
+        document.title = `${puzzleName} - Interactive Crossword`;
+    }
+
+    generateGrid() {
+        const grid = document.getElementById('crossword');
+        const { width } = this.puzzle.dimensions;
+        
+        // Set grid template columns with responsive sizing
+        grid.style.gridTemplateColumns = `repeat(${width}, var(--cell-size, 80px))`;
+        
+        let gridHTML = '';
+        this.puzzle.cells.forEach((cell, index) => {
+            if (!cell || Object.keys(cell).length === 0) {
+                gridHTML += `<div class="cell black" data-index="${index}"></div>`;
+            } else {
+                gridHTML += `<div class="cell-wrapper" data-index="${index}" style="position: relative;">
+                    <input class="cell" type="text" maxlength="1" data-index="${index}">
+                    ${cell.label ? `<span class="cell-number">${cell.label}</span>` : ''}
+                </div>`;
+            }
+        });
+        
+        grid.innerHTML = gridHTML;
+    }
+
+    generateClues() {
+        const container = document.getElementById('cluesContainer');
+        let cluesHTML = '';
+        
+        this.puzzle.clueLists.forEach(clueList => {
+            cluesHTML += `<div class="clue-group">
+                <h3>${clueList.name}</h3>
+                <ul class="clue-list">`;
+            
+            clueList.clues.forEach(clueIndex => {
+                const clue = this.puzzle.clues[clueIndex];
+                const clueText = clue.text[0].plain;
+                cluesHTML += `<li class="clue-item" data-clue-index="${clueIndex}">
+                    <span class="clue-number">${clue.label}</span> ${clueText}
+                </li>`;
+            });
+            
+            cluesHTML += `</ul></div>`;
+        });
+        
+        container.innerHTML = cluesHTML;
+    }
+
+
+
+    showPuzzleNotPlayableMessage() {
+        // Hide the main content areas
+        document.querySelector('.container').style.display = 'none';
+        document.querySelector('.timer').style.display = 'none';
+        
+        // Hide specific buttons
+        document.getElementById('pauseBtn').style.display = 'none';
+        document.getElementById('leaderboardBtn').style.display = 'none';
+        document.getElementById('persistentShareBtn').style.display = 'none';
+        
+        // Hide the game overlay (start the game popup)
+        document.getElementById('gameOverlay').style.display = 'none';
+        
+        // Update page title
+        document.getElementById('puzzleTitle').textContent = 'Puzzle Not Available';
+        document.getElementById('puzzleInfo').innerHTML = 'This puzzle is not yet available for play.';
+    }
+
+    showError(message) {
+        document.getElementById('puzzleTitle').textContent = 'Error Loading Puzzle';
+        document.getElementById('puzzleInfo').innerHTML = `<strong>Error:</strong> ${message}`;
+        document.getElementById('crossword').innerHTML = `<div style="padding: 20px; text-align: center; color: #ff6b6b;">Failed to load puzzle. Please check the URL or try again later.</div>`;
+        document.getElementById('cluesContainer').innerHTML = '';
+    }
+}
+
+/**
+ * Initialize crossword when page loads
+ * 
+ * Configuration options for yearOffset (default: 11):
+ * 1. Set window.CROSSWORD_YEAR_OFFSET = number before this script loads
+ * 2. Add data-year-offset="number" attribute to <body> tag
+ * 3. Use default value of 11 years
+ * 
+ * Example configurations:
+ * - <script>window.CROSSWORD_YEAR_OFFSET = 10;</script>
+ * - <body data-year-offset="12">
+ */
+window.addEventListener('DOMContentLoaded', async () => {
+    // Check for custom yearOffset configuration
+    // Priority: 1) global variable 2) data attribute on body 3) default (11)
+    let yearOffset = 11; // default
+    
+    if (typeof window.CROSSWORD_YEAR_OFFSET !== 'undefined') {
+        yearOffset = window.CROSSWORD_YEAR_OFFSET;
+    } else if (document.body.dataset.yearOffset) {
+        yearOffset = parseInt(document.body.dataset.yearOffset, 10);
+    }
+    
+    const loader = new CrosswordLoader(yearOffset);
+    await loader.loadPuzzle();
 });

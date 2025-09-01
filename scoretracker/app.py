@@ -40,6 +40,7 @@ def store_results():
         # Get parameters from query string
         username = request.args.get('user')
         time_score = request.args.get('time')
+        date = request.args.get('date')
         
         # Validate parameters
         if not username:
@@ -55,7 +56,10 @@ def store_results():
             return jsonify({'error': 'Parameter time must be an integer'}), 400
         
         # Generate current date as submission date (YYYY-MM-DD format)
-        submission_date = datetime.now().strftime('%Y-%m-%d')
+        if date:
+            submission_date = date
+        else:
+            submission_date = datetime.now().strftime('%Y-%m-%d')
         
         # Path to date-based JSON file
         date_file = DATA_DIR / f"{submission_date}.json"

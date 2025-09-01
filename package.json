@@ -1,0 +1,24 @@
+{
+  "name": "generated-crosswords",
+  "version": "1.0.0",
+  "description": "A web-based crossword puzzle platform featuring interactive crossword solving with timer functionality, score tracking, and an archive system for historical puzzles.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nickolu/generated-crosswords.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/nickolu/generated-crosswords/issues"
+  },
+  "homepage": "https://github.com/nickolu/generated-crosswords#readme",
+  "devDependencies": {
+    "@eslint/js": "^9.34.0",
+    "eslint": "^9.34.0",
+    "globals": "^16.3.0"
+  }
+}
