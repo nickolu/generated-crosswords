@@ -192,6 +192,20 @@ html {
         body {
             height: -webkit-fill-available;
         }
+        
+        /* Safari iOS specific fixes for mobile clue navigator */
+        .mobile-clue-navigator {
+            -webkit-flex: none;
+            flex: none;
+            width: 100% !important;
+            min-width: 280px; /* Ensure minimum readable width on Safari iOS */
+        }
+        
+        .mobile-clue-navigator .clue-display {
+            -webkit-flex: 1;
+            flex: 1;
+            min-width: 200px !important; /* Force minimum width on Safari iOS */
+        }
     }
 }
 
@@ -1018,12 +1032,16 @@ button:disabled {
     /* Show mobile clue navigator for all mobile devices */
     .mobile-clue-navigator {
         display: flex;
+        display: -webkit-flex; /* Safari compatibility */
         margin-top: 12px;
         padding: 12px;
         min-height: 90px;
         width: 100%;
         max-width: 100%;
         box-sizing: border-box;
+        -webkit-box-sizing: border-box;
+        /* Force Safari to respect width */
+        min-width: 280px;
     }
 }
 
@@ -1042,7 +1060,14 @@ button:disabled {
     width: 100%;
     max-width: 100%;
     box-sizing: border-box; /* Include padding and border in width calculation */
+    -webkit-box-sizing: border-box; /* Safari-specific prefix */
     overflow: hidden; /* Prevent content overflow */
+    /* Safari iOS specific flexbox fixes */
+    -webkit-flex-direction: row;
+    flex-direction: row;
+    -webkit-align-items: center;
+    -webkit-justify-content: center;
+    justify-content: center;
 }
 
 .mobile-clue-navigator .nav-btn {
@@ -1072,13 +1097,14 @@ button:disabled {
 }
 
 .mobile-clue-navigator .clue-display {
-    flex: 1;
-    min-width: 0;
+    flex: 1 1 auto; /* Explicit flex-grow, flex-shrink, flex-basis for Safari */
+    min-width: 200px; /* Set minimum width to prevent excessive shrinking on Safari */
     text-align: center;
     padding: 0 8px; /* Add padding so text doesn't touch edges */
     max-width: calc(100% - 16px); /* Ensure it's slightly smaller than container */
     width: 100%; /* Ensure full width is used */
     box-sizing: border-box; /* Include padding in width calculation */
+    -webkit-box-sizing: border-box; /* Safari-specific prefix */
 }
 
 .mobile-clue-navigator .clue-info {
@@ -1118,8 +1144,12 @@ button:disabled {
     max-height: 7em; /* Increased from 4.2em to 7em */
     text-align: center;
     width: 100%; /* Ensure full width */
+    min-width: 0; /* Allow text to shrink but not excessively */
     word-wrap: break-word; /* Handle long words */
+    -webkit-hyphens: auto; /* Safari-specific hyphenation */
     hyphens: auto; /* Allow hyphenation if needed */
+    box-sizing: border-box;
+    -webkit-box-sizing: border-box; /* Safari-specific prefix */
 }
 
 /* Mobile - stack and scale aggressively */
@@ -1420,6 +1450,44 @@ button:disabled {
     
     .mobile-clue-navigator .clue-direction {
         font-size: 12px;
+    }
+}
+
+/* Safari iOS specific fixes for all mobile scenarios */
+@supports (-webkit-touch-callout: none) {
+    @media (max-width: 768px) {
+        .mobile-clue-navigator {
+            display: -webkit-flex !important;
+            display: flex !important;
+            -webkit-flex-direction: row !important;
+            flex-direction: row !important;
+            -webkit-align-items: center !important;
+            align-items: center !important;
+            -webkit-justify-content: center !important;
+            justify-content: center !important;
+            width: 100% !important;
+            min-width: 280px !important;
+            box-sizing: border-box !important;
+            -webkit-box-sizing: border-box !important;
+        }
+        
+        .mobile-clue-navigator .clue-display {
+            -webkit-flex: 1 1 auto !important;
+            flex: 1 1 auto !important;
+            min-width: 200px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+            -webkit-box-sizing: border-box !important;
+        }
+        
+        .mobile-clue-navigator .clue-text {
+            width: 100% !important;
+            min-width: 180px !important;
+            box-sizing: border-box !important;
+            -webkit-box-sizing: border-box !important;
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+        }
     }
 }
 
