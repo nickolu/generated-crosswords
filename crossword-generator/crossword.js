@@ -463,6 +463,9 @@ class CrosswordPuzzle {
             this.updateCellEmptyState(targetWrapper, index);
             targetInput.focus();
             targetInput.select(); // Auto-select existing text for easy replacement
+            
+            // Scroll to puzzle area on mobile when typing
+            this.scrollToPuzzleOnMobile();
         }
         
         // Highlight the word and clue
@@ -540,6 +543,9 @@ class CrosswordPuzzle {
             this.selectedCell = targetCellIndex;
             targetWrapper.classList.add('selected');
             this.updateCellEmptyState(targetWrapper, targetCellIndex);
+            
+            // Scroll to puzzle area on mobile when typing
+            this.scrollToPuzzleOnMobile();
         }
         
         // Start timer on first interaction (only if game has been started)
@@ -891,6 +897,9 @@ class CrosswordPuzzle {
             this.updateCellEmptyState(targetWrapper, index);
             targetInput.focus();
             targetInput.select(); // Auto-select existing text for easy replacement
+            
+            // Scroll to puzzle area on mobile when typing
+            this.scrollToPuzzleOnMobile();
         }
     }
     
@@ -1334,6 +1343,24 @@ class CrosswordPuzzle {
             const completionTimeElement = document.getElementById('leaderboardCompletionTime');
             if (completionTimeElement) {
                 completionTimeElement.textContent = this.formatTime(this.elapsedTime);
+            }
+        }
+    }
+    
+    // Mobile scroll optimization
+    scrollToPuzzleOnMobile() {
+        // Only scroll on mobile devices
+        if (window.innerWidth <= 640) {
+            const crosswordGrid = document.querySelector('.crossword-grid');
+            if (crosswordGrid) {
+                // Scroll to top of crossword grid with some offset for better visibility
+                const headerHeight = 80; // Approximate height of title/timer section
+                const targetPosition = crosswordGrid.offsetTop - headerHeight;
+                
+                window.scrollTo({
+                    top: Math.max(0, targetPosition),
+                    behavior: 'smooth'
+                });
             }
         }
     }

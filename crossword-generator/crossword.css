@@ -964,27 +964,14 @@ button:disabled {
     margin-top: 20px;
     box-shadow: 0 4px 20px var(--color-shadow-secondary);
     align-items: center;
-    gap: 12px;
-    min-height: 120px; /* Increased from 80px to 120px for better clue display */
+    gap: 0; /* Remove gap since we're removing buttons */
+    min-height: 80px; /* Reduced from 120px since no buttons */
     width: 100%;
     max-width: 100%;
 }
 
 .mobile-clue-navigator .nav-btn {
-    background: linear-gradient(145deg, var(--color-selected-background), var(--color-selected-background-secondary));
-    border: 2px solid var(--color-selected-border);
-    border-radius: 50%;
-    width: 48px;
-    height: 48px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    flex-shrink: 0;
-    color: var(--color-text-on-accent);
-    font-weight: 700;
-    box-shadow: 0 2px 8px var(--color-shadow-ocean-light);
+    display: none; /* Hide navigation buttons to save space */
 }
 
 .mobile-clue-navigator .nav-btn:hover {
@@ -1013,6 +1000,8 @@ button:disabled {
     flex: 1;
     min-width: 0;
     text-align: center;
+    padding: 0 8px; /* Add padding so text doesn't touch edges */
+    max-width: calc(100% - 16px); /* Ensure it's slightly smaller than container */
 }
 
 .mobile-clue-navigator .clue-info {
