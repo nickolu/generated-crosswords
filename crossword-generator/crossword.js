@@ -155,8 +155,14 @@ class CrosswordPuzzle {
                 overlayContent.innerHTML = `
                     <h2>Game Paused ⏸️</h2>
                     <p>Your progress is saved. Click "Resume" to continue your puzzle.</p>
-                    <button class="start-game-btn" onclick="crosswordInstance.resumeFromPause()">Resume Game</button>
+                    <button class="start-game-btn" id="resumeGameBtn">Resume Game</button>
                 `;
+                
+                // Add event listener to the resume button
+                const resumeBtn = overlayContent.querySelector('#resumeGameBtn');
+                if (resumeBtn) {
+                    resumeBtn.addEventListener('click', () => this.resumeFromPause());
+                }
             }
             overlay.style.display = 'flex';
             overlay.style.animation = 'fadeIn 0.3s ease';
