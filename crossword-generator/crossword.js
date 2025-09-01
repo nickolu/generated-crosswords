@@ -1492,6 +1492,13 @@ class CrosswordLoader {
                 }
             }
 
+            // Extract date from the filename
+            const dateMatch = jsonPath.match(/(\d{4}-\d{2}-\d{2})/);
+            if (!dateMatch) {
+                throw new Error('Failed to extract date from filename');
+            }
+            const date = dateMatch[1];
+
             const response = await fetch(jsonPath);
             if (!response.ok) {
                 throw new Error(`Failed to load puzzle: ${response.status}`);
@@ -1499,6 +1506,7 @@ class CrosswordLoader {
 
             const puzzleData = await response.json();
             this.puzzle = puzzleData.body[0];
+            this.puzzle.date = date;
             
             // Update page title and info
             this.updatePuzzleInfo(puzzleData, jsonPath);
