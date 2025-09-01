@@ -416,7 +416,6 @@ class CrosswordPuzzle {
     
     selectCell(index, forceToggle = false) {
         const wrappers = document.querySelectorAll('.cell-wrapper');
-        const blackCells = document.querySelectorAll('.cell.black');
         const clueItems = document.querySelectorAll('.clue-item');
         const cell = this.puzzle.cells[index];
         
@@ -456,8 +455,9 @@ class CrosswordPuzzle {
         this.selectedCell = index;
         this.selectedClue = targetClueIndex;
         
-        const targetWrapper = wrappers[index];
-        const targetInput = targetWrapper.querySelector('.cell');
+        // Find the target wrapper using data-index attribute
+        const targetWrapper = document.querySelector(`.cell-wrapper[data-index="${index}"]`);
+        const targetInput = targetWrapper?.querySelector('.cell');
         if (targetWrapper && targetInput) {
             targetWrapper.classList.add('selected');
             this.updateCellEmptyState(targetWrapper, index);
@@ -531,7 +531,8 @@ class CrosswordPuzzle {
             }
         }
         
-        const targetWrapper = wrappers[targetCellIndex];
+        // Find the target wrapper using data-index attribute
+        const targetWrapper = document.querySelector(`.cell-wrapper[data-index="${targetCellIndex}"]`);
         const targetInput = targetWrapper?.querySelector('.cell');
         if (targetWrapper && targetInput) {
             targetInput.focus();
@@ -552,13 +553,16 @@ class CrosswordPuzzle {
     
     highlightWord(clueIndex) {
         const clue = this.puzzle.clues[clueIndex];
-        const wrappers = document.querySelectorAll('.cell-wrapper');
         
         clue.cells.forEach(cellIndex => {
             // Only highlight valid, non-black cells that are part of this clue
             const cell = this.puzzle.cells[cellIndex];
-            if (cell && Object.keys(cell).length > 0 && wrappers[cellIndex]) {
-                wrappers[cellIndex].classList.add('highlighted');
+            if (cell && Object.keys(cell).length > 0) {
+                // Find the wrapper element using data-index attribute
+                const wrapper = document.querySelector(`.cell-wrapper[data-index="${cellIndex}"]`);
+                if (wrapper) {
+                    wrapper.classList.add('highlighted');
+                }
             }
         });
     }
@@ -881,7 +885,8 @@ class CrosswordPuzzle {
         
         // Set new selected cell
         this.selectedCell = index;
-        const targetWrapper = wrappers[index];
+        // Find the target wrapper using data-index attribute
+        const targetWrapper = document.querySelector(`.cell-wrapper[data-index="${index}"]`);
         const targetInput = targetWrapper?.querySelector('.cell');
         if (targetWrapper && targetInput) {
             targetWrapper.classList.add('selected');
