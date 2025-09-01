@@ -9,6 +9,7 @@ class CrosswordPuzzle {
         this.timerAnimationId = null;
         this.isRunning = false;
         this.isPaused = false;
+        this.isCompleted = false;
         this.showFeedback = false; // Feedback is disabled by default
         this.gameStarted = false; // Track if game has been started
         this.userName = this.getCookie('crossword_user_name') || null;
@@ -631,6 +632,7 @@ class CrosswordPuzzle {
         }
         this.isRunning = false;
         this.isPaused = true;
+        this.isCompleted = true;
         
         document.getElementById('startBtn').disabled = true;
         document.getElementById('pauseBtn').disabled = true;
@@ -1270,30 +1272,23 @@ class CrosswordPuzzle {
         return div.innerHTML;
     }
     
-    updateShareButtonVisibility() {
+    updateShareButtonVisibility() {        
         const shareSection = document.getElementById('leaderboardShareSection');
         if (shareSection) {
             // Show share section only if puzzle is completed
-            const isCompleted = this.elapsedTime && this.elapsedTime > 0;
-            shareSection.style.display = isCompleted ? 'block' : 'none';
-            
-            if (isCompleted) {
-                // Make completion time visible
-                const completionTimeSection = shareSection.querySelector('.completion-time');
-                if (completionTimeSection) {
-                    completionTimeSection.style.display = 'block';
-                }
-                // Update the completion time display in the modal
-                const completionTimeElement = document.getElementById('leaderboardCompletionTime');
-                if (completionTimeElement) {
-                    completionTimeElement.textContent = this.formatTime(this.elapsedTime);
-                }
-            } else {
-                // Make completion time section hidden
-                const completionTimeSection = shareSection.querySelector('.completion-time');
-                if (completionTimeSection) {
-                    completionTimeSection.style.display = 'none';
-                }
+            shareSection.style.display = this.isCompleted ? 'block' : 'none';
+        }
+
+        const completionTimeSection = shareSection.querySelector('.completion-time');
+        if (completionTimeSection) {
+            completionTimeSection.style.display = this.isCompleted ? 'block' : 'none';
+        }
+
+        if (this.isCompleted) {
+            // Update the completion time display in the modal
+            const completionTimeElement = document.getElementById('leaderboardCompletionTime');
+            if (completionTimeElement) {
+                completionTimeElement.textContent = this.formatTime(this.elapsedTime);
             }
         }
     }
