@@ -445,7 +445,7 @@ button:disabled {
 /* Mobile landscape and medium mobile */
 @media (min-width: 360px) and (max-width: 639px) {
   :root {
-    --cell-size: 64px;
+    --cell-size: 56px;
     --cell-font-size: 32px;
     --cell-number-size: 13px;
   }
