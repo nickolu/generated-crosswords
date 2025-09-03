@@ -1,0 +1,17 @@
+.feedback-toggle {
+  margin-top: 10px;
+  text-align: center;
+}
+
+.feedback-toggle label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.feedback-toggle input[type="checkbox"] {
+  margin: 0;
+}
