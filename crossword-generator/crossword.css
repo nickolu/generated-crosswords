@@ -215,7 +215,6 @@ body {
     box-shadow: 0 8px 32px var(--color-shadow-secondary), inset 0 1px 0 var(--color-shadow-inset-light);
     border: 1px solid var(--color-border-primary);
     justify-content: space-between;
-    max-width: 890px;
     margin: 0 auto;
 }
 
@@ -400,8 +399,12 @@ input.cell::-moz-selection {
 
 .clues-container {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     gap: 20px;
+}
+
+.clue-group {
+    width: 50%;
 }
 
 .clue-group h3 {
@@ -424,13 +427,11 @@ input.cell::-moz-selection {
 }
 
 .clue-item {
-    padding: 12px 16px;
+    padding: 6px 8px;
     margin-bottom: 8px;
     cursor: pointer;
-    border-radius: 6px;
     transition: all 0.2s ease;
-    background: linear-gradient(145deg, var(--color-background-surface), var(--color-background-surface-secondary));
-    border: 1px solid var(--color-border-primary);
+    border-bottom: 1px solid var(--color-border-primary);
     color: var(--color-text-primary);
     font-weight: 500;
 }
@@ -443,9 +444,7 @@ input.cell::-moz-selection {
 
 .clue-item.selected {
     background: linear-gradient(145deg, var(--color-selected-background), var(--color-selected-background-secondary));
-    border: 2px solid var(--color-selected-border);
     color: var(--color-text-on-accent);
-    font-weight: 700;
     box-shadow: 0 4px 12px var(--color-shadow-ocean-light);
 }
 
