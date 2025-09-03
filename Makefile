@@ -112,3 +112,7 @@ health: ## Check if services are running
 	@curl -s http://localhost:$(FRONTEND_PORT) >/dev/null 2>&1 && echo "✅ Running" || echo "❌ Not running"
 	@echo -n "Backend (port $(BACKEND_PORT)): "
 	@curl -s http://localhost:$(BACKEND_PORT)/health >/dev/null 2>&1 && echo "✅ Running" || echo "❌ Not running"
+
+kill-services: ## Kill all running services
+	@echo "Killing all running services..."
+	lsof -i :8000 -i :5001 | awk 'NR>1 {print $2}' | xargs -r kill    

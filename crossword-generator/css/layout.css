@@ -99,17 +99,13 @@
   .container {
     gap: 8px;
     padding: 5px;
-    margin: 0 0 200px 0; /* Extra space when keyboard is visible */
-    flex-direction: column; /* Stack vertically on large mobile when keyboard is visible */
+    margin: 0 0 200px 0;
+    flex-direction: column;
+    overflow: visible;
+    min-height: 360px;
   }
 }
 
-@media (min-width: 431px) and (max-width: 768px) and (max-height: 400px) {
-  .container {
-    gap: 8px;
-    padding: 5px;
-  }
-}
 
 @media (max-width: 320px) {
   .container {

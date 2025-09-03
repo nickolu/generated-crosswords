@@ -226,6 +226,7 @@ body {
     overscroll-behavior: none; /* Prevent overscroll */
     -webkit-overflow-scrolling: auto; /* Disable momentum scrolling */
     touch-action: manipulation; /* Only allow tap and pinch */
+    background: var(--color-background-primary);
   }
 }
 
@@ -445,7 +446,7 @@ button:disabled {
 /* Mobile landscape and medium mobile */
 @media (min-width: 360px) and (max-width: 639px) {
   :root {
-    --cell-size: 56px;
+    --cell-size: 52px;
     --cell-font-size: 32px;
     --cell-number-size: 13px;
   }
