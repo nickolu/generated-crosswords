@@ -174,6 +174,17 @@ html {
   overflow-x: hidden;
 }
 
+/* Mobile-specific html styling */
+@media (max-width: 768px) {
+  html {
+    /* Prevent elastic scrolling on iOS without breaking layout */
+    height: 100%;
+    overflow-x: hidden;
+    /* Allow normal scrolling but prevent bounce */
+    overscroll-behavior: none;
+  }
+}
+
 body {
   font-family: "Roboto Condensed", sans-serif;
   max-width: 1200px;
@@ -187,6 +198,34 @@ body {
   color: var(--color-text-primary);
   min-height: 100vh;
   overflow-x: hidden;
+  /* Prevent elastic scrolling and over-scroll on mobile */
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile-specific body styling */
+@media (max-width: 768px) {
+  body {
+    /* Less aggressive positioning - allow normal flow */
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 100vh;
+    /* Prevent bounce scrolling on iOS */
+    overscroll-behavior-y: none;
+    /* Ensure content can scroll normally and provide positioning context */
+    position: relative;
+    /* Add bottom padding for comfortable scrolling */
+    padding-bottom: 400px; /* Lots of space for scrolling above keyboard */
+  }
+}
+
+/* Override for non-mobile devices */
+@media (min-width: 769px) {
+  body {
+    position: static;
+    height: auto;
+    min-height: 100vh;
+  }
 }
 
 .title {
@@ -214,7 +253,7 @@ body {
   letter-spacing: 1px;
 }
 
-button {
+.nav-btn {
   padding: 12px 24px;
   font-size: 16px;
   font-weight: 700;
@@ -308,12 +347,14 @@ button:disabled {
   text-shadow: 1px 1px 2px var(--color-shadow-secondary);
 }
 
-/* Mobile viewport handling for keyboard optimization */
+/* Enhanced mobile viewport handling for keyboard optimization and iOS scroll prevention */
 @media (max-width: 768px) {
   html {
     height: 100%;
     overflow-x: hidden;
-    scroll-behavior: smooth; /* Ensure smooth scrolling */
+    scroll-behavior: smooth;
+    /* Prevent iOS elastic scrolling */
+    touch-action: pan-y;
   }
 
   /* Prevent automatic scrolling to focused inputs on mobile */
@@ -322,10 +363,19 @@ button:disabled {
     scroll-padding: 0;
   }
 
-  /* Handle iOS Safari viewport units issue */
+  /* Handle iOS Safari viewport units issue and prevent over-scrolling */
   @supports (-webkit-touch-callout: none) {
+    html {
+      height: -webkit-fill-available;
+      /* Prevent bounce scrolling without breaking layout */
+      overscroll-behavior: none;
+    }
+    
     body {
       height: -webkit-fill-available;
+      /* Prevent rubber band scrolling on iOS while maintaining normal flow */
+      overscroll-behavior-y: none;
+      -webkit-overflow-scrolling: touch;
     }
   }
 }

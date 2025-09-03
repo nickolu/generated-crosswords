@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Interactive Crossword</title>
     <link rel="stylesheet" href="crossword-generator/crossword.css">
 </head>
@@ -16,10 +16,10 @@
     <div class="timer-section">
         <div class="timer" id="timer">00:00</div>
         <div class="timer-controls">
-            <button id="pauseBtn" disabled>Pause</button>
-            <button id="persistentShareBtn" disabled>📋 Share</button>
-            <button id="leaderboardBtn">🏆 Leaderboard</button>
-            <button id="archiveBtn" onclick="window.location.href='mini-archive'">📚 Archive</button>
+            <button class="nav-btn" id="pauseBtn" disabled>Pause</button>
+            <button class="nav-btn" id="persistentShareBtn" disabled>📋 Share</button>
+            <button class="nav-btn" id="leaderboardBtn">🏆 Leaderboard</button>
+            <button class="nav-btn" id="archiveBtn" onclick="window.location.href='mini-archive'">📚 Archive</button>
         </div>
         <div class="feedback-toggle">
             <label for="feedbackToggle">
@@ -39,7 +39,7 @@
             
             <!-- Mobile Clue Navigator - positioned below grid -->
             <div class="mobile-clue-navigator" id="mobileClueNavigator">
-                <button class="nav-btn prev-btn" id="prevClueBtn" aria-label="Previous clue">
+                <button class="mobile-nav-btn prev-btn" id="prevClueBtn" aria-label="Previous clue">
                     <span class="nav-arrow">‹</span>
                 </button>
                 <div class="clue-display">
@@ -49,7 +49,7 @@
                     </div>
                     <div class="clue-text" id="mobileClueText">Select a clue to begin</div>
                 </div>
-                <button class="nav-btn next-btn" id="nextClueBtn" aria-label="Next clue">
+                <button class="mobile-nav-btn next-btn" id="nextClueBtn" aria-label="Next clue">
                     <span class="nav-arrow">›</span>
                 </button>
             </div>

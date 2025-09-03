@@ -14,6 +14,9 @@ class CrosswordPuzzle {
         this.gameStarted = false; // Track if game has been started
         this.userName = this.getCookie('crossword_user_name') || null;
         this.currentLeaderboardData = null; // Store current leaderboard data for sharing
+        this.initialViewportHeight = window.innerHeight; // Store initial viewport height for keyboard detection
+        this.keyboardAdjustmentTimeout = null; // For debouncing keyboard adjustments
+        this.isKeyboardVisible = false; // Track keyboard state for scroll prevention
         this.init();
     }
     
@@ -226,6 +229,9 @@ class CrosswordPuzzle {
         
         // Initialize with empty state
         this.updateMobileClueDisplay();
+        
+        // Set up initial positioning
+        this.adjustMobileClueNavigatorForKeyboard();
     }
     
     setupTimer() {
@@ -394,6 +400,7 @@ class CrosswordPuzzle {
                 wrapper.addEventListener('click', () => this.handleCellClick(cellIndex));
                 // Add input cleanup for paste/edge cases (but don't handle normal typing)
                 input.addEventListener('input', (e) => this.cleanupInput(e, cellIndex));
+
             }
         });
         
@@ -402,6 +409,127 @@ class CrosswordPuzzle {
             const clueIndex = parseInt(item.dataset.clueIndex);
             item.addEventListener('click', () => this.selectClue(clueIndex));
         });
+        
+        // Setup iOS scroll prevention for mobile devices
+        this.setupIOSScrollPrevention();
+    }
+    
+    // iOS scroll prevention to avoid white space scrolling
+    setupIOSScrollPrevention() {
+        // Only apply to mobile devices and when keyboard is NOT visible
+        if (window.innerWidth <= 768) {
+            // Prevent document scroll beyond content boundaries
+            let lastScrollTop = 0;
+            const maxScrollTop = Math.max(0, document.body.scrollHeight - window.innerHeight);
+            
+            // Throttled scroll handler to prevent excessive scrolling
+            let scrollTimeout;
+            const handleScroll = () => {
+                // Don't interfere with scrolling when keyboard is visible
+                if (this.isKeyboardVisible) {
+                    return; // Allow all scrolling when keyboard is up
+                }
+                
+                clearTimeout(scrollTimeout);
+                scrollTimeout = setTimeout(() => {
+                    const currentScrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+                    
+                    // Prevent scrolling beyond content boundaries (only when keyboard is NOT visible)
+                    if (currentScrollTop < 0) {
+                        window.scrollTo(0, 0);
+                    } else if (currentScrollTop > maxScrollTop) {
+                        window.scrollTo(0, maxScrollTop);
+                    }
+                    
+                    lastScrollTop = currentScrollTop;
+                }, 10);
+            };
+            
+            // Add scroll event listener - use passive for better performance
+            window.addEventListener('scroll', handleScroll, { passive: true });
+            
+            // Prevent touch-based over-scrolling on iOS
+            let startY, startX;
+            document.addEventListener('touchstart', (e) => {
+                startY = e.touches[0].clientY;
+                startX = e.touches[0].clientX;
+            }, { passive: false });
+            
+            document.addEventListener('touchmove', (e) => {
+                // Don't interfere with scrolling when keyboard is visible
+                if (this.isKeyboardVisible) {
+                    return; // Allow all scrolling when keyboard is up
+                }
+                
+                const currentY = e.touches[0].clientY;
+                const currentX = e.touches[0].clientX;
+                const deltaY = startY - currentY;
+                const deltaX = startX - currentX;
+                
+                // Get current scroll position
+                const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+                const maxScroll = Math.max(0, document.body.scrollHeight - window.innerHeight);
+                
+                // Only prevent over-scrolling at the very boundaries with a small threshold
+                const boundaryThreshold = 10; // Allow some bounce before preventing
+                
+                // Prevent vertical over-scrolling only at extreme boundaries and with significant movement
+                if ((scrollTop <= boundaryThreshold && deltaY < -30) || (scrollTop >= maxScroll - boundaryThreshold && deltaY > 30)) {
+                    // Only prevent if it's primarily vertical scrolling and a significant movement
+                    if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 30) {
+                        e.preventDefault();
+                        console.log('Prevented over-scroll at boundary');
+                    }
+                }
+            }, { passive: false });
+            
+            // Handle viewport changes (keyboard show/hide)
+            const handleViewportChange = () => {
+                // Recalculate max scroll when viewport changes
+                setTimeout(() => {
+                    const newMaxScrollTop = Math.max(0, document.body.scrollHeight - window.innerHeight);
+                    const currentScrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+                    
+                    // Adjust scroll position if needed
+                    if (currentScrollTop > newMaxScrollTop) {
+                        window.scrollTo(0, newMaxScrollTop);
+                    }
+                    
+                    // Adjust mobile clue navigator position for keyboard
+                    this.debouncedAdjustMobileClueNavigator();
+                }, 300); // Delay to account for keyboard animation
+            };
+            
+            // Listen for viewport changes (keyboard events)
+            window.addEventListener('resize', handleViewportChange);
+            window.addEventListener('orientationchange', handleViewportChange);
+            
+            // iOS-specific viewport change detection
+            if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+                // Additional iOS-specific handling
+                window.addEventListener('focusin', handleViewportChange);
+                window.addEventListener('focusout', handleViewportChange);
+                
+                // Use Visual Viewport API if available for better keyboard detection
+                if (window.visualViewport) {
+                    window.visualViewport.addEventListener('resize', () => {
+                        setTimeout(() => {
+                            this.debouncedAdjustMobileClueNavigator();
+                        }, 100);
+                    });
+                }
+            }
+            
+            // Set up Visual Viewport API listeners for all mobile devices
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', () => {
+                    this.debouncedAdjustMobileClueNavigator();
+                });
+                window.visualViewport.addEventListener('scroll', () => {
+                    this.debouncedAdjustMobileClueNavigator();
+                });
+            }
+        }
     }
     
     getClueDirection(clueIndex) {
@@ -1374,18 +1502,28 @@ class CrosswordPuzzle {
         }
     }
     
-    // Mobile scroll optimization
+    // Enhanced mobile scroll optimization with boundary checking
     scrollToPuzzleOnMobile() {
         // Only scroll on mobile devices
         if (window.innerWidth <= 640) {
             const crosswordGrid = document.querySelector('.crossword-grid');
             if (crosswordGrid) {
+                // Calculate safe scroll boundaries
+                const maxScrollTop = Math.max(0, document.body.scrollHeight - window.innerHeight);
+                
                 // Use multiple timeouts to override browser scroll behavior
                 const scrollToPuzzleTop = () => {
-                    crosswordGrid.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start', // Align to top
-                        inline: 'nearest'
+                    // Get the target scroll position
+                    const rect = crosswordGrid.getBoundingClientRect();
+                    const targetScrollTop = window.pageYOffset + rect.top - 20; // 20px padding from top
+                    
+                    // Ensure we don't scroll beyond boundaries
+                    const safeScrollTop = Math.max(0, Math.min(targetScrollTop, maxScrollTop));
+                    
+                    // Use window.scrollTo instead of scrollIntoView for better control
+                    window.scrollTo({
+                        top: safeScrollTop,
+                        behavior: 'smooth'
                     });
                 };
                 
@@ -1400,6 +1538,40 @@ class CrosswordPuzzle {
         }
     }
     
+    // Debounced version for performance
+    debouncedAdjustMobileClueNavigator() {
+        clearTimeout(this.keyboardAdjustmentTimeout);
+        this.keyboardAdjustmentTimeout = setTimeout(() => {
+            this.adjustMobileClueNavigatorForKeyboard();
+        }, 50); // 50ms debounce
+    }
+    
+    // Ensure mobile clue navigator is visible (simplified - no positioning needed)
+    adjustMobileClueNavigatorForKeyboard() {
+        if (window.innerWidth <= 768) {
+            const navigator = document.getElementById('mobileClueNavigator');
+            
+            if (navigator) {
+                // Just ensure it's visible - CSS handles positioning
+                navigator.style.display = 'flex';
+                navigator.style.visibility = 'visible';
+                navigator.style.opacity = '1';
+                
+                // Update keyboard visibility flag for scroll prevention
+                if (window.visualViewport) {
+                    const keyboardHeight = window.innerHeight - window.visualViewport.height;
+                    this.isKeyboardVisible = keyboardHeight > 50;
+                } else {
+                    this.isKeyboardVisible = false;
+                }
+                
+                console.log('Mobile clue navigator ensured visible, keyboard detected:', this.isKeyboardVisible);
+            } else {
+                console.error('Mobile clue navigator element not found!');
+            }
+        }
+    }
+    
     // Mobile Clue Navigator Methods
     updateMobileClueDisplay() {
         const clueNumberEl = document.getElementById('mobileClueNumber');
@@ -1407,8 +1579,17 @@ class CrosswordPuzzle {
         const clueTextEl = document.getElementById('mobileClueText');
         const prevBtn = document.getElementById('prevClueBtn');
         const nextBtn = document.getElementById('nextClueBtn');
+        const navigator = document.getElementById('mobileClueNavigator');
         
-        if (!clueNumberEl || !clueDirectionEl || !clueTextEl || !prevBtn || !nextBtn) {
+        // Debug: Log navigator visibility
+        if (navigator && window.innerWidth <= 640) {
+            console.log('Mobile clue navigator element found:', navigator);
+            console.log('Navigator computed style:', window.getComputedStyle(navigator).display);
+            console.log('Navigator visibility:', window.getComputedStyle(navigator).visibility);
+            console.log('Window width:', window.innerWidth);
+        }
+        
+        if (!clueNumberEl || !clueDirectionEl || !clueTextEl) {
             return;
         }
         
@@ -1416,8 +1597,8 @@ class CrosswordPuzzle {
             clueNumberEl.textContent = '';
             clueDirectionEl.textContent = '';
             clueTextEl.textContent = 'Select a clue to begin';
-            prevBtn.disabled = true;
-            nextBtn.disabled = true;
+            if (prevBtn) prevBtn.disabled = true;
+            if (nextBtn) nextBtn.disabled = true;
             return;
         }
         
@@ -1429,10 +1610,12 @@ class CrosswordPuzzle {
             clueDirectionEl.textContent = direction.charAt(0).toUpperCase() + direction.slice(1);
             clueTextEl.textContent = clue.text[0].plain;
             
-            // Update button states
-            const { hasPrev, hasNext } = this.getNavigationState();
-            prevBtn.disabled = !hasPrev;
-            nextBtn.disabled = !hasNext;
+            // Update button states (if buttons exist)
+            if (prevBtn && nextBtn) {
+                const { hasPrev, hasNext } = this.getNavigationState();
+                prevBtn.disabled = !hasPrev;
+                nextBtn.disabled = !hasNext;
+            }
         }
     }
     
