@@ -211,7 +211,7 @@ class CrosswordPuzzle {
         const grid = document.querySelector('.grid');
         if (grid && this.puzzle.dimensions) {
             // Use CSS custom property for responsive cell sizing
-            grid.style.gridTemplateColumns = `repeat(${this.puzzle.dimensions.width}, var(--cell-size, 76px))`;
+            grid.style.gridTemplateColumns = `repeat(${this.puzzle.dimensions.width}, var(--cell-size))`;
         }
     }
     
@@ -1684,9 +1684,8 @@ class CrosswordLoader {
     generateGrid() {
         const grid = document.getElementById('crossword');
         const { width } = this.puzzle.dimensions;
-        
         // Set grid template columns with responsive sizing
-        grid.style.gridTemplateColumns = `repeat(${width}, var(--cell-size, 80px))`;
+        grid.style.gridTemplateColumns = `repeat(${width}, var(--cell-size))`;
         
         let gridHTML = '';
         this.puzzle.cells.forEach((cell, index) => {

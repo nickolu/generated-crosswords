@@ -82,10 +82,13 @@
 
 /* Responsive sizing tokens */
 :root {
-  /* Default desktop cell size */
   --cell-size: 76px;
-  --cell-font-size: 40px;
-  --cell-number-size: 16px;
+  --cell-font-size: 32px;
+  --cell-number-size: 12px;
+  
+  /* Dynamic scaling variables */
+  --grid-max-width: 100%;
+  --grid-padding: 8px; /* Account for container padding */
 }
 
 /* Semantic Color Tokens - Contextual meanings */
@@ -327,32 +330,64 @@ button:disabled {
   }
 }
 
-/* Tablet landscape - reduce cell size slightly */
-@media (max-width: 1024px) {
+/* Responsive layout adjustments - Pure CSS breakpoints */
+
+/* Large desktop - optimal size for readability */
+@media (min-width: 1200px) {
+  :root {
+    --cell-size: 80px;
+    --cell-font-size: 40px;
+    --cell-number-size: 16px;
+  }
+}
+
+/* Desktop */
+@media (min-width: 1024px) and (max-width: 1199px) {
+  :root {
+    --cell-size: 70px;
+    --cell-font-size: 35px;
+    --cell-number-size: 14px;
+  }
+}
+
+/* Tablet landscape */
+@media (min-width: 768px) and (max-width: 1023px) {
+  :root {
+    --cell-size: 60px;
+    --cell-font-size: 30px;
+    --cell-number-size: 12px;
+  }
+}
+
+/* Tablet portrait and large mobile */
+@media (min-width: 640px) and (max-width: 767px) {
   :root {
     --cell-size: 64px;
     --cell-font-size: 32px;
-    --cell-number-size: 12px;
+    --cell-number-size: 13px;
   }
 }
 
-/* Tablet portrait - more aggressive scaling */
-@media (max-width: 768px) {
+/* Mobile landscape and medium mobile */
+@media (min-width: 360px) and (max-width: 639px) {
   :root {
-    --cell-size: 56px;
-    --cell-font-size: 28px;
-    --cell-number-size: 12px;
+    --cell-size: 64px;
+    --cell-font-size: 32px;
+    --cell-number-size: 13px;
   }
 }
 
-/* Large mobile - force mobile layout */
-@media (max-width: 640px) {
+/* Very small mobile */
+@media (max-width: 359px) {
   :root {
-    --cell-size: 42px; /* Smaller cells for large mobile */
+    --cell-size: 44px; /* Minimum for touch accessibility */
     --cell-font-size: 22px;
-    --cell-number-size: 11px;
+    --cell-number-size: 9px;
   }
+}
 
+/* Large mobile - adjust layout spacing */
+@media (max-width: 640px) {
   body {
     padding: 8px;
   }
@@ -368,14 +403,8 @@ button:disabled {
   }
 }
 
-/* Mobile - stack and scale aggressively */
+/* Mobile - more compact layout */
 @media (max-width: 430px) {
-  :root {
-    --cell-size: 40px; /* Much smaller cells for mobile */
-    --cell-font-size: 20px;
-    --cell-number-size: 10px;
-  }
-
   body {
     padding: 5px;
   }
@@ -393,14 +422,7 @@ button:disabled {
 }
 
 /* Mobile keyboard optimization - when viewport height is reduced (keyboard visible) */
-/* Small mobile devices */
 @media (max-width: 430px) and (max-height: 600px) {
-  :root {
-    --cell-size: 35px; /* Much smaller cells when keyboard is visible */
-    --cell-font-size: 18px;
-    --cell-number-size: 8px;
-  }
-
   body {
     padding: 3px;
     min-height: auto; /* Remove min-height to prevent scroll */
@@ -417,14 +439,8 @@ button:disabled {
   }
 }
 
-/* Large mobile devices (iPhone Pro Max, Samsung Galaxy, etc.) - keyboard optimization */
+/* Large mobile devices - keyboard optimization */
 @media (min-width: 431px) and (max-width: 768px) and (max-height: 600px) {
-  :root {
-    --cell-size: 38px; /* Much smaller cells for large mobile with keyboard */
-    --cell-font-size: 20px;
-    --cell-number-size: 9px;
-  }
-
   body {
     padding: 5px;
     min-height: auto; /* Remove min-height to prevent scroll */
@@ -443,11 +459,6 @@ button:disabled {
 
 /* Very constrained height scenarios (landscape mobile with keyboard) */
 @media (min-width: 431px) and (max-width: 768px) and (max-height: 400px) {
-  :root {
-    --cell-size: 46px; /* Even smaller for very constrained height */
-    --cell-font-size: 22px;
-    --cell-number-size: 10px;
-  }
   .title {
     font-size: 1.4em;
     margin-bottom: 8px;
@@ -461,12 +472,6 @@ button:disabled {
 
 /* Extra small screens */
 @media (max-width: 320px) {
-  :root {
-    --cell-size: 48px;
-    --cell-font-size: 24px;
-    --cell-number-size: 12px;
-  }
-
   body {
     padding: 5px;
   }

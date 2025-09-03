@@ -15,10 +15,6 @@
   margin: 0 auto;
 }
 
-.crossword-grid {
-  position: relative;
-}
-
 .grid {
   display: grid;
   gap: 2px;
@@ -28,17 +24,12 @@
   max-width: 100%;
   border-radius: 8px;
   box-shadow: 0 4px 20px var(--color-shadow-primary);
+  margin: 0 auto;
   /* Grid columns will be set dynamically via JavaScript */
 }
 
-/* Tablet landscape - reduce cell size slightly */
+/* Tablet landscape - adjust layout */
 @media (max-width: 1024px) {
-  :root {
-    --cell-size: 64px;
-    --cell-font-size: 32px;
-    --cell-number-size: 12px;
-  }
-
   .clues-section {
     min-width: 300px;
   }

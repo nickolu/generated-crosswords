@@ -12,11 +12,13 @@
 .clues-container {
   display: flex;
   flex-direction: row;
-  gap: 20px;
+  gap: 20px;    
+  flex-wrap: wrap;
 }
 
 .clue-group {
-  width: 50%;
+  width: 47%;
+  min-width: 150px;
 }
 
 .clue-group h3 {
@@ -90,6 +92,12 @@
   .clues-section {
     min-width: 280px;
   }
+}
+
+@media (min-width: 768px) {
+    .clues-section {
+        max-width: 50%;
+    }
 }
 
 /* Large mobile - force mobile layout */
