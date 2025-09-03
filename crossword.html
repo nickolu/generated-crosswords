@@ -7,93 +7,125 @@
     <link rel="stylesheet" href="crossword-generator/crossword.css">
 </head>
 <body>
-    <h1 class="title" id="puzzleTitle">Loading Crossword...</h1>
-    
-    <div class="puzzle-info" id="puzzleInfo">
-        Loading puzzle information...
-    </div>
-    
-    <div class="timer-section">
-        <div class="timer" id="timer">00:00</div>
-        <div class="timer-controls">
-            <button class="nav-btn" id="pauseBtn" disabled>Pause</button>
-            <button class="nav-btn" id="persistentShareBtn" disabled>📋 Share</button>
-            <button class="nav-btn" id="leaderboardBtn">🏆 Leaderboard</button>
-            <button class="nav-btn" id="archiveBtn" onclick="window.location.href='mini-archive'">📚 Archive</button>
+    <div class="page-container">
+        <div class="title-area">
+            <h1 class="title" id="puzzleTitle">Loading Crossword...</h1>
+            <!-- Mobile timer display (shown in header on mobile only) -->
+            <div class="mobile-timer-header" id="mobileTimerMain">00:00</div>
+            <!-- Mobile options button positioned to the right of title -->
+            <button class="mobile-options-btn" id="mobileOptionsBtn">⚙️</button>
         </div>
-        <div class="feedback-toggle">
-            <label for="feedbackToggle">
-                <input type="checkbox" id="feedbackToggle">
-                Autocheck
-            </label>
+        
+        <div class="puzzle-info" id="puzzleInfo">
+            Loading puzzle information...
         </div>
-    </div>
-    
-    <div id="puzzleMessage" class="puzzle-message" style="display: none; text-align: center; margin: 20px; padding: 15px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; color: #6c757d; font-size: 16px;"></div>
-    
-    <div class="container">
-        <div class="crossword-grid">
-            <div id="crossword" class="grid">
-                <!-- Grid will be populated dynamically -->
+        
+        <!-- Desktop timer section (hidden on mobile) -->
+        <div class="timer-section desktop-only">
+            <div class="timer" id="timer">00:00</div>
+            <div class="timer-controls">
+                <button class="nav-btn" id="pauseBtn" disabled>Pause</button>
+                <button class="nav-btn" id="persistentShareBtn" disabled>📋 Share</button>
+                <button class="nav-btn" id="leaderboardBtn">🏆 Leaderboard</button>
+                <button class="nav-btn" id="archiveBtn" onclick="window.location.href='mini-archive'">📚 Archive</button>
+            </div>
+            <div class="feedback-toggle">
+                <label for="feedbackToggle">
+                    <input type="checkbox" id="feedbackToggle">
+                    Autocheck
+                </label>
+            </div>
+        </div>
+        
+        <!-- Mobile options menu (contains everything including timer) -->
+        <div class="mobile-options-menu" id="mobileOptionsMenu">
+            <div class="mobile-options-content">
+                <!-- Timer display in mobile menu -->
+                <div class="mobile-timer-display">
+                    <div class="mobile-timer" id="mobileTimer">00:00</div>
+                </div>
+                
+                <!-- Mobile controls -->
+                <button class="mobile-option-btn" id="mobilePauseBtn" disabled>⏸️ Pause</button>
+                <button class="mobile-option-btn" id="mobileShareBtn" disabled>📋 Share</button>
+                <button class="mobile-option-btn" id="mobileLeaderboardBtn">🏆 Leaderboard</button>
+                <button class="mobile-option-btn" id="mobileArchiveBtn" onclick="window.location.href='mini-archive'">📚 Archive</button>
+                
+                <!-- Mobile feedback toggle -->
+                <div class="mobile-feedback-toggle">
+                    <label for="mobileFeedbackToggle">
+                        <input type="checkbox" id="mobileFeedbackToggle">
+                        Autocheck
+                    </label>
+                </div>
+            </div>
+        </div>
+        
+        <div id="puzzleMessage" class="puzzle-message" style="display: none; text-align: center; margin: 20px; padding: 15px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; color: #6c757d; font-size: 16px;"></div>
+        
+        <div class="container">
+            <div class="crossword-grid">
+                <div id="crossword" class="grid">
+                    <!-- Grid will be populated dynamically -->
+                </div>
+                
+                <!-- Mobile Clue Navigator - positioned below grid -->
+                <div class="mobile-clue-navigator" id="mobileClueNavigator">
+                    <button class="mobile-nav-btn prev-btn" id="prevClueBtn" aria-label="Previous clue">
+                        <span class="nav-arrow">‹</span>
+                    </button>
+                    <div class="clue-display">
+                        <div class="clue-info">
+                            <span class="clue-number" id="mobileClueNumber">1</span>
+                            <span class="clue-direction" id="mobileClueDirection">Across</span>
+                        </div>
+                        <div class="clue-text" id="mobileClueText">Select a clue to begin</div>
+                    </div>
+                    <button class="mobile-nav-btn next-btn" id="nextClueBtn" aria-label="Next clue">
+                        <span class="nav-arrow">›</span>
+                    </button>
+                </div>
             </div>
             
-            <!-- Mobile Clue Navigator - positioned below grid -->
-            <div class="mobile-clue-navigator" id="mobileClueNavigator">
-                <button class="mobile-nav-btn prev-btn" id="prevClueBtn" aria-label="Previous clue">
-                    <span class="nav-arrow">‹</span>
-                </button>
-                <div class="clue-display">
-                    <div class="clue-info">
-                        <span class="clue-number" id="mobileClueNumber">1</span>
-                        <span class="clue-direction" id="mobileClueDirection">Across</span>
-                    </div>
-                    <div class="clue-text" id="mobileClueText">Select a clue to begin</div>
+            <div class="clues-section">
+                <div class="clues-container" id="cluesContainer">
+                    <!-- Clues will be populated dynamically -->
                 </div>
-                <button class="mobile-nav-btn next-btn" id="nextClueBtn" aria-label="Next clue">
-                    <span class="nav-arrow">›</span>
-                </button>
             </div>
         </div>
         
-        <div class="clues-section">
-            <div class="clues-container" id="cluesContainer">
-                <!-- Clues will be populated dynamically -->
+        <div class="game-overlay" id="gameOverlay">
+            <div class="overlay-content">
+                <h2 class="title">Manchat Daily<br /> Crossword Classic</h2>
+                <p>A classic crossword challenge.</p>
+
+                <h2>Ready?</h2>
+            
+                <button class="start-game-btn" id="startGameBtn">Start the Game</button>
             </div>
         </div>
-    </div>
-    
-    <div class="game-overlay" id="gameOverlay">
-        <div class="overlay-content">
-            <h2 class="title">Manchat Daily<br /> Crossword Classic</h2>
-            <p>A classic crossword challenge.</p>
 
-            <h2>Ready?</h2>
-        
-            <button class="start-game-btn" id="startGameBtn">Start the Game</button>
-        </div>
-    </div>
-
-    <div class="leaderboard-modal" id="leaderboardModal">
-        <div class="leaderboard-content">
-            <div class="leaderboard-header">
-                <h2>🏆 Today's Leaderboard</h2>
-                <button class="close-btn" id="closeLeaderboardBtn">✕</button>
-            </div>
-            <div class="leaderboard-body" id="leaderboardBody">
-                <div class="loading">Loading leaderboard...</div>
-            </div>
-            <div class="leaderboard-share-section" id="leaderboardShareSection">
-                <div class="completion-celebration">
-                    <div class="completion-text">🎉 Your completion time: <span id="leaderboardCompletionTime"></span> 🎉</div>
-                    <div class="share-buttons">
-                        <button id="leaderboardShareBtn" class="share-button">📋 Share Your Score</button>
-                        <button id="shareLeaderboardBtn" class="share-button secondary">🏆 Share Leaderboard</button>
+        <div class="leaderboard-modal" id="leaderboardModal">
+            <div class="leaderboard-content">
+                <div class="leaderboard-header">
+                    <h2>🏆 Today's Leaderboard</h2>
+                    <button class="close-btn" id="closeLeaderboardBtn">✕</button>
+                </div>
+                <div class="leaderboard-body" id="leaderboardBody">
+                    <div class="loading">Loading leaderboard...</div>
+                </div>
+                <div class="leaderboard-share-section" id="leaderboardShareSection">
+                    <div class="completion-celebration">
+                        <div class="completion-text">🎉 Your completion time: <span id="leaderboardCompletionTime"></span> 🎉</div>
+                        <div class="share-buttons">
+                            <button id="leaderboardShareBtn" class="share-button">📋 Share Your Score</button>
+                            <button id="shareLeaderboardBtn" class="share-button secondary">🏆 Share Leaderboard</button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
     <script src="crossword-generator/crossword.js"></script>
 </body>
 </html>

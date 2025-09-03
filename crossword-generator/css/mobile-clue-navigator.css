@@ -20,7 +20,7 @@
       145deg,
       var(--color-background-surface),
       var(--color-background-surface-secondary)
-        );
+    );
     border-top: 2px solid var(--color-border-primary);
     border-left: none;
     border-right: none;
@@ -70,7 +70,10 @@
 .mobile-clue-navigator .nav-btn:disabled {
   background: linear-gradient(
     145deg,
-  color: var(--color-text-primary);
+    var(--color-disabled-background),
+    var(--color-disabled-background-secondary)
+  );
+  color: var(--color-disabled-text);
   cursor: pointer;
   transition: all 0.2s ease-in-out;
   display: flex;
@@ -78,6 +81,8 @@
   justify-content: center;
   height: 100%;
   width: 100%;
+  background: linear-gradient(
+    145deg,
     var(--color-disabled-background),
     var(--color-disabled-background-secondary)
   );

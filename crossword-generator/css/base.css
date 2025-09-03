@@ -177,11 +177,7 @@ html {
 /* Mobile-specific html styling */
 @media (max-width: 768px) {
   html {
-    /* Prevent elastic scrolling on iOS without breaking layout */
-    height: 100%;
     overflow-x: hidden;
-    /* Allow normal scrolling but prevent bounce */
-    overscroll-behavior: none;
   }
 }
 
@@ -198,24 +194,38 @@ body {
   color: var(--color-text-primary);
   min-height: 100vh;
   overflow-x: hidden;
-  /* Prevent elastic scrolling and over-scroll on mobile */
-  overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
 }
 
 /* Mobile-specific body styling */
 @media (max-width: 768px) {
   body {
-    /* Less aggressive positioning - allow normal flow */
-    overflow-y: auto;
-    overflow-x: hidden;
-    min-height: 100vh;
-    /* Prevent bounce scrolling on iOS */
-    overscroll-behavior-y: none;
-    /* Ensure content can scroll normally and provide positioning context */
-    position: relative;
-    /* Add bottom padding for comfortable scrolling */
-    padding-bottom: 400px; /* Lots of space for scrolling above keyboard */
+    overflow: hidden;
+    padding: 0;
+    margin: 0;
+    height: 100vh;
+    height: 100svh;
+    width: 100vw;
+    position: fixed;
+    top: 0;
+    left: 0;
+    box-sizing: border-box;
+  }
+  .page-container {
+    position: fixed; /* Prevent any scrolling on iOS */
+    width: 100vw;
+    height: 100vh;
+    height: 100svh; /* Use small viewport height - excludes keyboard */
+    height: 100dvh; /* Dynamic viewport height as fallback */
+    top: 0;
+    left: 0;
+    overflow: hidden; /* Completely prevent scrolling */
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    overscroll-behavior: none; /* Prevent overscroll */
+    -webkit-overflow-scrolling: auto; /* Disable momentum scrolling */
+    touch-action: manipulation; /* Only allow tap and pinch */
   }
 }
 
@@ -225,6 +235,13 @@ body {
     position: static;
     height: auto;
     min-height: 100vh;
+  }
+  
+  .page-container {
+    position: static;
+    height: auto;
+    overflow: visible;
+    display: block;
   }
 }
 
@@ -347,14 +364,14 @@ button:disabled {
   text-shadow: 1px 1px 2px var(--color-shadow-secondary);
 }
 
-/* Enhanced mobile viewport handling for keyboard optimization and iOS scroll prevention */
+/* Enhanced mobile viewport handling for keyboard optimization */
 @media (max-width: 768px) {
   html {
+    position: fixed;
+    width: 100%;
     height: 100%;
-    overflow-x: hidden;
-    scroll-behavior: smooth;
-    /* Prevent iOS elastic scrolling */
-    touch-action: pan-y;
+    overflow: hidden;
+    touch-action: manipulation;
   }
 
   /* Prevent automatic scrolling to focused inputs on mobile */
@@ -363,19 +380,26 @@ button:disabled {
     scroll-padding: 0;
   }
 
-  /* Handle iOS Safari viewport units issue and prevent over-scrolling */
+  /* iOS Safari specific fixes */
   @supports (-webkit-touch-callout: none) {
     html {
-      height: -webkit-fill-available;
-      /* Prevent bounce scrolling without breaking layout */
-      overscroll-behavior: none;
+      height: 100vh;
+      height: 100svh;
+      overflow: hidden;
     }
     
     body {
+      height: 100vh;
+      height: 100svh;
+      overflow: hidden;
+      -webkit-overflow-scrolling: auto;
+    }
+    
+    .page-container {
+      height: 100vh;
+      height: 100svh;
+      /* Fallback for older iOS */
       height: -webkit-fill-available;
-      /* Prevent rubber band scrolling on iOS while maintaining normal flow */
-      overscroll-behavior-y: none;
-      -webkit-overflow-scrolling: touch;
     }
   }
 }
@@ -444,7 +468,7 @@ button:disabled {
 
   .title {
     font-size: 1.6em;
-    margin-bottom: 12px;
+    margin: 0;
   }
 
   .puzzle-info {

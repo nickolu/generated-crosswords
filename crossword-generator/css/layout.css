@@ -61,20 +61,26 @@
 @media (max-width: 640px) {
   .container {
     flex-direction: column; /* Force vertical stacking on all mobile devices */
-    gap: 12px;
-    padding: 8px;
-    margin: 0 0 300px 0; /* Add bottom margin for scrolling space */
+    gap: 8px; /* Reduced gap for more compact layout */
+    padding: 6px; /* Reduced padding */
+    margin: 0; /* Remove bottom margin - no scrolling needed */
     max-width: 100%;
+    flex: 1; /* Take up remaining space in page-container */
+    overflow: hidden; /* Prevent any overflow scrolling */
+    min-height: 0; /* Allow flex shrinking */
   }
 }
 
 @media (max-width: 430px) {
   .container {
     flex-direction: column;
-    gap: 10px;
-    padding: 5px;
-    margin: 0 0 300px 0; /* Add bottom margin for scrolling space */
+    gap: 6px; /* Even more compact for small screens */
+    padding: 4px; /* Minimal padding */
+    margin: 0; /* Remove bottom margin - no scrolling needed */
     max-width: 100%;
+    flex: 1; /* Take up remaining space in page-container */
+    overflow: hidden; /* Prevent any overflow scrolling */
+    min-height: 0; /* Allow flex shrinking */
   }
 }
 
