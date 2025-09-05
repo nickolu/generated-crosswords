@@ -1253,6 +1253,37 @@ class CrosswordPuzzle {
         return null;
     }
     
+    findPreviousUnfilledWord(direction) {
+        // Get the clue list for the specified direction
+        const clueList = this.puzzle.clueLists.find(list => 
+            list.name.toLowerCase() === direction.toLowerCase()
+        );
+        
+        if (!clueList) return null;
+        
+        // Find the current clue index in the direction's clue list
+        const currentClueIndex = this.selectedClue;
+        const currentPositionInList = clueList.clues.indexOf(currentClueIndex);
+        
+        // Look for previous unfilled word starting from current position - 1
+        for (let i = currentPositionInList - 1; i >= 0; i--) {
+            const clueIndex = clueList.clues[i];
+            if (this.isWordUnfilled(clueIndex)) {
+                return clueIndex;
+            }
+        }
+        
+        // If we didn't find one before current position, look from end
+        for (let i = clueList.clues.length - 1; i >= currentPositionInList; i--) {
+            const clueIndex = clueList.clues[i];
+            if (this.isWordUnfilled(clueIndex)) {
+                return clueIndex;
+            }
+        }
+        
+        return null;
+    }
+    
     isWordUnfilled(clueIndex) {
         const clue = this.puzzle.clues[clueIndex];
         if (!clue || !clue.cells) return false;
@@ -1387,8 +1418,13 @@ class CrosswordPuzzle {
         
         switch (event.key) {
             case 'Tab':
-                // Move to next word in current direction, or switch direction if at end
-                this.moveToNextWord();
+                if (event.shiftKey) {
+                    // Shift+Tab: Move to previous unfilled word
+                    this.navigateToPreviousClue();
+                } else {
+                    // Tab: Move to next word in current direction, or switch direction if at end
+                    this.moveToNextWord();
+                }
                 event.preventDefault();
                 break;
             case 'ArrowUp':
@@ -1973,6 +2009,25 @@ class CrosswordPuzzle {
         if (this.selectedClue === null) return;
         
         const currentDirection = this.getClueDirection(this.selectedClue);
+        
+        // First try to find previous unfilled word in current direction
+        const prevUnfilledClue = this.findPreviousUnfilledWord(currentDirection);
+        
+        if (prevUnfilledClue !== null) {
+            this.selectClue(prevUnfilledClue);
+            return;
+        }
+        
+        // If no unfilled words in current direction, try opposite direction
+        const oppositeDirection = currentDirection === 'across' ? 'down' : 'across';
+        const oppositeUnfilledClue = this.findPreviousUnfilledWord(oppositeDirection);
+        
+        if (oppositeUnfilledClue !== null) {
+            this.selectClue(oppositeUnfilledClue);
+            return;
+        }
+        
+        // If all words are filled, fall back to sequential navigation
         const currentClueList = this.puzzle.clueLists.find(list => 
             list.name.toLowerCase() === currentDirection.toLowerCase()
         );
@@ -1987,7 +2042,6 @@ class CrosswordPuzzle {
             this.selectClue(prevClueIndex);
         } else {
             // Move to last clue in opposite direction
-            const oppositeDirection = currentDirection === 'across' ? 'down' : 'across';
             const oppositeClueList = this.puzzle.clueLists.find(list => 
                 list.name.toLowerCase() === oppositeDirection.toLowerCase()
             );
@@ -2003,6 +2057,25 @@ class CrosswordPuzzle {
         if (this.selectedClue === null) return;
         
         const currentDirection = this.getClueDirection(this.selectedClue);
+        
+        // First try to find next unfilled word in current direction
+        const nextUnfilledClue = this.findNextUnfilledWord(currentDirection);
+        
+        if (nextUnfilledClue !== null) {
+            this.selectClue(nextUnfilledClue);
+            return;
+        }
+        
+        // If no unfilled words in current direction, try opposite direction
+        const oppositeDirection = currentDirection === 'across' ? 'down' : 'across';
+        const oppositeUnfilledClue = this.findNextUnfilledWord(oppositeDirection);
+        
+        if (oppositeUnfilledClue !== null) {
+            this.selectClue(oppositeUnfilledClue);
+            return;
+        }
+        
+        // If all words are filled, fall back to sequential navigation
         const currentClueList = this.puzzle.clueLists.find(list => 
             list.name.toLowerCase() === currentDirection.toLowerCase()
         );
@@ -2017,7 +2090,6 @@ class CrosswordPuzzle {
             this.selectClue(nextClueIndex);
         } else {
             // Move to first clue in opposite direction
-            const oppositeDirection = currentDirection === 'across' ? 'down' : 'across';
             const oppositeClueList = this.puzzle.clueLists.find(list => 
                 list.name.toLowerCase() === oppositeDirection.toLowerCase()
             );
