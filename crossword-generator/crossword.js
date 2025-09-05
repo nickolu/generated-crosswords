@@ -1582,6 +1582,8 @@ class CrosswordPuzzle {
         
         if (!data || Object.keys(data).length === 0) {
             leaderboardBody.innerHTML = '<div class="empty-leaderboard">No times recorded yet today.<br/>Be the first to complete the puzzle!</div>';
+            // Update share button visibility for empty leaderboard
+            this.updateShareButtonVisibility();
             return;
         }
         
@@ -1621,6 +1623,9 @@ class CrosswordPuzzle {
         html += '</ul>';
         
         leaderboardBody.innerHTML = html;
+        
+        // Update share button visibility after loading data
+        this.updateShareButtonVisibility();
     }
     
     displayLeaderboardError() {
@@ -1633,6 +1638,10 @@ class CrosswordPuzzle {
                 Please check your connection and try again.
             </div>
         `;
+        
+        // Update share button visibility for error state (no data)
+        this.currentLeaderboardData = {};
+        this.updateShareButtonVisibility();
     }
     
     formatTimeFromSeconds(seconds) {
@@ -1650,12 +1659,14 @@ class CrosswordPuzzle {
     updateShareButtonVisibility() {        
         const shareSection = document.getElementById('leaderboardShareSection');
         if (shareSection) {
-            // Show share section only if puzzle is completed
-            shareSection.style.display = this.isCompleted ? 'block' : 'none';
+            // Show share section if there's at least 1 time on the leaderboard
+            const hasLeaderboardData = this.currentLeaderboardData && Object.keys(this.currentLeaderboardData).length > 0;
+            shareSection.style.display = hasLeaderboardData ? 'block' : 'none';
         }
 
-        const completionTimeSection = shareSection.querySelector('.completion-time');
+        const completionTimeSection = shareSection?.querySelector('.completion-time');
         if (completionTimeSection) {
+            // Only show completion time if the current user has completed the puzzle
             completionTimeSection.style.display = this.isCompleted ? 'block' : 'none';
         }
 
