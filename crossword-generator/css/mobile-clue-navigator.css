@@ -47,6 +47,12 @@
     /* iOS-specific fixes */
     -webkit-text-size-adjust: 100%; /* Prevent iOS text scaling issues */
     text-size-adjust: 100%;
+    
+    /* Smooth transitions for keyboard appearance */
+    transition: bottom 0.3s ease-out, transform 0.3s ease-out;
+    
+    /* Will be overridden by JavaScript for iOS keyboard positioning */
+    bottom: 0;
   }
 }
 

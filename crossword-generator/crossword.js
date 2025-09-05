@@ -244,7 +244,7 @@ class CrosswordPuzzle {
         // Initialize with empty state
         this.updateMobileClueDisplay();
         
-        // Set up initial positioning
+        // Set up initial positioning (this will be enhanced by setupMobileDynamicSizing)
         this.adjustMobileClueNavigatorForKeyboard();
     }
     
@@ -312,6 +312,7 @@ class CrosswordPuzzle {
             setTimeout(() => {
                 this.handleWindowResize();
                 this.updateMobileDynamicSizing();
+                this.updateMobileClueNavigatorPosition();
             }, 200);
         });
 
@@ -1681,6 +1682,7 @@ class CrosswordPuzzle {
             this.updateMobileNavigationVisibility();
             this.adjustMobileClueNavigatorForKeyboard();
             this.updateMobileDynamicSizing();
+            this.updateMobileClueNavigatorPosition();
         }, 100); // 100ms debounce for resize events
     }
 
@@ -1736,11 +1738,15 @@ class CrosswordPuzzle {
     setupMobileDynamicSizing() {
         if (window.innerWidth <= 768) {
             this.updateMobileDynamicSizing();
+            this.setupMobileClueNavigatorPositioning();
             
             // Watch for viewport changes (keyboard show/hide)
             if (window.visualViewport) {
                 window.visualViewport.addEventListener('resize', () => {
-                    setTimeout(() => this.updateMobileDynamicSizing(), 100);
+                    setTimeout(() => {
+                        this.updateMobileDynamicSizing();
+                        this.updateMobileClueNavigatorPosition();
+                    }, 100);
                 });
             }
         }
@@ -1804,6 +1810,88 @@ class CrosswordPuzzle {
         root.style.setProperty('--mobile-available-width', `${availableWidth}px`);
         
         console.log(`Mobile sizing: ${cellSize}px cells (${gridWidth}x${gridHeight} grid) in ${availableWidth}x${availableHeight}px space`);
+    }
+    
+    // Setup mobile clue navigator positioning for iOS keyboard handling
+    setupMobileClueNavigatorPositioning() {
+        if (window.innerWidth > 768) return;
+        
+        // Initial positioning
+        this.updateMobileClueNavigatorPosition();
+        
+        // Listen for focus events on input cells to handle keyboard appearance
+        document.addEventListener('focusin', (e) => {
+            if (e.target.classList.contains('cell')) {
+                // Small delay to let keyboard animation complete
+                setTimeout(() => this.updateMobileClueNavigatorPosition(), 300);
+            }
+        });
+        
+        document.addEventListener('focusout', (e) => {
+            if (e.target.classList.contains('cell')) {
+                // Small delay to let keyboard animation complete
+                setTimeout(() => this.updateMobileClueNavigatorPosition(), 300);
+            }
+        });
+    }
+    
+    // Update mobile clue navigator position based on keyboard state
+    updateMobileClueNavigatorPosition() {
+        if (window.innerWidth > 768) return;
+        
+        const navigator = document.getElementById('mobileClueNavigator');
+        if (!navigator) return;
+        
+        // Check if this is iOS Safari
+        const isIOS = /iPad|iPhone|iPod/.test(window.navigator.userAgent) || 
+                     (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
+        const isSafari = /Safari/.test(window.navigator.userAgent) && !/Chrome/.test(window.navigator.userAgent);
+        
+        // Get viewport information with fallbacks
+        const windowHeight = window.innerHeight;
+        let visualViewportHeight = windowHeight;
+        let visualViewportOffsetTop = 0;
+        
+        if (window.visualViewport) {
+            visualViewportHeight = window.visualViewport.height;
+            visualViewportOffsetTop = window.visualViewport.offsetTop || 0;
+        }
+        
+        // Calculate keyboard height
+        const keyboardHeight = windowHeight - visualViewportHeight - visualViewportOffsetTop;
+        
+        // Use different thresholds for iOS vs other platforms
+        const keyboardThreshold = isIOS ? 80 : 50; // iOS keyboard detection needs higher threshold
+        const isKeyboardVisible = keyboardHeight > keyboardThreshold;
+        
+        if (isKeyboardVisible) {
+            // Position navigator above the keyboard
+            let bottomOffset = keyboardHeight + 10; // 10px buffer above keyboard
+            
+            // For iOS, add additional safe area padding
+            if (isIOS && isSafari) {
+                bottomOffset += 10; // Extra buffer for iOS Safari
+            }
+            
+            navigator.style.position = 'fixed';
+            navigator.style.bottom = `${bottomOffset}px`;
+            navigator.style.transform = 'translateY(0)';
+            navigator.style.zIndex = '1000'; // Ensure it's above everything
+            
+            console.log(`Keyboard detected (${isIOS ? 'iOS' : 'Other'}): ${keyboardHeight}px, positioning navigator at bottom: ${bottomOffset}px`);
+        } else {
+            // Position navigator at bottom of viewport
+            navigator.style.position = 'fixed';
+            navigator.style.bottom = '0px';
+            navigator.style.transform = 'translateY(0)';
+            navigator.style.zIndex = '100';
+            
+            console.log('No keyboard detected, positioning navigator at viewport bottom');
+        }
+        
+        // Ensure navigator is visible
+        navigator.style.visibility = 'visible';
+        navigator.style.opacity = '1';
     }
     
     // Removed showScrollToTopButton method - no longer needed with simplified scrolling
