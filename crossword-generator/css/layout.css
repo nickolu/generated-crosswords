@@ -28,10 +28,21 @@
   /* Grid columns will be set dynamically via JavaScript */
 }
 
-/* Add extra space below crossword grid on mobile */
+/* Mobile crossword grid - flexible sizing and hide clues */
 @media (max-width: 768px) {
   .crossword-grid {
-    margin-bottom: 20px; /* Small space below the grid - mobile nav will be here */
+    flex: 1; /* Take up all available space */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 0; /* Allow shrinking */
+    margin-bottom: 0; /* No bottom margin needed */
+  }
+  
+  /* Hide the desktop clues section on mobile */
+  .clues-section {
+    display: none;
   }
 }
 
@@ -68,6 +79,7 @@
     flex: 1; /* Take up remaining space in page-container */
     overflow: hidden; /* Prevent any overflow scrolling */
     min-height: 0; /* Allow flex shrinking */
+    padding-bottom: 80px; /* Account for fixed bottom clue navigator */
   }
 }
 
@@ -81,6 +93,7 @@
     flex: 1; /* Take up remaining space in page-container */
     overflow: hidden; /* Prevent any overflow scrolling */
     min-height: 0; /* Allow flex shrinking */
+    padding-bottom: 80px; /* Account for fixed bottom clue navigator */
   }
 }
 
