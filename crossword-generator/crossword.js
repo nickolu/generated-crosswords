@@ -29,7 +29,14 @@ class CrosswordPuzzle {
         this.updateMobileNavigationVisibility(); 
         this.setupMobileDynamicSizing();
         this.blurClues();
-        this.showGameOverlay();
+        
+        // Check if user has already completed this puzzle
+        this.checkExistingCompletion().then(() => {
+            // Only show game overlay if puzzle is not already completed
+            if (!this.isCompleted) {
+                this.showGameOverlay();
+            }
+        });
     }
     
     // Cookie utility functions
@@ -48,6 +55,103 @@ class CrosswordPuzzle {
             if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
         }
         return null;
+    }
+    
+    // Check if user has already completed this puzzle
+    async checkExistingCompletion() {
+        if (!this.userName || !this.puzzle.date) {
+            return;
+        }
+        
+        try {
+            // Try to load leaderboard data for this puzzle date
+            const dataUrl = `data/${this.puzzle.date}.json`;
+            const response = await fetch(dataUrl, {
+                method: 'GET',
+                mode: 'cors',
+                cache: 'no-cache',
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
+            });
+            
+            if (!response.ok) {
+                // No completion data exists yet
+                return;
+            }
+            
+            const leaderboardData = await response.json();
+            
+            // Check if current user has a completion time
+            const userCompletionTime = leaderboardData[this.userName];
+            if (userCompletionTime) {
+                console.log(`User ${this.userName} already completed this puzzle in ${userCompletionTime} seconds`);
+                await this.restoreCompletedPuzzle(userCompletionTime);
+            }
+            
+        } catch (error) {
+            console.log('No existing completion data found:', error);
+        }
+    }
+    
+    // Restore the puzzle to completed state with all answers filled
+    async restoreCompletedPuzzle(completionTimeSeconds) {
+        // Set completion state
+        this.isCompleted = true;
+        this.isRunning = false;
+        this.isPaused = true;
+        this.elapsedTime = completionTimeSeconds * 1000; // Convert to milliseconds
+        this.gameStarted = true; // Mark as started so interface is active
+        
+        // Fill in all the correct answers
+        this.puzzle.cells.forEach((cell, index) => {
+            if (cell && Object.keys(cell).length > 0 && cell.answer) {
+                this.userAnswers[index] = cell.answer;
+                
+                // Update the visual cell with the answer
+                const cellWrapper = document.querySelector(`[data-index="${index}"]`);
+                const cellInput = cellWrapper?.querySelector('.cell');
+                if (cellInput) {
+                    cellInput.value = cell.answer;
+                    // Remove empty state since cell has content
+                    cellWrapper.classList.remove('empty');
+                }
+            }
+        });
+        
+        // Update timer display to show completion time
+        this.updateTimerDisplay();
+        
+        // Enable the share button (both desktop and mobile)
+        const persistentShareBtn = document.getElementById('persistentShareBtn');
+        if (persistentShareBtn) {
+            persistentShareBtn.disabled = false;
+        }
+        
+        // Also enable mobile share button if it exists and is synced
+        const mobileShareBtn = document.getElementById('mobileShareBtn');
+        if (mobileShareBtn && persistentShareBtn) {
+            mobileShareBtn.disabled = persistentShareBtn.disabled;
+        }
+        
+        // Disable pause button since puzzle is completed (both desktop and mobile)
+        const pauseBtn = document.getElementById('pauseBtn');
+        if (pauseBtn) {
+            pauseBtn.disabled = true;
+        }
+        
+        // Also disable mobile pause button if it exists and is synced
+        const mobilePauseBtn = document.getElementById('mobilePauseBtn');
+        if (mobilePauseBtn && pauseBtn) {
+            mobilePauseBtn.disabled = pauseBtn.disabled;
+        }
+        
+        // Unblur clues since puzzle is completed
+        this.unblurClues();
+        
+        console.log(`Restored completed puzzle state: ${this.formatTime(this.elapsedTime)}`);
     }
     
     blurClues() {
@@ -70,10 +174,19 @@ class CrosswordPuzzle {
             // Check if we need to ask for user's name
             if (!this.userName) {
                 this.showNamePrompt();
+                overlay.style.display = 'flex';
             } else {
-                this.showWelcomeOverlay();
+                // User has a name, check if they've completed this puzzle
+                this.checkExistingCompletion().then(() => {
+                    if (!this.isCompleted) {
+                        this.showWelcomeOverlay();
+                        overlay.style.display = 'flex';
+                    } else {
+                        // User has already completed this puzzle, hide overlay immediately
+                        overlay.style.display = 'none';
+                    }
+                });
             }
-            overlay.style.display = 'flex';
         }
     }
     
@@ -117,7 +230,16 @@ class CrosswordPuzzle {
         if (nameInput && nameInput.value.trim()) {
             this.userName = nameInput.value.trim();
             this.setCookie('crossword_user_name', this.userName);
-            this.showWelcomeOverlay();
+            
+            // Check if this user has already completed the puzzle
+            this.checkExistingCompletion().then(() => {
+                if (!this.isCompleted) {
+                    this.showWelcomeOverlay();
+                } else {
+                    // User has already completed this puzzle, hide overlay
+                    this.hideGameOverlay();
+                }
+            });
         }
     }
     
