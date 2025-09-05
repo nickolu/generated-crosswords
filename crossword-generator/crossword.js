@@ -1191,26 +1191,28 @@ class CrosswordPuzzle {
     moveToNextWord() {
         if (this.selectedClue === null) return;
         
-        const currentDirection = this.getClueDirection(this.selectedClue);
-        
-        // Check if current word is the last in its direction sequence
-        if (this.isLastWordInDirection(this.selectedClue, currentDirection)) {
-            // Move to first word of opposite direction
-            const oppositeDirection = currentDirection === 'across' ? 'down' : 'across';
-            const firstWordClueIndex = this.findFirstWordInDirection(oppositeDirection);
-            
-            if (firstWordClueIndex !== null) {
-                this.selectClue(firstWordClueIndex);
-                return;
-            }
-        }
-        
-        // Otherwise, find next unfilled word globally
+        // Find next unfilled word globally (same as navigateToNextClue)
         const nextWordClueIndex = this.findNextUnfilledWord();
         
         if (nextWordClueIndex !== null) {
             // Found next unfilled word
             this.selectClue(nextWordClueIndex);
+        } else {
+            // If all words are filled, fall back to sequential global navigation
+            const acrossClues = this.puzzle.clueLists.find(list => 
+                list.name.toLowerCase() === 'across'
+            )?.clues || [];
+            const downClues = this.puzzle.clueLists.find(list => 
+                list.name.toLowerCase() === 'down'
+            )?.clues || [];
+            
+            const allClues = [...acrossClues, ...downClues];
+            const currentIndex = allClues.indexOf(this.selectedClue);
+            
+            if (currentIndex !== -1) {
+                const nextIndex = (currentIndex + 1) % allClues.length;
+                this.selectClue(allClues[nextIndex]);
+            }
         }
     }
     
