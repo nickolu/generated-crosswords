@@ -1191,60 +1191,91 @@ class CrosswordPuzzle {
     moveToNextWord() {
         if (this.selectedClue === null) return;
         
-        const currentDirection = this.getClueDirection(this.selectedClue);
-        
-        // Check if current word is the last in its direction sequence
-        if (this.isLastWordInDirection(this.selectedClue, currentDirection)) {
-            // Move to first word of opposite direction
-            const oppositeDirection = currentDirection === 'across' ? 'down' : 'across';
-            const firstWordClueIndex = this.findFirstWordInDirection(oppositeDirection);
-            
-            if (firstWordClueIndex !== null) {
-                this.selectClue(firstWordClueIndex);
-                return;
-            }
-        }
-        
-        // Otherwise, find next unfilled word in current direction
-        const nextWordClueIndex = this.findNextUnfilledWord(currentDirection);
+        // Find next unfilled word globally (same as navigateToNextClue)
+        const nextWordClueIndex = this.findNextUnfilledWord();
         
         if (nextWordClueIndex !== null) {
-            // Found next unfilled word in current direction
+            // Found next unfilled word
             this.selectClue(nextWordClueIndex);
         } else {
-            // No more unfilled words in current direction, switch to opposite direction
-            const oppositeDirection = currentDirection === 'across' ? 'down' : 'across';
-            const oppositeWordClueIndex = this.findNextUnfilledWord(oppositeDirection);
+            // If all words are filled, fall back to sequential global navigation
+            const acrossClues = this.puzzle.clueLists.find(list => 
+                list.name.toLowerCase() === 'across'
+            )?.clues || [];
+            const downClues = this.puzzle.clueLists.find(list => 
+                list.name.toLowerCase() === 'down'
+            )?.clues || [];
             
-            if (oppositeWordClueIndex !== null) {
-                this.selectClue(oppositeWordClueIndex);
+            const allClues = [...acrossClues, ...downClues];
+            const currentIndex = allClues.indexOf(this.selectedClue);
+            
+            if (currentIndex !== -1) {
+                const nextIndex = (currentIndex + 1) % allClues.length;
+                this.selectClue(allClues[nextIndex]);
             }
         }
     }
     
-    findNextUnfilledWord(direction) {
-        // Get the clue list for the specified direction
-        const clueList = this.puzzle.clueLists.find(list => 
-            list.name.toLowerCase() === direction.toLowerCase()
-        );
+    findNextUnfilledWord() {
+        // Create a global list of all clues in order (across first, then down)
+        const acrossClues = this.puzzle.clueLists.find(list => 
+            list.name.toLowerCase() === 'across'
+        )?.clues || [];
+        const downClues = this.puzzle.clueLists.find(list => 
+            list.name.toLowerCase() === 'down'
+        )?.clues || [];
         
-        if (!clueList) return null;
-        
-        // Find the current clue index in the direction's clue list
+        const allClues = [...acrossClues, ...downClues];
         const currentClueIndex = this.selectedClue;
-        const currentPositionInList = clueList.clues.indexOf(currentClueIndex);
+        const currentPositionInGlobalList = allClues.indexOf(currentClueIndex);
+        
+        if (currentPositionInGlobalList === -1) return null;
         
         // Look for next unfilled word starting from current position + 1
-        for (let i = currentPositionInList + 1; i < clueList.clues.length; i++) {
-            const clueIndex = clueList.clues[i];
+        for (let i = currentPositionInGlobalList + 1; i < allClues.length; i++) {
+            const clueIndex = allClues[i];
             if (this.isWordUnfilled(clueIndex)) {
                 return clueIndex;
             }
         }
         
-        // If we didn't find one after current position, look from beginning
-        for (let i = 0; i <= currentPositionInList; i++) {
-            const clueIndex = clueList.clues[i];
+        // If we didn't find one after current position, wrap around and look from beginning
+        for (let i = 0; i < currentPositionInGlobalList; i++) {
+            const clueIndex = allClues[i];
+            if (this.isWordUnfilled(clueIndex)) {
+                return clueIndex;
+            }
+        }
+        
+        return null;
+    }
+    
+    findPreviousUnfilledWord() {
+        // Create a global list of all clues in order (across first, then down)
+        const acrossClues = this.puzzle.clueLists.find(list => 
+            list.name.toLowerCase() === 'across'
+        )?.clues || [];
+        const downClues = this.puzzle.clueLists.find(list => 
+            list.name.toLowerCase() === 'down'
+        )?.clues || [];
+        
+        const allClues = [...acrossClues, ...downClues];
+        const currentClueIndex = this.selectedClue;
+        const currentPositionInGlobalList = allClues.indexOf(currentClueIndex);
+        
+        if (currentPositionInGlobalList === -1) return null;
+        
+        // Look for previous unfilled word starting from current position - 1
+        for (let i = currentPositionInGlobalList - 1; i >= 0; i--) {
+            const clueIndex = allClues[i];
+            if (this.isWordUnfilled(clueIndex)) {
+                return clueIndex;
+            }
+        }
+        
+        // If we didn't find one before current position, wrap around and look from end
+        for (let i = allClues.length - 1; i > currentPositionInGlobalList; i--) {
+            const clueIndex = allClues[i];
             if (this.isWordUnfilled(clueIndex)) {
                 return clueIndex;
             }
@@ -1387,8 +1418,13 @@ class CrosswordPuzzle {
         
         switch (event.key) {
             case 'Tab':
-                // Move to next word in current direction, or switch direction if at end
-                this.moveToNextWord();
+                if (event.shiftKey) {
+                    // Shift+Tab: Move to previous unfilled word
+                    this.navigateToPreviousClue();
+                } else {
+                    // Tab: Move to next word in current direction, or switch direction if at end
+                    this.moveToNextWord();
+                }
                 event.preventDefault();
                 break;
             case 'ArrowUp':
@@ -1972,60 +2008,56 @@ class CrosswordPuzzle {
     navigateToPreviousClue() {
         if (this.selectedClue === null) return;
         
-        const currentDirection = this.getClueDirection(this.selectedClue);
-        const currentClueList = this.puzzle.clueLists.find(list => 
-            list.name.toLowerCase() === currentDirection.toLowerCase()
-        );
+        // Try to find previous unfilled word globally
+        const prevUnfilledClue = this.findPreviousUnfilledWord();
         
-        if (!currentClueList) return;
+        if (prevUnfilledClue !== null) {
+            this.selectClue(prevUnfilledClue);
+            return;
+        }
         
-        const currentIndex = currentClueList.clues.indexOf(this.selectedClue);
+        // If all words are filled, fall back to sequential global navigation
+        const acrossClues = this.puzzle.clueLists.find(list => 
+            list.name.toLowerCase() === 'across'
+        )?.clues || [];
+        const downClues = this.puzzle.clueLists.find(list => 
+            list.name.toLowerCase() === 'down'
+        )?.clues || [];
         
-        if (currentIndex > 0) {
-            // Move to previous clue in same direction
-            const prevClueIndex = currentClueList.clues[currentIndex - 1];
-            this.selectClue(prevClueIndex);
-        } else {
-            // Move to last clue in opposite direction
-            const oppositeDirection = currentDirection === 'across' ? 'down' : 'across';
-            const oppositeClueList = this.puzzle.clueLists.find(list => 
-                list.name.toLowerCase() === oppositeDirection.toLowerCase()
-            );
-            
-            if (oppositeClueList && oppositeClueList.clues.length > 0) {
-                const lastClueIndex = oppositeClueList.clues[oppositeClueList.clues.length - 1];
-                this.selectClue(lastClueIndex);
-            }
+        const allClues = [...acrossClues, ...downClues];
+        const currentIndex = allClues.indexOf(this.selectedClue);
+        
+        if (currentIndex !== -1) {
+            const prevIndex = (currentIndex - 1 + allClues.length) % allClues.length;
+            this.selectClue(allClues[prevIndex]);
         }
     }
     
     navigateToNextClue() {
         if (this.selectedClue === null) return;
         
-        const currentDirection = this.getClueDirection(this.selectedClue);
-        const currentClueList = this.puzzle.clueLists.find(list => 
-            list.name.toLowerCase() === currentDirection.toLowerCase()
-        );
+        // Try to find next unfilled word globally
+        const nextUnfilledClue = this.findNextUnfilledWord();
         
-        if (!currentClueList) return;
+        if (nextUnfilledClue !== null) {
+            this.selectClue(nextUnfilledClue);
+            return;
+        }
         
-        const currentIndex = currentClueList.clues.indexOf(this.selectedClue);
+        // If all words are filled, fall back to sequential global navigation
+        const acrossClues = this.puzzle.clueLists.find(list => 
+            list.name.toLowerCase() === 'across'
+        )?.clues || [];
+        const downClues = this.puzzle.clueLists.find(list => 
+            list.name.toLowerCase() === 'down'
+        )?.clues || [];
         
-        if (currentIndex < currentClueList.clues.length - 1) {
-            // Move to next clue in same direction
-            const nextClueIndex = currentClueList.clues[currentIndex + 1];
-            this.selectClue(nextClueIndex);
-        } else {
-            // Move to first clue in opposite direction
-            const oppositeDirection = currentDirection === 'across' ? 'down' : 'across';
-            const oppositeClueList = this.puzzle.clueLists.find(list => 
-                list.name.toLowerCase() === oppositeDirection.toLowerCase()
-            );
-            
-            if (oppositeClueList && oppositeClueList.clues.length > 0) {
-                const firstClueIndex = oppositeClueList.clues[0];
-                this.selectClue(firstClueIndex);
-            }
+        const allClues = [...acrossClues, ...downClues];
+        const currentIndex = allClues.indexOf(this.selectedClue);
+        
+        if (currentIndex !== -1) {
+            const nextIndex = (currentIndex + 1) % allClues.length;
+            this.selectClue(allClues[nextIndex]);
         }
     }
 }
