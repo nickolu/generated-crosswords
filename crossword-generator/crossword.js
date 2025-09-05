@@ -27,6 +27,7 @@ class CrosswordPuzzle {
         this.setupEventListeners();
         this.setupMobileClueNavigator();
         this.updateMobileNavigationVisibility(); 
+        this.setupMobileDynamicSizing();
         this.blurClues();
         this.showGameOverlay();
     }
@@ -204,6 +205,8 @@ class CrosswordPuzzle {
                 this.scrollToCrosswordOnStart();
                 // Ensure mobile navigation is properly visible after scroll
                 this.updateMobileNavigationVisibility();
+                // Recalculate mobile sizing now that the overlay is hidden
+                this.updateMobileDynamicSizing();
             }, 400); // Small delay to let overlay fade out
         }
     }
@@ -241,7 +244,7 @@ class CrosswordPuzzle {
         // Initialize with empty state
         this.updateMobileClueDisplay();
         
-        // Set up initial positioning
+        // Set up initial positioning (this will be enhanced by setupMobileDynamicSizing)
         this.adjustMobileClueNavigatorForKeyboard();
     }
     
@@ -308,6 +311,8 @@ class CrosswordPuzzle {
             // Small delay to let orientation change complete
             setTimeout(() => {
                 this.handleWindowResize();
+                this.updateMobileDynamicSizing();
+                this.updateMobileClueNavigatorPosition();
             }, 200);
         });
 
@@ -586,7 +591,7 @@ class CrosswordPuzzle {
             document.addEventListener('wheel', preventScroll, { passive: false });
             
             // Prevent scrolling on window
-            window.addEventListener('scroll', (e) => {
+            window.addEventListener('scroll', () => {
                 window.scrollTo(0, 0);
             }, { passive: false });
 
@@ -1676,6 +1681,8 @@ class CrosswordPuzzle {
         this.resizeTimeout = setTimeout(() => {
             this.updateMobileNavigationVisibility();
             this.adjustMobileClueNavigatorForKeyboard();
+            this.updateMobileDynamicSizing();
+            this.updateMobileClueNavigatorPosition();
         }, 100); // 100ms debounce for resize events
     }
 
@@ -1727,6 +1734,166 @@ class CrosswordPuzzle {
         }
     }
     
+    // Setup mobile dynamic sizing system
+    setupMobileDynamicSizing() {
+        if (window.innerWidth <= 768) {
+            this.updateMobileDynamicSizing();
+            this.setupMobileClueNavigatorPositioning();
+            
+            // Watch for viewport changes (keyboard show/hide)
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', () => {
+                    setTimeout(() => {
+                        this.updateMobileDynamicSizing();
+                        this.updateMobileClueNavigatorPosition();
+                    }, 100);
+                });
+            }
+        }
+    }
+    
+    // Calculate and apply dynamic mobile sizing
+    updateMobileDynamicSizing() {
+        if (window.innerWidth > 768) return; // Only apply to mobile
+        
+        const root = document.documentElement;
+        const puzzle = this.puzzle;
+        
+        if (!puzzle || !puzzle.dimensions) return;
+        
+        // Get available dimensions
+        const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+        const viewportWidth = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+        
+        // Calculate available space for the grid
+        const titleArea = document.querySelector('.title-area');
+        const titleAreaHeight = titleArea ? titleArea.offsetHeight : 60;
+        
+        const navigatorHeight = 80; // Fixed height for the clue navigator
+        const containerPadding = 16; // Container padding (top/bottom)
+        const gridPadding = 16; // Grid internal padding
+        const buffer = 20; // Safety buffer
+        
+        const availableHeight = viewportHeight - titleAreaHeight - navigatorHeight - containerPadding - buffer;
+        const availableWidth = viewportWidth - containerPadding;
+        
+        // Calculate optimal cell size based on grid dimensions
+        const gridWidth = puzzle.dimensions.width;
+        const gridHeight = puzzle.dimensions.height;
+        
+        // Factor in grid gap (2px between cells)
+        const totalGapWidth = (gridWidth - 1) * 2;
+        const totalGapHeight = (gridHeight - 1) * 2;
+        
+        // Calculate maximum cell size that fits within available space
+        const maxCellWidth = (availableWidth - totalGapWidth - gridPadding) / gridWidth;
+        const maxCellHeight = (availableHeight - totalGapHeight - gridPadding) / gridHeight;
+        
+        // Use the smaller dimension to ensure the grid fits completely
+        let cellSize = Math.floor(Math.min(maxCellWidth, maxCellHeight));
+        
+        // Enforce minimum and maximum sizes for usability
+        const minCellSize = 28; // Minimum for touch accessibility
+        const maxCellSize = 60; // Maximum to prevent overly large cells
+        
+        cellSize = Math.max(minCellSize, Math.min(maxCellSize, cellSize));
+        
+        // Calculate proportional font sizes
+        const cellFontSize = Math.max(12, Math.floor(cellSize * 0.5));
+        const cellNumberSize = Math.max(8, Math.floor(cellSize * 0.2));
+        
+        // Apply the calculated sizes via CSS custom properties
+        root.style.setProperty('--mobile-cell-size', `${cellSize}px`);
+        root.style.setProperty('--mobile-cell-font-size', `${cellFontSize}px`);
+        root.style.setProperty('--mobile-cell-number-size', `${cellNumberSize}px`);
+        root.style.setProperty('--mobile-available-height', `${availableHeight}px`);
+        root.style.setProperty('--mobile-available-width', `${availableWidth}px`);
+        
+        console.log(`Mobile sizing: ${cellSize}px cells (${gridWidth}x${gridHeight} grid) in ${availableWidth}x${availableHeight}px space`);
+    }
+    
+    // Setup mobile clue navigator positioning for iOS keyboard handling
+    setupMobileClueNavigatorPositioning() {
+        if (window.innerWidth > 768) return;
+        
+        // Initial positioning
+        this.updateMobileClueNavigatorPosition();
+        
+        // Listen for focus events on input cells to handle keyboard appearance
+        document.addEventListener('focusin', (e) => {
+            if (e.target.classList.contains('cell')) {
+                // Small delay to let keyboard animation complete
+                setTimeout(() => this.updateMobileClueNavigatorPosition(), 300);
+            }
+        });
+        
+        document.addEventListener('focusout', (e) => {
+            if (e.target.classList.contains('cell')) {
+                // Small delay to let keyboard animation complete
+                setTimeout(() => this.updateMobileClueNavigatorPosition(), 300);
+            }
+        });
+    }
+    
+    // Update mobile clue navigator position based on keyboard state
+    updateMobileClueNavigatorPosition() {
+        if (window.innerWidth > 768) return;
+        
+        const navigator = document.getElementById('mobileClueNavigator');
+        if (!navigator) return;
+        
+        // Check if this is iOS Safari
+        const isIOS = /iPad|iPhone|iPod/.test(window.navigator.userAgent) || 
+                     (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
+        const isSafari = /Safari/.test(window.navigator.userAgent) && !/Chrome/.test(window.navigator.userAgent);
+        
+        // Get viewport information with fallbacks
+        const windowHeight = window.innerHeight;
+        let visualViewportHeight = windowHeight;
+        let visualViewportOffsetTop = 0;
+        
+        if (window.visualViewport) {
+            visualViewportHeight = window.visualViewport.height;
+            visualViewportOffsetTop = window.visualViewport.offsetTop || 0;
+        }
+        
+        // Calculate keyboard height
+        const keyboardHeight = windowHeight - visualViewportHeight - visualViewportOffsetTop;
+        
+        // Use different thresholds for iOS vs other platforms
+        const keyboardThreshold = isIOS ? 80 : 50; // iOS keyboard detection needs higher threshold
+        const isKeyboardVisible = keyboardHeight > keyboardThreshold;
+        
+        if (isKeyboardVisible) {
+            // Position navigator above the keyboard
+            let bottomOffset = keyboardHeight + 10; // 10px buffer above keyboard
+            
+            // For iOS, add additional safe area padding
+            if (isIOS && isSafari) {
+                bottomOffset += 10; // Extra buffer for iOS Safari
+            }
+            
+            navigator.style.position = 'fixed';
+            navigator.style.bottom = `${bottomOffset}px`;
+            navigator.style.transform = 'translateY(0)';
+            navigator.style.zIndex = '1000'; // Ensure it's above everything
+            
+            console.log(`Keyboard detected (${isIOS ? 'iOS' : 'Other'}): ${keyboardHeight}px, positioning navigator at bottom: ${bottomOffset}px`);
+        } else {
+            // Position navigator at bottom of viewport
+            navigator.style.position = 'fixed';
+            navigator.style.bottom = '0px';
+            navigator.style.transform = 'translateY(0)';
+            navigator.style.zIndex = '100';
+            
+            console.log('No keyboard detected, positioning navigator at viewport bottom');
+        }
+        
+        // Ensure navigator is visible
+        navigator.style.visibility = 'visible';
+        navigator.style.opacity = '1';
+    }
+    
     // Removed showScrollToTopButton method - no longer needed with simplified scrolling
     
     // Mobile Clue Navigator Methods
@@ -1736,7 +1903,6 @@ class CrosswordPuzzle {
         const clueTextEl = document.getElementById('mobileClueText');
         const prevBtn = document.getElementById('prevClueBtn');
         const nextBtn = document.getElementById('nextClueBtn');
-        const navigator = document.getElementById('mobileClueNavigator');
         
         // Update mobile navigator visibility based on current window size
         this.updateMobileNavigationVisibility();

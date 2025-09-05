@@ -89,6 +89,13 @@
   /* Dynamic scaling variables */
   --grid-max-width: 100%;
   --grid-padding: 8px; /* Account for container padding */
+  
+  /* Mobile dynamic sizing - will be set by JavaScript */
+  --mobile-available-height: 100vh;
+  --mobile-available-width: 100vw;
+  --mobile-cell-size: var(--cell-size);
+  --mobile-cell-font-size: var(--cell-font-size);
+  --mobile-cell-number-size: var(--cell-number-size);
 }
 
 /* Semantic Color Tokens - Contextual meanings */
@@ -458,6 +465,15 @@ button:disabled {
     --cell-size: 44px; /* Minimum for touch accessibility */
     --cell-font-size: 22px;
     --cell-number-size: 9px;
+  }
+}
+
+/* Mobile dynamic sizing - Use JavaScript-calculated values */
+@media (max-width: 768px) {
+  :root {
+    --cell-size: var(--mobile-cell-size);
+    --cell-font-size: var(--mobile-cell-font-size);
+    --cell-number-size: var(--mobile-cell-number-size);
   }
 }
 

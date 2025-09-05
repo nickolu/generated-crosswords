@@ -4,15 +4,17 @@
   display: none;
 }
 
-/* Show as normal block element directly under crossword on mobile */
+/* Pin to bottom of viewport on mobile */
 @media screen and (max-width: 768px) {
   .mobile-clue-navigator {
     display: flex;
-    position: relative;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
     width: 100%;
     min-height: 60px;
-    /* Add some spacing from the grid above */
-    margin-top: 15px;
+    z-index: 100; /* Ensure it stays above other content */
     
     /* Styling */
     background: linear-gradient(
@@ -28,7 +30,6 @@
     
     /* Layout */
     padding: 8px 12px;
-    margin: 0;
     box-shadow: 0 -4px 20px var(--color-shadow-secondary);
     
     /* Flexbox */
@@ -46,6 +47,12 @@
     /* iOS-specific fixes */
     -webkit-text-size-adjust: 100%; /* Prevent iOS text scaling issues */
     text-size-adjust: 100%;
+    
+    /* Smooth transitions for keyboard appearance */
+    transition: bottom 0.3s ease-out, transform 0.3s ease-out;
+    
+    /* Will be overridden by JavaScript for iOS keyboard positioning */
+    bottom: 0;
   }
 }
 
