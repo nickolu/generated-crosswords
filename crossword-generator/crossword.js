@@ -26,6 +26,7 @@ class CrosswordPuzzle {
         console.log('userName:', this.userName);
         console.log('isCompleted:', this.isCompleted);
         
+        this.hideStartGameBtn();
         this.setupGrid();
         this.setupTimer();
         this.setupEventListeners();
@@ -33,10 +34,6 @@ class CrosswordPuzzle {
         this.updateMobileNavigationVisibility(); 
         this.setupMobileDynamicSizing();
         this.blurClues();
-        
-        // Show loading state while we check completion
-        console.log('Showing loading state...');
-        this.hideStartGameBtn();
         
         // Check if user has already completed this puzzle (only if we have a username)
         if (this.userName) {
@@ -62,7 +59,6 @@ class CrosswordPuzzle {
             this.showStartGameBtn();
             this.showGameOverlay();
         }
-        console.log('=== INIT END ===');
     }
     
     // Cookie utility functions
@@ -85,11 +81,9 @@ class CrosswordPuzzle {
     
     // Loading state management
     hideStartGameBtn() {
-        console.log('=== hideStartGameBtn ===');
         // Create loading overlay if it doesn't exist
         let startGameBtn = document.getElementById('startGameBtn');
         startGameBtn.style.display = 'none';
-        console.log('Start game button hidden');
     }
     
     showStartGameBtn() {
@@ -97,7 +91,6 @@ class CrosswordPuzzle {
         const startGameBtn = document.getElementById('startGameBtn');
         if (startGameBtn) {
             startGameBtn.style.display = 'block';
-            console.log('Start game button shown');
         }
     }
     
@@ -158,9 +151,6 @@ class CrosswordPuzzle {
         this.gameStarted = true; // Mark as started so interface is active
 
         this.hideGameOverlay();
-        
-        console.log('Set isCompleted = true');
-        console.log('isCompleted:', this.isCompleted);
         
         // Fill in all the correct answers
         this.puzzle.cells.forEach((cell, index) => {
@@ -226,7 +216,6 @@ class CrosswordPuzzle {
     showGameOverlay() {
         const overlay = document.getElementById('gameOverlay');
         if (overlay) {
-            console.log('Overlay element found');
             // This method is now only called when there's no username
             // (the completion check happens separately in init() for users with usernames)
             if (!this.userName) {
@@ -332,11 +321,7 @@ class CrosswordPuzzle {
     hideGameOverlay() {
         const overlay = document.getElementById('gameOverlay');
         if (overlay) {
-            overlay.style.animation = 'fadeOut 0.3s ease';
-            setTimeout(() => {
-                overlay.style.display = 'none';
-                console.log('Overlay hidden after animation');
-            }, 300);
+            overlay.style.display = 'none';
         }
     }
     
