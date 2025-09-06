@@ -22,6 +22,10 @@ class CrosswordPuzzle {
     }
     
     init() {
+        console.log('=== INIT START ===');
+        console.log('userName:', this.userName);
+        console.log('isCompleted:', this.isCompleted);
+        
         this.setupGrid();
         this.setupTimer();
         this.setupEventListeners();
@@ -29,7 +33,30 @@ class CrosswordPuzzle {
         this.updateMobileNavigationVisibility(); 
         this.setupMobileDynamicSizing();
         this.blurClues();
-        this.showGameOverlay();
+        
+        // Check if user has already completed this puzzle (only if we have a username)
+        if (this.userName) {
+            console.log('User has name, checking completion...');
+            this.checkExistingCompletion().then(() => {
+                // Only show game overlay if puzzle is not already completed
+                if (!this.isCompleted) {
+                    this.showGameOverlay();
+                    this.showStartGameBtn();
+                } else {
+                    this.hideGameOverlay();
+                }
+            }).catch((error) => {
+                // If completion check fails, treat as not completed
+                console.log('Completion check failed:', error);
+                this.showGameOverlay();
+                this.showStartGameBtn();
+            });
+        } else {
+            // No username
+            console.log('No username, showing overlay for name');
+            this.showGameOverlay();
+            this.showStartGameBtn();
+        }
     }
     
     // Cookie utility functions
@@ -50,6 +77,111 @@ class CrosswordPuzzle {
         return null;
     }
     
+    // Check if user has already completed this puzzle
+    async checkExistingCompletion() {
+        if (!this.puzzle.date) {
+            console.log('No puzzle date, returning early');
+            return;
+        }
+        
+        try {
+            // Try to load leaderboard data for this puzzle date
+            const dataUrl = `data/${this.puzzle.date}.json`;
+            console.log('Fetching data from:', dataUrl);
+            const response = await fetch(dataUrl, {
+                method: 'GET',
+                mode: 'cors',
+                cache: 'no-cache',
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
+            });
+            
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                // No completion data exists yet
+                throw new Error('Response not ok');
+            }
+            
+            const leaderboardData = await response.json();
+            console.log('Leaderboard data:', leaderboardData);
+            
+            // Check if current user has a completion time
+            const userCompletionTime = leaderboardData[this.userName];
+            console.log('User completion time:', userCompletionTime);
+            if (userCompletionTime) {
+                console.log(`User ${this.userName} already completed this puzzle in ${userCompletionTime} seconds`);
+                await this.restoreCompletedPuzzle(userCompletionTime);
+            } else {
+                console.log('User not found in leaderboard');
+            }
+            
+        } catch (error) {
+            console.log('No existing completion data found:', error);
+        }
+    }
+    
+    // Restore the puzzle to completed state with all answers filled
+    async restoreCompletedPuzzle(completionTimeSeconds) {
+        // Set completion state
+        this.isCompleted = true;
+        this.isRunning = false;
+        this.isPaused = true;
+        this.elapsedTime = completionTimeSeconds * 1000; // Convert to milliseconds
+        this.gameStarted = true; // Mark as started so interface is active
+
+        this.hideGameOverlay();
+        
+        // Fill in all the correct answers and make cells non-editable
+        this.puzzle.cells.forEach((cell, index) => {
+            if (cell && Object.keys(cell).length > 0 && cell.answer) {
+                this.userAnswers[index] = cell.answer;
+                
+                // Update the visual cell with the answer
+                const cellWrapper = document.querySelector(`[data-index="${index}"]`);
+                const cellInput = cellWrapper?.querySelector('.cell');
+                if (cellInput) {
+                    cellInput.value = cell.answer;
+                    // Remove empty state since cell has content
+                    cellWrapper.classList.remove('empty');
+                    cellInput.readOnly = true;
+                }
+            }
+        });
+        
+        // Update timer display to show completion time
+        this.updateTimerDisplay();
+        
+        // Enable the share button (both desktop and mobile)
+        const persistentShareBtn = document.getElementById('persistentShareBtn');
+        if (persistentShareBtn) {
+            persistentShareBtn.disabled = false;
+        }
+        
+        // Also enable mobile share button if it exists and is synced
+        const mobileShareBtn = document.getElementById('mobileShareBtn');
+        if (mobileShareBtn && persistentShareBtn) {
+            mobileShareBtn.disabled = persistentShareBtn.disabled;
+        }
+        
+        // Disable pause button since puzzle is completed (both desktop and mobile)
+        const pauseBtn = document.getElementById('pauseBtn');
+        if (pauseBtn) {
+            pauseBtn.disabled = true;
+        }
+        
+        // Also disable mobile pause button if it exists and is synced
+        const mobilePauseBtn = document.getElementById('mobilePauseBtn');
+        if (mobilePauseBtn && pauseBtn) {
+            mobilePauseBtn.disabled = pauseBtn.disabled;
+        }
+        
+        // Unblur clues since puzzle is completed
+        this.unblurClues();
+    }
+    
     blurClues() {
         const cluesSection = document.querySelector('.clues-section');
         if (cluesSection) {
@@ -67,13 +199,23 @@ class CrosswordPuzzle {
     showGameOverlay() {
         const overlay = document.getElementById('gameOverlay');
         if (overlay) {
-            // Check if we need to ask for user's name
+            // This method is now only called when there's no username
+            // (the completion check happens separately in init() for users with usernames)
             if (!this.userName) {
+                console.log('No username, showing name prompt');
                 this.showNamePrompt();
-            } else {
+                overlay.style.display = 'flex';
+            } else if (!this.isCompleted) {
                 this.showWelcomeOverlay();
+                overlay.style.display = 'flex';
             }
-            overlay.style.display = 'flex';
+        }
+    }
+
+    showStartGameBtn() {
+        const startGameBtn = document.getElementById('startGameBtn');
+        if (startGameBtn) {
+            startGameBtn.style.display = 'inline';
         }
     }
     
@@ -82,6 +224,7 @@ class CrosswordPuzzle {
         if (overlay) {
             const overlayContent = overlay.querySelector('.overlay-content');
             if (overlayContent) {
+                console.log('Setting overlay content for name prompt');
                 overlayContent.innerHTML = `
                     <h2 class="title">Welcome to<br />Manchat Daily Crossword!</h2>
                     <p>Before we start, what's your name?</p>
@@ -117,16 +260,37 @@ class CrosswordPuzzle {
         if (nameInput && nameInput.value.trim()) {
             this.userName = nameInput.value.trim();
             this.setCookie('crossword_user_name', this.userName);
-            this.showWelcomeOverlay();
+
+            this.hideGameOverlay(); // Hide the name prompt overlay
+            
+            // Check if this user has already completed the puzzle
+            this.checkExistingCompletion().then(() => {
+                if (!this.isCompleted) {
+                    this.showGameOverlay();
+                    this.showStartGameBtn();
+                }
+                // If completed, just leave everything hidden (puzzle is already shown)
+            }).catch(() => {
+                // If completion check fails, treat as not completed
+                this.showGameOverlay();
+                this.showStartGameBtn();
+            });
         }
     }
     
     showWelcomeOverlay() {
+        // Don't show welcome overlay if puzzle is already completed
+        if (this.isCompleted) {
+            this.hideGameOverlay();
+            return;
+        }
+        
         const overlay = document.getElementById('gameOverlay');
         if (overlay) {
             const overlayContent = overlay.querySelector('.overlay-content');
             if (overlayContent) {
                 const greeting = this.userName ? `Welcome back, ${this.userName}!` : 'Welcome!';
+                console.log('Setting overlay content for welcome state');
                 overlayContent.innerHTML = `
                     <h2 class="title">Manchat Daily<br />Crossword Classic</h2>
                     <p>${greeting}</p>
@@ -147,10 +311,7 @@ class CrosswordPuzzle {
     hideGameOverlay() {
         const overlay = document.getElementById('gameOverlay');
         if (overlay) {
-            overlay.style.animation = 'fadeOut 0.3s ease';
-            setTimeout(() => {
-                overlay.style.display = 'none';
-            }, 300);
+            overlay.style.display = 'none';
         }
     }
     
@@ -160,6 +321,7 @@ class CrosswordPuzzle {
             // Update overlay content for pause state
             const overlayContent = overlay.querySelector('.overlay-content');
             if (overlayContent) {
+                console.log('Setting overlay content for pause state');
                 overlayContent.innerHTML = `
                     <h2>Game Paused ⏸️</h2>
                     <p>Your progress is saved. Click "Resume" to continue your puzzle.</p>
@@ -173,7 +335,6 @@ class CrosswordPuzzle {
                 }
             }
             overlay.style.display = 'flex';
-            overlay.style.animation = 'fadeIn 0.3s ease';
         }
     }
     
@@ -201,13 +362,11 @@ class CrosswordPuzzle {
         
         // Auto-scroll to crossword grid on mobile after starting the game
         if (window.innerWidth <= 768) {
-            setTimeout(() => {
-                this.scrollToCrosswordOnStart();
-                // Ensure mobile navigation is properly visible after scroll
-                this.updateMobileNavigationVisibility();
-                // Recalculate mobile sizing now that the overlay is hidden
-                this.updateMobileDynamicSizing();
-            }, 400); // Small delay to let overlay fade out
+            this.scrollToCrosswordOnStart();
+            // Ensure mobile navigation is properly visible after scroll
+            this.updateMobileNavigationVisibility();
+            // Recalculate mobile sizing now that the overlay is hidden
+            this.updateMobileDynamicSizing();
         }
     }
     
@@ -294,9 +453,9 @@ class CrosswordPuzzle {
             shareLeaderboardBtn.addEventListener('click', () => this.shareLeaderboard());
         }
 
-        // Auto-pause when browser tab loses focus
+        // Auto-pause when browser tab loses focus (but not if puzzle is completed)
         document.addEventListener('visibilitychange', () => {
-            if (document.hidden && this.isRunning && !this.isPaused && this.gameStarted) {
+            if (document.hidden && this.isRunning && !this.isPaused && this.gameStarted && !this.isCompleted) {
                 this.pauseTimer();
             }
         });
@@ -442,8 +601,7 @@ class CrosswordPuzzle {
             if (input) {
                 wrapper.addEventListener('click', (e) => this.handleCellClick(cellIndex, e));
                 // Add input cleanup for paste/edge cases (but don't handle normal typing)
-                input.addEventListener('input', (e) => this.cleanupInput(e, cellIndex));
-
+                // input.addEventListener('input', (e) => this.cleanupInput(e, cellIndex));
             }
         });
         
@@ -845,27 +1003,25 @@ class CrosswordPuzzle {
         });
     }
     
-
-    
-    cleanupInput(event, cellIndex) {
-        // Simple cleanup for paste/edge cases - only ensures valid single letter
-        const value = event.target.value.toUpperCase();
-        const firstValidChar = value.match(/[A-Z]/)?.[0] || '';
+    // cleanupInput(event, cellIndex) {
+    //     // Simple cleanup for paste/edge cases - only ensures valid single letter
+    //     const value = event.target.value.toUpperCase();
+    //     const firstValidChar = value.match(/[A-Z]/)?.[0] || '';
         
-        if (firstValidChar && firstValidChar !== value) {
-            // Input has invalid characters or multiple characters, clean it
-            event.target.value = firstValidChar;
-            this.userAnswers[cellIndex] = firstValidChar;
-        } else if (!firstValidChar && value) {
-            // Input has no valid characters but has content, clear it
-            event.target.value = '';
-            delete this.userAnswers[cellIndex];
-        }
+    //     if (firstValidChar && firstValidChar !== value) {
+    //         // Input has invalid characters or multiple characters, clean it
+    //         event.target.value = firstValidChar;
+    //         this.userAnswers[cellIndex] = firstValidChar;
+    //     } else if (!firstValidChar && value) {
+    //         // Input has no valid characters but has content, clear it
+    //         event.target.value = '';
+    //         delete this.userAnswers[cellIndex];
+    //     }
         
-        // Update visual state to match
-        const wrapper = event.target.closest('.cell-wrapper');
-        if (wrapper) this.updateCellEmptyState(wrapper, cellIndex);
-    }
+    //     // Update visual state to match
+    //     const wrapper = event.target.closest('.cell-wrapper');
+    //     if (wrapper) this.updateCellEmptyState(wrapper, cellIndex);
+    // }
     
     updateCellEmptyState(wrapperElement, cellIndex) {
         // Add or remove 'empty' class and cursor element based on whether the cell has content
@@ -1380,6 +1536,7 @@ class CrosswordPuzzle {
         
         // Handle letter input directly in keydown for immediate response
         if (event.key.match(/^[A-Za-z]$/)) {
+            if (this.isCompleted) return;
             const letter = event.key.toUpperCase();
             const currentCell = document.querySelector(`input.cell[data-index="${this.selectedCell}"]`);
             const cell = this.puzzle.cells[this.selectedCell];
@@ -1531,11 +1688,8 @@ class CrosswordPuzzle {
     hideLeaderboard() {
         const modal = document.getElementById('leaderboardModal');
         if (modal) {
-            modal.style.animation = 'fadeOut 0.3s ease';
-            setTimeout(() => {
-                modal.style.display = 'none';
-                modal.style.animation = '';
-            }, 300);
+            modal.style.display = 'none';
+            modal.style.animation = '';
         }
     }
     
@@ -1582,6 +1736,8 @@ class CrosswordPuzzle {
         
         if (!data || Object.keys(data).length === 0) {
             leaderboardBody.innerHTML = '<div class="empty-leaderboard">No times recorded yet today.<br/>Be the first to complete the puzzle!</div>';
+            // Update share button visibility for empty leaderboard
+            this.updateShareButtonVisibility();
             return;
         }
         
@@ -1621,6 +1777,9 @@ class CrosswordPuzzle {
         html += '</ul>';
         
         leaderboardBody.innerHTML = html;
+        
+        // Update share button visibility after loading data
+        this.updateShareButtonVisibility();
     }
     
     displayLeaderboardError() {
@@ -1633,6 +1792,10 @@ class CrosswordPuzzle {
                 Please check your connection and try again.
             </div>
         `;
+        
+        // Update share button visibility for error state (no data)
+        this.currentLeaderboardData = {};
+        this.updateShareButtonVisibility();
     }
     
     formatTimeFromSeconds(seconds) {
@@ -1650,12 +1813,14 @@ class CrosswordPuzzle {
     updateShareButtonVisibility() {        
         const shareSection = document.getElementById('leaderboardShareSection');
         if (shareSection) {
-            // Show share section only if puzzle is completed
-            shareSection.style.display = this.isCompleted ? 'block' : 'none';
+            // Show share section if there's at least 1 time on the leaderboard
+            const hasLeaderboardData = this.currentLeaderboardData && Object.keys(this.currentLeaderboardData).length > 0;
+            shareSection.style.display = hasLeaderboardData ? 'block' : 'none';
         }
 
-        const completionTimeSection = shareSection.querySelector('.completion-time');
+        const completionTimeSection = shareSection?.querySelector('.completion-time');
         if (completionTimeSection) {
+            // Only show completion time if the current user has completed the puzzle
             completionTimeSection.style.display = this.isCompleted ? 'block' : 'none';
         }
 
