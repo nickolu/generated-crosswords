@@ -12,10 +12,12 @@
   );
   backdrop-filter: blur(15px);
   display: none;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   z-index: 3000;
   animation: fadeIn 0.3s ease;
+  padding-top: 20px;
+  box-sizing: border-box;
 }
 
 .leaderboard-content {
@@ -31,9 +33,11 @@
   border: 2px solid var(--color-border-primary);
   max-width: 500px;
   width: 90%;
-  max-height: 80vh;
-  overflow-y: auto;
+  max-height: calc(100vh - 40px);
+  overflow: hidden;
   animation: slideUp 0.4s ease;
+  display: flex;
+  flex-direction: column;
 }
 
 .leaderboard-header {
@@ -43,6 +47,7 @@
   margin-bottom: 25px;
   border-bottom: 2px solid var(--color-border-primary);
   padding-bottom: 15px;
+  flex-shrink: 0;
 }
 
 .leaderboard-header h2 {
@@ -76,6 +81,10 @@
 
 .leaderboard-body {
   font-family: "Roboto Condensed", sans-serif;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
 }
 
 .leaderboard-list {
@@ -161,6 +170,7 @@
   padding-top: 20px;
   border-top: 1px solid var(--color-border-secondary);
   display: none; /* Hidden by default, shown when puzzle is completed */
+  flex-shrink: 0;
 }
 
 .share-buttons {
@@ -210,26 +220,177 @@
   border: 1px solid var(--color-border-secondary);
 }
 
-/* Tablet portrait - more aggressive scaling */
+/* Desktop - center alignment for larger screens */
+@media (min-width: 769px) {
+  .leaderboard-modal {
+    align-items: center;
+    padding-top: 0;
+  }
+}
+
+/* Mobile and tablet responsiveness */
 @media (max-width: 768px) {
+  .leaderboard-modal {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
   .leaderboard-content {
     padding: 20px;
     width: 95%;
+    max-height: calc(100vh - 100px); /* Account for mobile navigation bar */
+  }
+
+  .leaderboard-header {
+    margin-bottom: 15px;
+    padding-bottom: 10px;
   }
 
   .leaderboard-header h2 {
     font-size: 24px;
+    letter-spacing: 1px;
   }
 
   .leaderboard-item {
-    padding: 12px 15px;
-    flex-direction: column;
-    text-align: center;
-    gap: 5px;
+    padding: 8px 12px;
+    margin-bottom: 6px;
   }
 
   .leaderboard-rank {
-    margin-right: 0;
-    margin-bottom: 5px;
+    font-size: 18px;
+    margin-right: 12px;
+    min-width: 35px;
+  }
+
+  .leaderboard-name {
+    font-size: 15px;
+  }
+
+  .leaderboard-time {
+    font-size: 15px;
+  }
+}
+
+/* Large mobile - more compact layout */
+@media (max-width: 640px) {
+  .leaderboard-content {
+    padding: 15px;
+    width: 98%;
+  }
+
+  .leaderboard-header {
+    margin-bottom: 12px;
+  }
+
+  .leaderboard-header h2 {
+    font-size: 20px;
+  }
+
+  .leaderboard-item {
+    padding: 6px 10px;
+    margin-bottom: 4px;
+  }
+
+  .leaderboard-rank {
+    font-size: 16px;
+    margin-right: 10px;
+    min-width: 30px;
+  }
+
+  .leaderboard-name {
+    font-size: 14px;
+  }
+
+  .leaderboard-time {
+    font-size: 14px;
+  }
+
+  .close-btn {
+    font-size: 20px;
+    padding: 4px 8px;
+  }
+}
+
+/* Small mobile - very compact */
+@media (max-width: 480px) {
+  .leaderboard-content {
+    padding: 12px;
+    width: 100%;
+    border-radius: 12px;
+    max-height: calc(100vh - 90px); /* Account for mobile navigation bar */
+  }
+
+  .leaderboard-header {
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+  }
+
+  .leaderboard-header h2 {
+    font-size: 18px;
+  }
+
+  .leaderboard-item {
+    padding: 5px 8px;
+    margin-bottom: 3px;
+    border-radius: 6px;
+  }
+
+  .leaderboard-rank {
+    font-size: 14px;
+    margin-right: 8px;
+    min-width: 25px;
+  }
+
+  .leaderboard-name {
+    font-size: 13px;
+  }
+
+  .leaderboard-time {
+    font-size: 13px;
+  }
+
+  .share-buttons {
+    gap: 8px;
+    flex-direction: column;
+  }
+
+  .share-button {
+    padding: 10px 15px;
+    font-size: 14px;
+  }
+}
+
+/* Very small mobile - minimum viable */
+@media (max-width: 360px) {
+  .leaderboard-modal {
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+
+  .leaderboard-content {
+    padding: 10px;
+    max-height: calc(100vh - 80px); /* Account for mobile navigation bar */
+  }
+
+  .leaderboard-header h2 {
+    font-size: 16px;
+  }
+
+  .leaderboard-item {
+    padding: 4px 6px;
+  }
+
+  .leaderboard-rank {
+    font-size: 12px;
+    min-width: 20px;
+    margin-right: 6px;
+  }
+
+  .leaderboard-name {
+    font-size: 12px;
+  }
+
+  .leaderboard-time {
+    font-size: 12px;
   }
 }
