@@ -22,6 +22,10 @@ class CrosswordPuzzle {
     }
     
     init() {
+        console.log('=== INIT START ===');
+        console.log('userName:', this.userName);
+        console.log('isCompleted:', this.isCompleted);
+        
         this.setupGrid();
         this.setupTimer();
         this.setupEventListeners();
@@ -31,26 +35,36 @@ class CrosswordPuzzle {
         this.blurClues();
         
         // Show loading state while we check completion
+        console.log('Showing loading state...');
         this.showLoadingState();
         
         // Check if user has already completed this puzzle (only if we have a username)
         if (this.userName) {
+            console.log('User has name, checking completion...');
             this.checkExistingCompletion().then(() => {
+                console.log('Completion check finished. isCompleted:', this.isCompleted);
                 this.hideLoadingState();
+                console.log('Loading state hidden');
                 // Only show game overlay if puzzle is not already completed
                 if (!this.isCompleted) {
+                    console.log('Puzzle not completed, calling showGameOverlay()');
                     this.showGameOverlay();
+                } else {
+                    console.log('Puzzle completed, NOT calling showGameOverlay()');
                 }
-            }).catch(() => {
+            }).catch((error) => {
                 // If completion check fails, treat as not completed
+                console.log('Completion check failed:', error);
                 this.hideLoadingState();
                 this.showGameOverlay();
             });
         } else {
             // No username - hide loading and show overlay to get name first
+            console.log('No username, showing overlay for name');
             this.hideLoadingState();
             this.showGameOverlay();
         }
+        console.log('=== INIT END ===');
     }
     
     // Cookie utility functions
@@ -73,6 +87,7 @@ class CrosswordPuzzle {
     
     // Loading state management
     showLoadingState() {
+        console.log('=== showLoadingState ===');
         // Create loading overlay if it doesn't exist
         let loadingOverlay = document.getElementById('loadingOverlay');
         if (!loadingOverlay) {
@@ -97,24 +112,33 @@ class CrosswordPuzzle {
             document.body.appendChild(loadingOverlay);
         }
         loadingOverlay.style.display = 'flex';
+        console.log('Loading overlay shown');
     }
     
     hideLoadingState() {
+        console.log('=== hideLoadingState ===');
         const loadingOverlay = document.getElementById('loadingOverlay');
         if (loadingOverlay) {
             loadingOverlay.style.display = 'none';
+            console.log('Loading overlay hidden');
         }
     }
     
     // Check if user has already completed this puzzle
     async checkExistingCompletion() {
+        console.log('=== checkExistingCompletion START ===');
+        console.log('puzzle.date:', this.puzzle.date);
+        console.log('userName:', this.userName);
+        
         if (!this.puzzle.date) {
+            console.log('No puzzle date, returning early');
             return;
         }
         
         try {
             // Try to load leaderboard data for this puzzle date
             const dataUrl = `data/${this.puzzle.date}.json`;
+            console.log('Fetching data from:', dataUrl);
             const response = await fetch(dataUrl, {
                 method: 'GET',
                 mode: 'cors',
@@ -126,33 +150,49 @@ class CrosswordPuzzle {
                 }
             });
             
+            console.log('Response status:', response.status);
             if (!response.ok) {
                 // No completion data exists yet
+                console.log('No completion data found, response not ok');
                 return;
             }
             
             const leaderboardData = await response.json();
+            console.log('Leaderboard data:', leaderboardData);
             
             // Check if current user has a completion time
             const userCompletionTime = leaderboardData[this.userName];
+            console.log('User completion time:', userCompletionTime);
             if (userCompletionTime) {
                 console.log(`User ${this.userName} already completed this puzzle in ${userCompletionTime} seconds`);
+                console.log('Calling restoreCompletedPuzzle...');
                 await this.restoreCompletedPuzzle(userCompletionTime);
+                console.log('restoreCompletedPuzzle finished');
+            } else {
+                console.log('User not found in leaderboard');
             }
             
         } catch (error) {
             console.log('No existing completion data found:', error);
         }
+        console.log('=== checkExistingCompletion END ===');
+        console.log('Final isCompleted state:', this.isCompleted);
     }
     
     // Restore the puzzle to completed state with all answers filled
     async restoreCompletedPuzzle(completionTimeSeconds) {
+        console.log('=== restoreCompletedPuzzle START ===');
+        console.log('completionTimeSeconds:', completionTimeSeconds);
+        
         // Set completion state
         this.isCompleted = true;
         this.isRunning = false;
         this.isPaused = true;
         this.elapsedTime = completionTimeSeconds * 1000; // Convert to milliseconds
         this.gameStarted = true; // Mark as started so interface is active
+        
+        console.log('Set isCompleted = true');
+        console.log('isCompleted:', this.isCompleted);
         
         // Fill in all the correct answers
         this.puzzle.cells.forEach((cell, index) => {
@@ -201,6 +241,8 @@ class CrosswordPuzzle {
         this.unblurClues();
         
         console.log(`Restored completed puzzle state: ${this.formatTime(this.elapsedTime)}`);
+        console.log('Final isCompleted in restoreCompletedPuzzle:', this.isCompleted);
+        console.log('=== restoreCompletedPuzzle END ===');
     }
     
     blurClues() {
@@ -218,23 +260,38 @@ class CrosswordPuzzle {
     }
     
     showGameOverlay() {
+        console.log('=== showGameOverlay START ===');
+        console.log('userName:', this.userName);
+        console.log('isCompleted:', this.isCompleted);
+        
         const overlay = document.getElementById('gameOverlay');
         if (overlay) {
+            console.log('Overlay element found');
             // This method is now only called when there's no username
             // (the completion check happens separately in init() for users with usernames)
             if (!this.userName) {
+                console.log('No username, showing name prompt');
                 this.showNamePrompt();
                 overlay.style.display = 'flex';
+                console.log('Name prompt displayed');
             } else {
                 // Fallback: if somehow called with username, show welcome overlay
                 // (but this shouldn't happen with the new init() logic)
                 // Only show overlay if puzzle is not completed
+                console.log('Has username, checking completion status');
                 if (!this.isCompleted) {
+                    console.log('Not completed, calling showWelcomeOverlay');
                     this.showWelcomeOverlay();
                     overlay.style.display = 'flex';
+                    console.log('Welcome overlay displayed');
+                } else {
+                    console.log('Puzzle completed, NOT showing overlay');
                 }
             }
+        } else {
+            console.log('Overlay element NOT found');
         }
+        console.log('=== showGameOverlay END ===');
     }
     
     showNamePrompt() {
@@ -302,14 +359,20 @@ class CrosswordPuzzle {
     }
     
     showWelcomeOverlay() {
+        console.log('=== showWelcomeOverlay START ===');
+        console.log('isCompleted:', this.isCompleted);
+        
         // Don't show welcome overlay if puzzle is already completed
         if (this.isCompleted) {
+            console.log('Puzzle completed, calling hideGameOverlay and returning');
             this.hideGameOverlay();
             return;
         }
         
+        console.log('Puzzle not completed, showing welcome overlay');
         const overlay = document.getElementById('gameOverlay');
         if (overlay) {
+            console.log('Found overlay element, setting up welcome content');
             const overlayContent = overlay.querySelector('.overlay-content');
             if (overlayContent) {
                 const greeting = this.userName ? `Welcome back, ${this.userName}!` : 'Welcome!';
@@ -326,18 +389,30 @@ class CrosswordPuzzle {
                 if (startGameBtn) {
                     startGameBtn.addEventListener('click', () => this.startGame());
                 }
+                console.log('Welcome overlay content set up');
+            } else {
+                console.log('Overlay content element not found');
             }
+        } else {
+            console.log('Overlay element not found');
         }
+        console.log('=== showWelcomeOverlay END ===');
     }
     
     hideGameOverlay() {
+        console.log('=== hideGameOverlay START ===');
         const overlay = document.getElementById('gameOverlay');
         if (overlay) {
+            console.log('Found overlay, hiding it');
             overlay.style.animation = 'fadeOut 0.3s ease';
             setTimeout(() => {
                 overlay.style.display = 'none';
+                console.log('Overlay hidden after animation');
             }, 300);
+        } else {
+            console.log('Overlay element not found for hiding');
         }
+        console.log('=== hideGameOverlay END ===');
     }
     
     showPauseOverlay() {
