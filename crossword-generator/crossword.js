@@ -30,16 +30,25 @@ class CrosswordPuzzle {
         this.setupMobileDynamicSizing();
         this.blurClues();
         
+        // Show loading state while we check completion
+        this.showLoadingState();
+        
         // Check if user has already completed this puzzle (only if we have a username)
         if (this.userName) {
             this.checkExistingCompletion().then(() => {
+                this.hideLoadingState();
                 // Only show game overlay if puzzle is not already completed
                 if (!this.isCompleted) {
                     this.showGameOverlay();
                 }
+            }).catch(() => {
+                // If completion check fails, treat as not completed
+                this.hideLoadingState();
+                this.showGameOverlay();
             });
         } else {
-            // No username - always show overlay to get name first
+            // No username - hide loading and show overlay to get name first
+            this.hideLoadingState();
             this.showGameOverlay();
         }
     }
@@ -60,6 +69,41 @@ class CrosswordPuzzle {
             if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
         }
         return null;
+    }
+    
+    // Loading state management
+    showLoadingState() {
+        // Create loading overlay if it doesn't exist
+        let loadingOverlay = document.getElementById('loadingOverlay');
+        if (!loadingOverlay) {
+            loadingOverlay = document.createElement('div');
+            loadingOverlay.id = 'loadingOverlay';
+            loadingOverlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 9999;
+                font-family: Arial, sans-serif;
+                color: white;
+                font-size: 18px;
+            `;
+            loadingOverlay.innerHTML = '<div>Loading puzzle...</div>';
+            document.body.appendChild(loadingOverlay);
+        }
+        loadingOverlay.style.display = 'flex';
+    }
+    
+    hideLoadingState() {
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        if (loadingOverlay) {
+            loadingOverlay.style.display = 'none';
+        }
     }
     
     // Check if user has already completed this puzzle
@@ -231,14 +275,25 @@ class CrosswordPuzzle {
             this.userName = nameInput.value.trim();
             this.setCookie('crossword_user_name', this.userName);
             
+            // Show loading state while checking completion
+            this.showLoadingState();
+            this.hideGameOverlay(); // Hide the name prompt overlay
+            
             // Check if this user has already completed the puzzle
             this.checkExistingCompletion().then(() => {
+                this.hideLoadingState();
                 if (!this.isCompleted) {
-                    this.showWelcomeOverlay();
-                } else {
-                    // User has already completed this puzzle, hide overlay
-                    this.hideGameOverlay();
+                    this.showWelcomeOverlay(); // Show welcome overlay directly
+                    const overlay = document.getElementById('gameOverlay');
+                    if (overlay) overlay.style.display = 'flex';
                 }
+                // If completed, just leave everything hidden (puzzle is already shown)
+            }).catch(() => {
+                // If completion check fails, treat as not completed
+                this.hideLoadingState();
+                this.showWelcomeOverlay();
+                const overlay = document.getElementById('gameOverlay');
+                if (overlay) overlay.style.display = 'flex';
             });
         }
     }
