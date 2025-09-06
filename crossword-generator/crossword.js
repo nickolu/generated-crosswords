@@ -41,7 +41,6 @@ class CrosswordPuzzle {
             this.checkExistingCompletion().then(() => {
                 // Only show game overlay if puzzle is not already completed
                 if (!this.isCompleted) {
-                    this.showStartGameBtn();
                     this.showGameOverlay();
                 } else {
                     this.hideStartGameBtn();
@@ -50,13 +49,11 @@ class CrosswordPuzzle {
             }).catch((error) => {
                 // If completion check fails, treat as not completed
                 console.log('Completion check failed:', error);
-                this.showStartGameBtn();
                 this.showGameOverlay();
             });
         } else {
             // No username
             console.log('No username, showing overlay for name');
-            this.showStartGameBtn();
             this.showGameOverlay();
         }
     }
@@ -87,10 +84,9 @@ class CrosswordPuzzle {
     }
     
     showStartGameBtn() {
-        console.log('=== showStartGameBtn ===');
         const startGameBtn = document.getElementById('startGameBtn');
         if (startGameBtn) {
-            startGameBtn.style.display = 'block';
+            startGameBtn.style.display = 'inline';
         }
     }
     
@@ -277,13 +273,11 @@ class CrosswordPuzzle {
             // Check if this user has already completed the puzzle
             this.checkExistingCompletion().then(() => {
                 if (!this.isCompleted) {
-                    this.showStartGameBtn();
                     this.showGameOverlay();
                 }
                 // If completed, just leave everything hidden (puzzle is already shown)
             }).catch(() => {
                 // If completion check fails, treat as not completed
-                this.showStartGameBtn();
                 this.showGameOverlay();
             });
         }
@@ -313,8 +307,9 @@ class CrosswordPuzzle {
                 // Setup start button event listener
                 const startGameBtn = document.getElementById('startGameBtn');
                 if (startGameBtn) {
-                    startGameBtn.style.display = 'block';
                     startGameBtn.addEventListener('click', () => this.startGame());
+                    if (!this.isCompleted) {
+                    this.showStartGameBtn();
                 }
             }
         }
