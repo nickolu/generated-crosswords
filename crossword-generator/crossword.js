@@ -41,6 +41,7 @@ class CrosswordPuzzle {
                 // Only show game overlay if puzzle is not already completed
                 if (!this.isCompleted) {
                     this.showGameOverlay();
+                    this.showStartGameBtn();
                 } else {
                     this.hideGameOverlay();
                 }
@@ -48,11 +49,13 @@ class CrosswordPuzzle {
                 // If completion check fails, treat as not completed
                 console.log('Completion check failed:', error);
                 this.showGameOverlay();
+                this.showStartGameBtn();
             });
         } else {
             // No username
             console.log('No username, showing overlay for name');
             this.showGameOverlay();
+            this.showStartGameBtn();
         }
     }
     
@@ -208,6 +211,13 @@ class CrosswordPuzzle {
             }
         }
     }
+
+    showStartGameBtn() {
+        const startGameBtn = document.getElementById('startGameBtn');
+        if (startGameBtn) {
+            startGameBtn.style.display = 'inline';
+        }
+    }
     
     showNamePrompt() {
         const overlay = document.getElementById('gameOverlay');
@@ -257,11 +267,13 @@ class CrosswordPuzzle {
             this.checkExistingCompletion().then(() => {
                 if (!this.isCompleted) {
                     this.showGameOverlay();
+                    this.showStartGameBtn();
                 }
                 // If completed, just leave everything hidden (puzzle is already shown)
             }).catch(() => {
                 // If completion check fails, treat as not completed
                 this.showGameOverlay();
+                this.showStartGameBtn();
             });
         }
     }
@@ -291,9 +303,6 @@ class CrosswordPuzzle {
                 const startGameBtn = document.getElementById('startGameBtn');
                 if (startGameBtn) {
                     startGameBtn.addEventListener('click', () => this.startGame());
-                    if (!this.isCompleted) {
-                        startGameBtn.style.display = 'inline';
-                    }
                 }
             }
         }
