@@ -119,8 +119,7 @@ class CrosswordPuzzle {
             console.log('Response status:', response.status);
             if (!response.ok) {
                 // No completion data exists yet
-                console.log('No completion data found, response not ok');
-                return;
+                throw new Error('Response not ok');
             }
             
             const leaderboardData = await response.json();
