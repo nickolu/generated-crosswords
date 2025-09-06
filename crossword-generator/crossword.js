@@ -313,6 +313,7 @@ class CrosswordPuzzle {
                 // Setup start button event listener
                 const startGameBtn = document.getElementById('startGameBtn');
                 if (startGameBtn) {
+                    startGameBtn.style.display = 'block';
                     startGameBtn.addEventListener('click', () => this.startGame());
                 }
             }
