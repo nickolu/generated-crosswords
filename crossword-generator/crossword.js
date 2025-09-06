@@ -244,6 +244,12 @@ class CrosswordPuzzle {
     }
     
     showWelcomeOverlay() {
+        // Don't show welcome overlay if puzzle is already completed
+        if (this.isCompleted) {
+            this.hideGameOverlay();
+            return;
+        }
+        
         const overlay = document.getElementById('gameOverlay');
         if (overlay) {
             const overlayContent = overlay.querySelector('.overlay-content');
@@ -416,9 +422,9 @@ class CrosswordPuzzle {
             shareLeaderboardBtn.addEventListener('click', () => this.shareLeaderboard());
         }
 
-        // Auto-pause when browser tab loses focus
+        // Auto-pause when browser tab loses focus (but not if puzzle is completed)
         document.addEventListener('visibilitychange', () => {
-            if (document.hidden && this.isRunning && !this.isPaused && this.gameStarted) {
+            if (document.hidden && this.isRunning && !this.isPaused && this.gameStarted && !this.isCompleted) {
                 this.pauseTimer();
             }
         });
