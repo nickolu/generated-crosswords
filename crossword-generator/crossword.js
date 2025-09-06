@@ -309,7 +309,8 @@ class CrosswordPuzzle {
                 if (startGameBtn) {
                     startGameBtn.addEventListener('click', () => this.startGame());
                     if (!this.isCompleted) {
-                    this.showStartGameBtn();
+                        this.showStartGameBtn();
+                    }
                 }
             }
         }
