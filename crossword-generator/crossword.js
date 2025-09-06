@@ -147,7 +147,7 @@ class CrosswordPuzzle {
 
         this.hideGameOverlay();
         
-        // Fill in all the correct answers
+        // Fill in all the correct answers and make cells non-editable
         this.puzzle.cells.forEach((cell, index) => {
             if (cell && Object.keys(cell).length > 0 && cell.answer) {
                 this.userAnswers[index] = cell.answer;
@@ -159,6 +159,7 @@ class CrosswordPuzzle {
                     cellInput.value = cell.answer;
                     // Remove empty state since cell has content
                     cellWrapper.classList.remove('empty');
+                    cellInput.readOnly = true;
                 }
             }
         });
