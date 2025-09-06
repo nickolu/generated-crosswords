@@ -36,33 +36,30 @@ class CrosswordPuzzle {
         
         // Show loading state while we check completion
         console.log('Showing loading state...');
-        this.showLoadingState();
+        this.hideStartGameBtn();
         
         // Check if user has already completed this puzzle (only if we have a username)
         if (this.userName) {
             console.log('User has name, checking completion...');
             this.checkExistingCompletion().then(() => {
-                console.log('Completion check finished. isCompleted:', this.isCompleted);
-                this.hideLoadingState();
-                console.log('Loading state hidden');
                 // Only show game overlay if puzzle is not already completed
                 if (!this.isCompleted) {
-                    console.log('Puzzle not completed, calling showGameOverlay()');
+                    this.showStartGameBtn();
                     this.showGameOverlay();
                 } else {
-                    console.log('Puzzle completed, calling hideGameOverlay()');
+                    this.hideStartGameBtn();
                     this.hideGameOverlay();
                 }
             }).catch((error) => {
                 // If completion check fails, treat as not completed
                 console.log('Completion check failed:', error);
-                this.hideLoadingState();
+                this.showStartGameBtn();
                 this.showGameOverlay();
             });
         } else {
-            // No username - hide loading and show overlay to get name first
+            // No username
             console.log('No username, showing overlay for name');
-            this.hideLoadingState();
+            this.showStartGameBtn();
             this.showGameOverlay();
         }
         console.log('=== INIT END ===');
@@ -87,41 +84,20 @@ class CrosswordPuzzle {
     }
     
     // Loading state management
-    showLoadingState() {
-        console.log('=== showLoadingState ===');
+    hideStartGameBtn() {
+        console.log('=== hideStartGameBtn ===');
         // Create loading overlay if it doesn't exist
-        let loadingOverlay = document.getElementById('loadingOverlay');
-        if (!loadingOverlay) {
-            loadingOverlay = document.createElement('div');
-            loadingOverlay.id = 'loadingOverlay';
-            loadingOverlay.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background-color: rgba(0, 0, 0, 0.5);
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                z-index: 9999;
-                font-family: Arial, sans-serif;
-                color: white;
-                font-size: 18px;
-            `;
-            loadingOverlay.innerHTML = '<div>Loading puzzle...</div>';
-            document.body.appendChild(loadingOverlay);
-        }
-        loadingOverlay.style.display = 'flex';
-        console.log('Loading overlay shown');
+        let startGameBtn = document.getElementById('startGameBtn');
+        startGameBtn.style.display = 'none';
+        console.log('Start game button hidden');
     }
     
-    hideLoadingState() {
-        console.log('=== hideLoadingState ===');
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        if (loadingOverlay) {
-            loadingOverlay.style.display = 'none';
-            console.log('Loading overlay hidden');
+    showStartGameBtn() {
+        console.log('=== showStartGameBtn ===');
+        const startGameBtn = document.getElementById('startGameBtn');
+        if (startGameBtn) {
+            startGameBtn.style.display = 'block';
+            console.log('Start game button shown');
         }
     }
     
@@ -337,13 +313,13 @@ class CrosswordPuzzle {
             this.setCookie('crossword_user_name', this.userName);
             
             // Show loading state while checking completion
-            this.showLoadingState();
+            this.hideStartGameBtn();
             this.hideGameOverlay(); // Hide the name prompt overlay
             
             // Check if this user has already completed the puzzle
             this.checkExistingCompletion().then(() => {
-                this.hideLoadingState();
                 if (!this.isCompleted) {
+                    this.showStartGameBtn();
                     this.showWelcomeOverlay(); // Show welcome overlay directly
                     const overlay = document.getElementById('gameOverlay');
                     if (overlay) overlay.style.display = 'flex';
@@ -351,7 +327,7 @@ class CrosswordPuzzle {
                 // If completed, just leave everything hidden (puzzle is already shown)
             }).catch(() => {
                 // If completion check fails, treat as not completed
-                this.hideLoadingState();
+                this.showStartGameBtn();
                 this.showWelcomeOverlay();
                 const overlay = document.getElementById('gameOverlay');
                 if (overlay) overlay.style.display = 'flex';
