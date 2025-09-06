@@ -159,7 +159,6 @@ class CrosswordPuzzle {
                     cellInput.value = cell.answer;
                     // Remove empty state since cell has content
                     cellWrapper.classList.remove('empty');
-                    cellInput.readOnly = true;
                 }
             }
         });
@@ -1548,6 +1547,7 @@ class CrosswordPuzzle {
         
         // Handle letter input directly in keydown for immediate response
         if (event.key.match(/^[A-Za-z]$/)) {
+            if (this.isCompleted) return;
             const letter = event.key.toUpperCase();
             const currentCell = document.querySelector(`input.cell[data-index="${this.selectedCell}"]`);
             const cell = this.puzzle.cells[this.selectedCell];
