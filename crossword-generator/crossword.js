@@ -344,7 +344,6 @@ class CrosswordPuzzle {
                 }
             }
             overlay.style.display = 'flex';
-            overlay.style.animation = 'fadeIn 0.3s ease';
         }
     }
     
@@ -372,13 +371,11 @@ class CrosswordPuzzle {
         
         // Auto-scroll to crossword grid on mobile after starting the game
         if (window.innerWidth <= 768) {
-            setTimeout(() => {
-                this.scrollToCrosswordOnStart();
-                // Ensure mobile navigation is properly visible after scroll
-                this.updateMobileNavigationVisibility();
-                // Recalculate mobile sizing now that the overlay is hidden
-                this.updateMobileDynamicSizing();
-            }, 400); // Small delay to let overlay fade out
+            this.scrollToCrosswordOnStart();
+            // Ensure mobile navigation is properly visible after scroll
+            this.updateMobileNavigationVisibility();
+            // Recalculate mobile sizing now that the overlay is hidden
+            this.updateMobileDynamicSizing();
         }
     }
     
@@ -1702,11 +1699,8 @@ class CrosswordPuzzle {
     hideLeaderboard() {
         const modal = document.getElementById('leaderboardModal');
         if (modal) {
-            modal.style.animation = 'fadeOut 0.3s ease';
-            setTimeout(() => {
-                modal.style.display = 'none';
-                modal.style.animation = '';
-            }, 300);
+            modal.style.display = 'none';
+            modal.style.animation = '';
         }
     }
     
