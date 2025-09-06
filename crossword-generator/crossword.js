@@ -159,6 +159,7 @@ class CrosswordPuzzle {
                     cellInput.value = cell.answer;
                     // Remove empty state since cell has content
                     cellWrapper.classList.remove('empty');
+                    cellInput.readOnly = true;
                 }
             }
         });
