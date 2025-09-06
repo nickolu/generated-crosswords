@@ -30,13 +30,18 @@ class CrosswordPuzzle {
         this.setupMobileDynamicSizing();
         this.blurClues();
         
-        // Check if user has already completed this puzzle
-        this.checkExistingCompletion().then(() => {
-            // Only show game overlay if puzzle is not already completed
-            if (!this.isCompleted) {
-                this.showGameOverlay();
-            }
-        });
+        // Check if user has already completed this puzzle (only if we have a username)
+        if (this.userName) {
+            this.checkExistingCompletion().then(() => {
+                // Only show game overlay if puzzle is not already completed
+                if (!this.isCompleted) {
+                    this.showGameOverlay();
+                }
+            });
+        } else {
+            // No username - always show overlay to get name first
+            this.showGameOverlay();
+        }
     }
     
     // Cookie utility functions
@@ -59,7 +64,7 @@ class CrosswordPuzzle {
     
     // Check if user has already completed this puzzle
     async checkExistingCompletion() {
-        if (!this.userName || !this.puzzle.date) {
+        if (!this.puzzle.date) {
             return;
         }
         
@@ -171,21 +176,16 @@ class CrosswordPuzzle {
     showGameOverlay() {
         const overlay = document.getElementById('gameOverlay');
         if (overlay) {
-            // Check if we need to ask for user's name
+            // This method is now only called when there's no username
+            // (the completion check happens separately in init() for users with usernames)
             if (!this.userName) {
                 this.showNamePrompt();
                 overlay.style.display = 'flex';
             } else {
-                // User has a name, check if they've completed this puzzle
-                this.checkExistingCompletion().then(() => {
-                    if (!this.isCompleted) {
-                        this.showWelcomeOverlay();
-                        overlay.style.display = 'flex';
-                    } else {
-                        // User has already completed this puzzle, hide overlay immediately
-                        overlay.style.display = 'none';
-                    }
-                });
+                // Fallback: if somehow called with username, show welcome overlay
+                // (but this shouldn't happen with the new init() logic)
+                this.showWelcomeOverlay();
+                overlay.style.display = 'flex';
             }
         }
     }
