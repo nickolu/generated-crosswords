@@ -228,8 +228,11 @@ class CrosswordPuzzle {
             } else {
                 // Fallback: if somehow called with username, show welcome overlay
                 // (but this shouldn't happen with the new init() logic)
-                this.showWelcomeOverlay();
-                overlay.style.display = 'flex';
+                // Only show overlay if puzzle is not completed
+                if (!this.isCompleted) {
+                    this.showWelcomeOverlay();
+                    overlay.style.display = 'flex';
+                }
             }
         }
     }
