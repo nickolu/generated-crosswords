@@ -50,7 +50,8 @@ class CrosswordPuzzle {
                     console.log('Puzzle not completed, calling showGameOverlay()');
                     this.showGameOverlay();
                 } else {
-                    console.log('Puzzle completed, NOT calling showGameOverlay()');
+                    console.log('Puzzle completed, calling hideGameOverlay()');
+                    this.hideGameOverlay();
                 }
             }).catch((error) => {
                 // If completion check fails, treat as not completed
