@@ -25,37 +25,35 @@ class CrosswordArchive {
 
             const knownPuzzles = [];
 
-            // Check which puzzle files actually exist and are accessible
+            // Push puzzle metadata to knownPuzzles
             for (const filename of knownPuzzleFiles) {
                 try {
-                    const puzzleResponse = await fetch(`crosswords/${filename}`, { method: 'HEAD' });
-                    if (puzzleResponse.ok) {
-                        // Extract date from filename (try multiple patterns)
-                        let dateMatch = filename.match(/mini_(\d{4}-\d{2}-\d{2})\.json/);
-                        if (!dateMatch) {
-                            dateMatch = filename.match(/(\d{4}-\d{2}-\d{2})\.json/);
-                        }
-                        
-                        const date = dateMatch ? dateMatch[1] : filename.replace('.json', '');
-                        const puzzleDate = new Date(date + 'T00:00:00');
-                        
-                        // Filter: only include puzzles that are 11 years ago or older
-                        if (puzzleDate <= this.elevenYearsAgo) {
-                            const displayName = filename.includes('mini_') ? 
-                                `Mini Crossword ${date}` : 
-                                `Crossword ${date}`;
-                            
-                            // Check if this puzzle date is exactly 11 years ago from today
-                            const isToday = puzzleDate.getTime() === this.elevenYearsAgo.getTime();
-                            
-                            knownPuzzles.push({
-                                filename: filename,
-                                displayName: displayName,
-                                date: date,
-                                isToday: isToday
-                            });
-                        }
+                    // Extract date from filename (try multiple patterns)
+                    let dateMatch = filename.match(/mini_(\d{4}-\d{2}-\d{2})\.json/);
+                    if (!dateMatch) {
+                        dateMatch = filename.match(/(\d{4}-\d{2}-\d{2})\.json/);
                     }
+                    
+                    const date = dateMatch ? dateMatch[1] : filename.replace('.json', '');
+                    const puzzleDate = new Date(date + 'T00:00:00');
+                    
+                    // Filter: only include puzzles that are 11 years ago or older
+                    if (puzzleDate <= this.elevenYearsAgo) {
+                        const displayName = filename.includes('mini_') ? 
+                            `Mini Crossword ${date}` : 
+                            `Crossword ${date}`;
+                        
+                        // Check if this puzzle date is exactly 11 years ago from today
+                        const isToday = puzzleDate.getTime() === this.elevenYearsAgo.getTime();
+                        
+                        knownPuzzles.push({
+                            filename: filename,
+                            displayName: displayName,
+                            date: date,
+                            isToday: isToday
+                        });
+                    }
+                // eslint-disable-next-line no-unused-vars
                 } catch (e) {
                     // Puzzle doesn't exist or isn't accessible, skip
                     console.log(`Puzzle ${filename} not accessible`);
