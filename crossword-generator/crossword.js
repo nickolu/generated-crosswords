@@ -103,10 +103,6 @@ class CrosswordPuzzle {
     
     // Check if user has already completed this puzzle
     async checkExistingCompletion() {
-        console.log('=== checkExistingCompletion START ===');
-        console.log('puzzle.date:', this.puzzle.date);
-        console.log('userName:', this.userName);
-        
         if (!this.puzzle.date) {
             console.log('No puzzle date, returning early');
             return;
@@ -142,9 +138,7 @@ class CrosswordPuzzle {
             console.log('User completion time:', userCompletionTime);
             if (userCompletionTime) {
                 console.log(`User ${this.userName} already completed this puzzle in ${userCompletionTime} seconds`);
-                console.log('Calling restoreCompletedPuzzle...');
                 await this.restoreCompletedPuzzle(userCompletionTime);
-                console.log('restoreCompletedPuzzle finished');
             } else {
                 console.log('User not found in leaderboard');
             }
@@ -152,21 +146,18 @@ class CrosswordPuzzle {
         } catch (error) {
             console.log('No existing completion data found:', error);
         }
-        console.log('=== checkExistingCompletion END ===');
-        console.log('Final isCompleted state:', this.isCompleted);
     }
     
     // Restore the puzzle to completed state with all answers filled
     async restoreCompletedPuzzle(completionTimeSeconds) {
-        console.log('=== restoreCompletedPuzzle START ===');
-        console.log('completionTimeSeconds:', completionTimeSeconds);
-        
         // Set completion state
         this.isCompleted = true;
         this.isRunning = false;
         this.isPaused = true;
         this.elapsedTime = completionTimeSeconds * 1000; // Convert to milliseconds
         this.gameStarted = true; // Mark as started so interface is active
+
+        this.hideGameOverlay();
         
         console.log('Set isCompleted = true');
         console.log('isCompleted:', this.isCompleted);
@@ -216,10 +207,6 @@ class CrosswordPuzzle {
         
         // Unblur clues since puzzle is completed
         this.unblurClues();
-        
-        console.log(`Restored completed puzzle state: ${this.formatTime(this.elapsedTime)}`);
-        console.log('Final isCompleted in restoreCompletedPuzzle:', this.isCompleted);
-        console.log('=== restoreCompletedPuzzle END ===');
     }
     
     blurClues() {
@@ -237,10 +224,6 @@ class CrosswordPuzzle {
     }
     
     showGameOverlay() {
-        console.log('=== showGameOverlay START ===');
-        console.log('userName:', this.userName);
-        console.log('isCompleted:', this.isCompleted);
-        
         const overlay = document.getElementById('gameOverlay');
         if (overlay) {
             console.log('Overlay element found');
@@ -250,25 +233,11 @@ class CrosswordPuzzle {
                 console.log('No username, showing name prompt');
                 this.showNamePrompt();
                 overlay.style.display = 'flex';
-                console.log('Name prompt displayed');
-            } else {
-                // Fallback: if somehow called with username, show welcome overlay
-                // (but this shouldn't happen with the new init() logic)
-                // Only show overlay if puzzle is not completed
-                console.log('Has username, checking completion status');
-                if (!this.isCompleted) {
-                    console.log('Not completed, calling showWelcomeOverlay');
-                    this.showWelcomeOverlay();
-                    overlay.style.display = 'flex';
-                    console.log('Welcome overlay displayed');
-                } else {
-                    console.log('Puzzle completed, NOT showing overlay');
-                }
+            } else if (!this.isCompleted) {
+                this.showWelcomeOverlay();
+                overlay.style.display = 'flex';
             }
-        } else {
-            console.log('Overlay element NOT found');
         }
-        console.log('=== showGameOverlay END ===');
     }
     
     showNamePrompt() {
@@ -320,36 +289,26 @@ class CrosswordPuzzle {
             this.checkExistingCompletion().then(() => {
                 if (!this.isCompleted) {
                     this.showStartGameBtn();
-                    this.showWelcomeOverlay(); // Show welcome overlay directly
-                    const overlay = document.getElementById('gameOverlay');
-                    if (overlay) overlay.style.display = 'flex';
+                    this.showGameOverlay();
                 }
                 // If completed, just leave everything hidden (puzzle is already shown)
             }).catch(() => {
                 // If completion check fails, treat as not completed
                 this.showStartGameBtn();
-                this.showWelcomeOverlay();
-                const overlay = document.getElementById('gameOverlay');
-                if (overlay) overlay.style.display = 'flex';
+                this.showGameOverlay();
             });
         }
     }
     
     showWelcomeOverlay() {
-        console.log('=== showWelcomeOverlay START ===');
-        console.log('isCompleted:', this.isCompleted);
-        
         // Don't show welcome overlay if puzzle is already completed
         if (this.isCompleted) {
-            console.log('Puzzle completed, calling hideGameOverlay and returning');
             this.hideGameOverlay();
             return;
         }
         
-        console.log('Puzzle not completed, showing welcome overlay');
         const overlay = document.getElementById('gameOverlay');
         if (overlay) {
-            console.log('Found overlay element, setting up welcome content');
             const overlayContent = overlay.querySelector('.overlay-content');
             if (overlayContent) {
                 const greeting = this.userName ? `Welcome back, ${this.userName}!` : 'Welcome!';
@@ -366,30 +325,19 @@ class CrosswordPuzzle {
                 if (startGameBtn) {
                     startGameBtn.addEventListener('click', () => this.startGame());
                 }
-                console.log('Welcome overlay content set up');
-            } else {
-                console.log('Overlay content element not found');
             }
-        } else {
-            console.log('Overlay element not found');
         }
-        console.log('=== showWelcomeOverlay END ===');
     }
     
     hideGameOverlay() {
-        console.log('=== hideGameOverlay START ===');
         const overlay = document.getElementById('gameOverlay');
         if (overlay) {
-            console.log('Found overlay, hiding it');
             overlay.style.animation = 'fadeOut 0.3s ease';
             setTimeout(() => {
                 overlay.style.display = 'none';
                 console.log('Overlay hidden after animation');
             }, 300);
-        } else {
-            console.log('Overlay element not found for hiding');
         }
-        console.log('=== hideGameOverlay END ===');
     }
     
     showPauseOverlay() {
