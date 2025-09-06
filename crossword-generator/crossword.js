@@ -26,7 +26,6 @@ class CrosswordPuzzle {
         console.log('userName:', this.userName);
         console.log('isCompleted:', this.isCompleted);
         
-        this.hideStartGameBtn();
         this.setupGrid();
         this.setupTimer();
         this.setupEventListeners();
@@ -43,7 +42,6 @@ class CrosswordPuzzle {
                 if (!this.isCompleted) {
                     this.showGameOverlay();
                 } else {
-                    this.hideStartGameBtn();
                     this.hideGameOverlay();
                 }
             }).catch((error) => {
@@ -74,20 +72,6 @@ class CrosswordPuzzle {
             if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
         }
         return null;
-    }
-    
-    // Loading state management
-    hideStartGameBtn() {
-        // Create loading overlay if it doesn't exist
-        let startGameBtn = document.getElementById('startGameBtn');
-        startGameBtn.style.display = 'none';
-    }
-    
-    showStartGameBtn() {
-        const startGameBtn = document.getElementById('startGameBtn');
-        if (startGameBtn) {
-            startGameBtn.style.display = 'inline';
-        }
     }
     
     // Check if user has already completed this puzzle
@@ -266,9 +250,7 @@ class CrosswordPuzzle {
         if (nameInput && nameInput.value.trim()) {
             this.userName = nameInput.value.trim();
             this.setCookie('crossword_user_name', this.userName);
-            
-            // Show loading state while checking completion
-            this.hideStartGameBtn();
+
             this.hideGameOverlay(); // Hide the name prompt overlay
             
             // Check if this user has already completed the puzzle
@@ -310,7 +292,7 @@ class CrosswordPuzzle {
                 if (startGameBtn) {
                     startGameBtn.addEventListener('click', () => this.startGame());
                     if (!this.isCompleted) {
-                        this.showStartGameBtn();
+                        startGameBtn.style.display = 'inline';
                     }
                 }
             }
