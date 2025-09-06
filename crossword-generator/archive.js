@@ -69,7 +69,7 @@ class CrosswordArchive {
             
         } catch (error) {
             console.error('Error loading puzzle list:', error);
-            puzzleList.innerHTML = `<div class="error">Failed to load puzzle list: ${error.message}</div>`;
+            puzzleList.innerHTML = `<div class="archive-error">Failed to load puzzle list: ${error.message}</div>`;
         }
     }
 
@@ -90,7 +90,7 @@ class CrosswordArchive {
         const puzzleList = document.getElementById('puzzleList');
         
         if (puzzles.length === 0) {
-            puzzleList.innerHTML = '<div class="error">No puzzles found. Please check that puzzle files exist in the data/ directory.</div>';
+            puzzleList.innerHTML = '<div class="archive-error">No puzzles found. Please check that puzzle files exist in the data/ directory.</div>';
             return;
         }
 
