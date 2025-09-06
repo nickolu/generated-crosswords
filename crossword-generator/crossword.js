@@ -233,6 +233,7 @@ class CrosswordPuzzle {
         if (overlay) {
             const overlayContent = overlay.querySelector('.overlay-content');
             if (overlayContent) {
+                console.log('Setting overlay content for name prompt');
                 overlayContent.innerHTML = `
                     <h2 class="title">Welcome to<br />Manchat Daily Crossword!</h2>
                     <p>Before we start, what's your name?</p>
@@ -300,6 +301,7 @@ class CrosswordPuzzle {
             const overlayContent = overlay.querySelector('.overlay-content');
             if (overlayContent) {
                 const greeting = this.userName ? `Welcome back, ${this.userName}!` : 'Welcome!';
+                console.log('Setting overlay content for welcome state');
                 overlayContent.innerHTML = `
                     <h2 class="title">Manchat Daily<br />Crossword Classic</h2>
                     <p>${greeting}</p>
@@ -330,6 +332,7 @@ class CrosswordPuzzle {
             // Update overlay content for pause state
             const overlayContent = overlay.querySelector('.overlay-content');
             if (overlayContent) {
+                console.log('Setting overlay content for pause state');
                 overlayContent.innerHTML = `
                     <h2>Game Paused ⏸️</h2>
                     <p>Your progress is saved. Click "Resume" to continue your puzzle.</p>
