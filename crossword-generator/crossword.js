@@ -623,19 +623,30 @@ class CrosswordPuzzle {
         const mobileOptionsMenu = document.getElementById('mobileOptionsMenu');
         
         if (mobileOptionsBtn && mobileOptionsMenu) {
+            // Remove any existing event listeners to prevent duplicates
+            const newMobileOptionsBtn = mobileOptionsBtn.cloneNode(true);
+            mobileOptionsBtn.parentNode.replaceChild(newMobileOptionsBtn, mobileOptionsBtn);
+            
             // Toggle menu on button click
-            mobileOptionsBtn.addEventListener('click', (e) => {
+            newMobileOptionsBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const isVisible = mobileOptionsMenu.style.display === 'block';
                 mobileOptionsMenu.style.display = isVisible ? 'none' : 'block';
             });
 
-            // Close menu when clicking outside
-            document.addEventListener('click', (e) => {
-                if (!mobileOptionsMenu.contains(e.target) && !mobileOptionsBtn.contains(e.target)) {
+            // Store reference to the click outside handler so we can remove it later
+            if (this.mobileMenuClickHandler) {
+                document.removeEventListener('click', this.mobileMenuClickHandler);
+            }
+            
+            this.mobileMenuClickHandler = (e) => {
+                if (!mobileOptionsMenu.contains(e.target) && !newMobileOptionsBtn.contains(e.target)) {
                     mobileOptionsMenu.style.display = 'none';
                 }
-            });
+            };
+            
+            // Close menu when clicking outside
+            document.addEventListener('click', this.mobileMenuClickHandler);
 
             // Connect mobile buttons to their desktop counterparts
             this.connectMobileButtons();
@@ -2239,6 +2250,193 @@ class CrosswordLoader {
         this.puzzle = null;
         this.crosswordInstance = null;
         this.yearOffset = yearOffset; // Number of years to add to publication date for display
+        this.currentPuzzleDate = null;
+        this.setupNavigation();
+    }
+
+    /**
+     * Clean up the current puzzle instance
+     */
+    cleanup() {
+        if (this.crosswordInstance) {
+            // Stop any running timers
+            if (this.crosswordInstance.timerAnimationId) {
+                cancelAnimationFrame(this.crosswordInstance.timerAnimationId);
+                this.crosswordInstance.timerAnimationId = null;
+            }
+            
+            // Reset timer state
+            this.crosswordInstance.isRunning = false;
+            this.crosswordInstance.isPaused = false;
+            this.crosswordInstance.isCompleted = false;
+            this.crosswordInstance.elapsedTime = 0;
+            this.crosswordInstance.gameStarted = false;
+            
+            // Remove mobile menu event listener
+            if (this.crosswordInstance.mobileMenuClickHandler) {
+                document.removeEventListener('click', this.crosswordInstance.mobileMenuClickHandler);
+                this.crosswordInstance.mobileMenuClickHandler = null;
+            }
+            
+            // Clear the crossword instance
+            this.crosswordInstance = null;
+        }
+        
+        // Clear puzzle data
+        this.puzzle = null;
+        
+        // Hide any open modals
+        const leaderboardModal = document.getElementById('leaderboardModal');
+        if (leaderboardModal) {
+            leaderboardModal.style.display = 'none';
+        }
+        
+        // Reset timer displays
+        const desktopTimer = document.getElementById('timer');
+        const mobileTimer = document.getElementById('mobileTimer');
+        const mobileTimerMain = document.getElementById('mobileTimerMain');
+        
+        if (desktopTimer) desktopTimer.textContent = '00:00';
+        if (mobileTimer) mobileTimer.textContent = '00:00';
+        if (mobileTimerMain) mobileTimerMain.textContent = '00:00';
+        
+        // Reset button states
+        const pauseBtn = document.getElementById('pauseBtn');
+        const mobilePauseBtn = document.getElementById('mobilePauseBtn');
+        const persistentShareBtn = document.getElementById('persistentShareBtn');
+        const mobileShareBtn = document.getElementById('mobileShareBtn');
+        
+        if (pauseBtn) {
+            pauseBtn.disabled = true;
+            pauseBtn.textContent = 'Pause';
+        }
+        if (mobilePauseBtn) {
+            mobilePauseBtn.disabled = true;
+            mobilePauseBtn.textContent = '⏸️ Pause';
+        }
+        if (persistentShareBtn) persistentShareBtn.disabled = true;
+        if (mobileShareBtn) mobileShareBtn.disabled = true;
+        
+        // Clear the puzzle grid
+        const crosswordContainer = document.getElementById('crossword');
+        if (crosswordContainer) {
+            crosswordContainer.innerHTML = '';
+        }
+        
+        // Clear the clues
+        const cluesContainer = document.getElementById('cluesContainer');
+        if (cluesContainer) {
+            cluesContainer.innerHTML = '';
+        }
+        
+        // Hide mobile clue navigator
+        const mobileClueNavigator = document.getElementById('mobileClueNavigator');
+        if (mobileClueNavigator) {
+            mobileClueNavigator.style.display = 'none';
+        }
+        
+        // Close mobile options menu
+        const mobileOptionsMenu = document.getElementById('mobileOptionsMenu');
+        if (mobileOptionsMenu) {
+            mobileOptionsMenu.style.display = 'none';
+        }
+        
+        // Reset puzzle info
+        const puzzleInfo = document.getElementById('puzzleInfo');
+        if (puzzleInfo) {
+            puzzleInfo.textContent = 'Loading puzzle information...';
+        }
+        
+        // Reset title
+        const puzzleTitle = document.getElementById('puzzleTitle');
+        if (puzzleTitle) {
+            puzzleTitle.textContent = 'Loading Crossword...';
+        }
+    }
+
+    /**
+     * Set up navigation event listeners
+     */
+    setupNavigation() {
+        // Desktop navigation
+        const prevBtn = document.getElementById('prevPuzzleBtn');
+        const nextBtn = document.getElementById('nextPuzzleBtn');
+        
+        if (prevBtn) prevBtn.addEventListener('click', () => this.navigateToPreviousPuzzle());
+        if (nextBtn) nextBtn.addEventListener('click', () => this.navigateToNextPuzzle());
+        
+        // Mobile navigation
+        const mobilePrevBtn = document.getElementById('mobilePrevPuzzleBtn');
+        const mobileNextBtn = document.getElementById('mobileNextPuzzleBtn');
+        
+        if (mobilePrevBtn) mobilePrevBtn.addEventListener('click', () => this.navigateToPreviousPuzzle());
+        if (mobileNextBtn) mobileNextBtn.addEventListener('click', () => this.navigateToNextPuzzle());
+    }
+
+    /**
+     * Navigate to the previous puzzle (one day earlier)
+     */
+    async navigateToPreviousPuzzle() {
+        if (!this.currentPuzzleDate) return;
+        
+        const currentDate = new Date(this.currentPuzzleDate);
+        currentDate.setDate(currentDate.getDate() - 1);
+        const prevDateString = currentDate.toISOString().split('T')[0];
+        
+        const puzzlePath = `crosswords/mini_${prevDateString}.json`;
+        await this.loadPuzzle(puzzlePath);
+        
+        // Update URL
+        const url = new URL(window.location);
+        url.searchParams.set('puzzle', `mini_${prevDateString}.json`);
+        window.history.pushState({}, '', url);
+    }
+
+    /**
+     * Navigate to the next puzzle (one day later)
+     */
+    async navigateToNextPuzzle() {
+        if (!this.currentPuzzleDate) return;
+        
+        const currentDate = new Date(this.currentPuzzleDate);
+        currentDate.setDate(currentDate.getDate() + 1);
+        const nextDateString = currentDate.toISOString().split('T')[0];
+        
+        const puzzlePath = `crosswords/mini_${nextDateString}.json`;
+        await this.loadPuzzle(puzzlePath);
+        
+        // Update URL
+        const url = new URL(window.location);
+        url.searchParams.set('puzzle', `mini_${nextDateString}.json`);
+        window.history.pushState({}, '', url);
+    }
+
+    /**
+     * Update navigation button visibility and state
+     */
+    updateNavigationButtons() {
+        if (!this.currentPuzzleDate) return;
+        
+        const todaysPuzzleDate = this.calculateTodaysPuzzleDate();
+        const firstPuzzleDate = '2014-08-21';
+        
+        // Desktop buttons
+        const prevBtn = document.getElementById('prevPuzzleBtn');
+        const nextBtn = document.getElementById('nextPuzzleBtn');
+        
+        // Mobile buttons
+        const mobilePrevBtn = document.getElementById('mobilePrevPuzzleBtn');
+        const mobileNextBtn = document.getElementById('mobileNextPuzzleBtn');
+        
+        // Show/hide previous button
+        const showPrev = this.currentPuzzleDate > firstPuzzleDate;
+        if (prevBtn) prevBtn.style.display = showPrev ? 'block' : 'none';
+        if (mobilePrevBtn) mobilePrevBtn.style.display = showPrev ? 'block' : 'none';
+        
+        // Show/hide next button
+        const showNext = this.currentPuzzleDate < todaysPuzzleDate;
+        if (nextBtn) nextBtn.style.display = showNext ? 'block' : 'none';
+        if (mobileNextBtn) mobileNextBtn.style.display = showNext ? 'block' : 'none';
     }
 
     /**
@@ -2295,6 +2493,9 @@ class CrosswordLoader {
 
     async loadPuzzle(jsonPath = null) {
         try {
+            // Clean up the previous puzzle instance before loading new one
+            this.cleanup();
+            
             // If no specific path provided, determine path from URL parameters or use today's date
             if (!jsonPath) {
                 const pathResult = this.determinePuzzlePath();
@@ -2328,6 +2529,10 @@ class CrosswordLoader {
             const puzzleData = await response.json();
             this.puzzle = puzzleData.body[0];
             this.puzzle.date = displayDate;
+            this.currentPuzzleDate = publicationDate; // Store the original publication date
+            
+            // Update navigation buttons
+            this.updateNavigationButtons();
             
             // Update page title and info
             this.updatePuzzleInfo(puzzleData, jsonPath);
