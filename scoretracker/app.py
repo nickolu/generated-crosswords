@@ -10,7 +10,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 
 app = Flask(__name__)
 
@@ -20,6 +20,9 @@ DATA_DIR.mkdir(exist_ok=True)
 
 # Directory containing crossword JSON files
 CROSSWORDS_DIR = Path(__file__).parent / ".." / "crosswords"
+
+# Root directory for serving static files
+ROOT_DIR = Path(__file__).parent / ".."
 
 
 @app.route('/results', methods=['GET'])
@@ -95,6 +98,14 @@ def store_results():
         return jsonify({'error': 'Internal server error'}), 500
 
 
+@app.route('/crossword-jsons', methods=['GET'])
+def crossword_jsons():
+    """
+    Alias for /crosswords endpoint to match frontend expectations.
+    """
+    return list_crosswords()
+
+
 @app.route('/crosswords', methods=['GET'])
 def list_crosswords():
     """
@@ -126,6 +137,25 @@ def list_crosswords():
     except Exception as e:
         app.logger.error(f"Error listing crosswords: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
+
+
+
+@app.route('/crossword-generator/<path:filename>')
+def crossword_assets(filename):
+    """Serve crossword generator assets (JS, CSS, etc.)."""
+    return send_from_directory(ROOT_DIR / 'crossword-generator', filename)
+
+
+@app.route('/data/<path:filename>')
+def data_files(filename):
+    """Serve data files (leaderboard JSON files)."""
+    return send_from_directory(DATA_DIR, filename)
+
+
+@app.route('/crosswords/<path:filename>')
+def crossword_files(filename):
+    """Serve crossword puzzle JSON files."""
+    return send_from_directory(CROSSWORDS_DIR, filename)
 
 
 @app.route('/health', methods=['GET'])
