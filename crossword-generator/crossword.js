@@ -619,14 +619,17 @@ class CrosswordPuzzle {
             
             if (cell && userAnswer) {
                 if (this.showFeedback) {
-                    // Show feedback colors - use background property to override CSS gradients
+                    // Remove any existing autocheck classes
+                    cellElement.classList.remove('autocheck-correct', 'autocheck-incorrect');
+                    // Add appropriate autocheck class
                     if (cell.answer === userAnswer) {
-                        cellElement.style.setProperty('background', '#c8e6c9', 'important');
+                        cellElement.classList.add('autocheck-correct');
                     } else {
-                        cellElement.style.setProperty('background', '#ffcdd2', 'important');
+                        cellElement.classList.add('autocheck-incorrect');
                     }
                 } else {
-                    // Remove feedback colors
+                    // Remove autocheck classes and inline background styles
+                    cellElement.classList.remove('autocheck-correct', 'autocheck-incorrect');
                     cellElement.style.removeProperty('background');
                 }
             }
@@ -1089,10 +1092,12 @@ class CrosswordPuzzle {
             this.checkPuzzleCompletion();
             if (this.showFeedback) {
                 const cell = this.puzzle.cells[cellIndex];
+                // Remove any existing autocheck classes
+                event.target.classList.remove('autocheck-correct', 'autocheck-incorrect');
                 if (cell && cell.answer === firstValidChar) {
-                    event.target.style.setProperty('background', '#c8e6c9', 'important');
+                    event.target.classList.add('autocheck-correct');
                 } else {
-                    event.target.style.setProperty('background', '#ffcdd2', 'important');
+                    event.target.classList.add('autocheck-incorrect');
                 }
             }
         }
@@ -1425,10 +1430,19 @@ class CrosswordPuzzle {
         if (!cell || !cell.clues) return null;
         
         // Find a clue in the specified direction that crosses the current cell
-        return cell.clues.find(clueIndex => 
-            clueIndex !== this.selectedClue && 
-            this.getClueDirection(clueIndex) === direction
-        ) || null;
+        let crossingClue = null;
+        for (const clueIndex of cell.clues) {
+            const clueDirection = this.getClueDirection(clueIndex);
+            const matches = clueDirection === direction;
+            const different = clueIndex !== this.selectedClue;
+            
+            if (different && matches) {
+                crossingClue = clueIndex;
+                break;
+            }
+        }
+        
+        return crossingClue;
     }
     
     moveWithinWord(direction) {
@@ -1673,11 +1687,6 @@ class CrosswordPuzzle {
     }
     
     handleKeyDown(event) {
-        console.log('=== HANDLE KEY DOWN ===');
-        console.log('Puzzle date:', this.puzzle?.date);
-        console.log('Selected cell:', this.selectedCell);
-        console.log('Key pressed:', event.key);
-        
         if (this.selectedCell === null) return;
         
         const { width, height } = this.puzzle.dimensions;
@@ -1693,16 +1702,10 @@ class CrosswordPuzzle {
             const currentCell = document.querySelector(`input.cell[data-index="${this.selectedCell}"]`);
             const cell = this.puzzle.cells[this.selectedCell];
             
-            console.log('Found currentCell:', !!currentCell);
-            console.log('Found cell data:', !!cell);
-            console.log('Current userAnswers keys before update:', Object.keys(this.userAnswers));
-            
             if (currentCell && cell) {
                 // Set the letter in the cell
                 currentCell.value = letter;
                 this.userAnswers[this.selectedCell] = letter;
-                console.log('Set letter', letter, 'at position', this.selectedCell);
-                console.log('userAnswers after update:', { ...this.userAnswers });
                 
                 // Update empty state for cursor display
                 const wrapper = currentCell.closest('.cell-wrapper');
@@ -1710,12 +1713,16 @@ class CrosswordPuzzle {
                 
                 // Only show feedback if enabled
                 if (this.showFeedback && cell) {
+                    // Remove any existing autocheck classes
+                    currentCell.classList.remove('autocheck-correct', 'autocheck-incorrect');
                     if (cell.answer === letter) {
-                        currentCell.style.setProperty('background', '#c8e6c9', 'important');
+                        currentCell.classList.add('autocheck-correct');
                     } else {
-                        currentCell.style.setProperty('background', '#ffcdd2', 'important');
+                        currentCell.classList.add('autocheck-incorrect');
                     }
                 } else {
+                    // Remove autocheck classes and inline styles
+                    currentCell.classList.remove('autocheck-correct', 'autocheck-incorrect');
                     currentCell.style.removeProperty('background');
                 }
                 
@@ -1755,7 +1762,8 @@ class CrosswordPuzzle {
                         // Switch to crossing down clue if it exists
                         const crossingClue = this.findCrossingClue('down');
                         if (crossingClue !== null) {
-                            this.selectCell(this.selectedCell, true);
+                            this.selectedClue = crossingClue;
+                            this.selectCell(this.selectedCell, false);
                             event.preventDefault();
                             return;
                         }
@@ -1780,7 +1788,8 @@ class CrosswordPuzzle {
                         // Switch to crossing down clue if it exists
                         const crossingClue = this.findCrossingClue('down');
                         if (crossingClue !== null) {
-                            this.selectCell(this.selectedCell, true);
+                            this.selectedClue = crossingClue;
+                            this.selectCell(this.selectedCell, false);
                             event.preventDefault();
                             return;
                         }
@@ -1805,7 +1814,8 @@ class CrosswordPuzzle {
                         // Switch to crossing across clue if it exists
                         const crossingClue = this.findCrossingClue('across');
                         if (crossingClue !== null) {
-                            this.selectCell(this.selectedCell, true);
+                            this.selectedClue = crossingClue;
+                            this.selectCell(this.selectedCell, false);
                             event.preventDefault();
                             return;
                         }
@@ -1830,7 +1840,8 @@ class CrosswordPuzzle {
                         // Switch to crossing across clue if it exists
                         const crossingClue = this.findCrossingClue('across');
                         if (crossingClue !== null) {
-                            this.selectCell(this.selectedCell, true);
+                            this.selectedClue = crossingClue;
+                            this.selectCell(this.selectedCell, false);
                             event.preventDefault();
                             return;
                         }
@@ -1856,6 +1867,7 @@ class CrosswordPuzzle {
                         // Delete current cell content
                         currentCell.value = '';
                         delete this.userAnswers[this.selectedCell];
+                        currentCell.classList.remove('autocheck-correct', 'autocheck-incorrect');
                         currentCell.style.removeProperty('background');
                         
                         // Update empty state for cursor display
@@ -1874,11 +1886,52 @@ class CrosswordPuzzle {
                             if (prevCell) {
                                 prevCell.value = '';
                                 delete this.userAnswers[prevCellIndex];
+                                prevCell.classList.remove('autocheck-correct', 'autocheck-incorrect');
                                 prevCell.style.removeProperty('background');
                                 
                                 // Update empty state for cursor display
                                 const wrapper = prevCell.closest('.cell-wrapper');
                                 if (wrapper) this.updateCellEmptyState(wrapper, prevCellIndex);
+                            }
+                        }
+                    }
+                }
+                event.preventDefault();
+                break;
+            case 'Delete':
+                if (this.selectedClue !== null) {
+                    const currentCell = document.querySelector(`input.cell[data-index="${this.selectedCell}"]`);
+                    
+                    // Check if current cell has content
+                    if (currentCell && currentCell.value) {
+                        // Delete current cell content
+                        currentCell.value = '';
+                        delete this.userAnswers[this.selectedCell];
+                        currentCell.classList.remove('autocheck-correct', 'autocheck-incorrect');
+                        currentCell.style.removeProperty('background');
+                        
+                        // Update empty state for cursor display
+                        const wrapper = currentCell.closest('.cell-wrapper');
+                        if (wrapper) this.updateCellEmptyState(wrapper, this.selectedCell);
+                    } else {
+                        // Current cell is empty, move to next cell and delete its content
+                        const clue = this.puzzle.clues[this.selectedClue];
+                        const currentPosition = clue.cells.indexOf(this.selectedCell);
+                        if (currentPosition < clue.cells.length - 1) {
+                            const nextCellIndex = clue.cells[currentPosition + 1];
+                            // Move to next cell
+                            this.moveToCell(nextCellIndex);
+                            // Immediately delete the letter in the next cell
+                            const nextCell = document.querySelector(`input.cell[data-index="${nextCellIndex}"]`);
+                            if (nextCell) {
+                                nextCell.value = '';
+                                delete this.userAnswers[nextCellIndex];
+                                nextCell.classList.remove('autocheck-correct', 'autocheck-incorrect');
+                                nextCell.style.removeProperty('background');
+                                
+                                // Update empty state for cursor display
+                                const wrapper = nextCell.closest('.cell-wrapper');
+                                if (wrapper) this.updateCellEmptyState(wrapper, nextCellIndex);
                             }
                         }
                     }
