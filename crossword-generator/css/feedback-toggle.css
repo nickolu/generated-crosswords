@@ -27,12 +27,33 @@
   background: #ffcdd2 !important;
 }
 
-/* Letterbox styles for selected cell with autocheck feedback */
+/* Letterbox styles for highlighted cells (selected word) with autocheck feedback */
+.cell-wrapper.highlighted .cell.autocheck-correct {
+  background: linear-gradient(
+    145deg,
+    #66bb6a,
+    #4caf50
+  ) !important;
+  color: #ffffff !important;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.cell-wrapper.highlighted .cell.autocheck-incorrect {
+  background: linear-gradient(
+    145deg,
+    #ef5350,
+    #f44336
+  ) !important;
+  color: #ffffff !important;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Letterbox styles for selected cell with autocheck feedback (darkest - most prominent) */
 .cell-wrapper.selected .cell.autocheck-correct {
   background: linear-gradient(
     145deg,
-    #2e7d32,
-    #1b5e20
+    #388e3c,
+    #2e7d32
   ) !important;
   color: #ffffff !important;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
@@ -41,30 +62,9 @@
 .cell-wrapper.selected .cell.autocheck-incorrect {
   background: linear-gradient(
     145deg,
-    #c62828,
-    #b71c1c
-  ) !important;
-  color: #ffffff !important;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-}
-
-/* Letterbox styles for highlighted cells (selected word) with autocheck feedback */
-.cell-wrapper.highlighted .cell.autocheck-correct {
-  background: linear-gradient(
-    145deg,
-    #388e3c,
-    #2e7d32
-  ) !important;
-  color: #ffffff !important;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.4);
-}
-
-.cell-wrapper.highlighted .cell.autocheck-incorrect {
-  background: linear-gradient(
-    145deg,
     #d32f2f,
     #c62828
   ) !important;
   color: #ffffff !important;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.4);
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
 }
