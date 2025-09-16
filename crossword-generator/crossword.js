@@ -1680,7 +1680,7 @@ class CrosswordPuzzle {
                         // Switch to crossing down clue if it exists
                         const crossingClue = this.findCrossingClue('down');
                         if (crossingClue !== null) {
-                            this.selectClue(crossingClue);
+                            this.selectCell(this.selectedCell, true);
                             event.preventDefault();
                             return;
                         }
@@ -1705,7 +1705,7 @@ class CrosswordPuzzle {
                         // Switch to crossing down clue if it exists
                         const crossingClue = this.findCrossingClue('down');
                         if (crossingClue !== null) {
-                            this.selectClue(crossingClue);
+                            this.selectCell(this.selectedCell, true);
                             event.preventDefault();
                             return;
                         }
@@ -1730,7 +1730,7 @@ class CrosswordPuzzle {
                         // Switch to crossing across clue if it exists
                         const crossingClue = this.findCrossingClue('across');
                         if (crossingClue !== null) {
-                            this.selectClue(crossingClue);
+                            this.selectCell(this.selectedCell, true);
                             event.preventDefault();
                             return;
                         }
@@ -1755,7 +1755,7 @@ class CrosswordPuzzle {
                         // Switch to crossing across clue if it exists
                         const crossingClue = this.findCrossingClue('across');
                         if (crossingClue !== null) {
-                            this.selectClue(crossingClue);
+                            this.selectCell(this.selectedCell, true);
                             event.preventDefault();
                             return;
                         }
