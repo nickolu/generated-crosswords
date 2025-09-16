@@ -1687,11 +1687,6 @@ class CrosswordPuzzle {
     }
     
     handleKeyDown(event) {
-        console.log('=== HANDLE KEY DOWN ===');
-        console.log('Puzzle date:', this.puzzle?.date);
-        console.log('Selected cell:', this.selectedCell);
-        console.log('Key pressed:', event.key);
-        
         if (this.selectedCell === null) return;
         
         const { width, height } = this.puzzle.dimensions;
@@ -1707,16 +1702,10 @@ class CrosswordPuzzle {
             const currentCell = document.querySelector(`input.cell[data-index="${this.selectedCell}"]`);
             const cell = this.puzzle.cells[this.selectedCell];
             
-            console.log('Found currentCell:', !!currentCell);
-            console.log('Found cell data:', !!cell);
-            console.log('Current userAnswers keys before update:', Object.keys(this.userAnswers));
-            
             if (currentCell && cell) {
                 // Set the letter in the cell
                 currentCell.value = letter;
                 this.userAnswers[this.selectedCell] = letter;
-                console.log('Set letter', letter, 'at position', this.selectedCell);
-                console.log('userAnswers after update:', { ...this.userAnswers });
                 
                 // Update empty state for cursor display
                 const wrapper = currentCell.closest('.cell-wrapper');
