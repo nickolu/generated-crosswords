@@ -2,6 +2,7 @@ class CrosswordArchive {
     constructor() {
         this.today = new Date();
         this.elevenYearsAgo = new Date(this.today.getFullYear() - 11, this.today.getMonth(), this.today.getDate());
+        this.yearOffset = 11; // Same offset used in crossword.js
         this.userName = this.getUserName();
         this.loadPuzzleList();
     }
@@ -22,15 +23,40 @@ class CrosswordArchive {
         return null;
     }
 
+    /**
+     * Calculate the display date by adding the yearOffset to the puzzle date
+     * @param {string} puzzleDate - Date string in YYYY-MM-DD format (from filename)
+     * @returns {string} - Display date string in YYYY-MM-DD format (current date)
+     */
+    calculateDisplayDate(puzzleDate) {
+        const pubDate = new Date(puzzleDate);
+        const displayDate = new Date(pubDate.setFullYear(pubDate.getFullYear() + this.yearOffset));
+        return displayDate.toISOString().split('T')[0];
+    }
+
+    /**
+     * Format completion time from seconds to MM:SS format
+     * @param {number} seconds - Time in seconds
+     * @returns {string} - Formatted time string (e.g., "2:34")
+     */
+    formatTimeFromSeconds(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    }
+
     async checkPuzzleCompletion(puzzleDate) {
         // Only check completion if we have a username
         if (!this.userName) {
-            return false;
+            return null;
         }
 
         try {
-            // Try to load leaderboard data for this puzzle date
-            const dataUrl = `data/${puzzleDate}.json`;
+            // Calculate the display date (current date) for leaderboard lookup
+            // Leaderboard JSON files are stored using display dates, not puzzle dates
+            const displayDate = this.calculateDisplayDate(puzzleDate);
+            const dataUrl = `data/${displayDate}.json`;
+            
             const response = await fetch(dataUrl, {
                 method: 'GET',
                 mode: 'cors',
@@ -43,18 +69,18 @@ class CrosswordArchive {
             });
             
             if (!response.ok) {
-                return false;
+                return null;
             }
             
             const leaderboardData = await response.json();
             
-            // Check if current user has a completion time
+            // Check if current user has a completion time and return it
             const userCompletionTime = leaderboardData[this.userName];
-            return userCompletionTime ? true : false;
+            return userCompletionTime ? parseInt(userCompletionTime) : null;
             
-        } catch (error) {
+        } catch {
             // No completion data found
-            return false;
+            return null;
         }
     }
 
@@ -153,8 +179,12 @@ class CrosswordArchive {
         // Check completion status for each puzzle if we have a username
         if (this.userName) {
             const completionChecks = puzzles.map(async puzzle => {
-                const isCompleted = await this.checkPuzzleCompletion(puzzle.date);
-                return { ...puzzle, isCompleted };
+                const completionTime = await this.checkPuzzleCompletion(puzzle.date);
+                return { 
+                    ...puzzle, 
+                    isCompleted: completionTime !== null,
+                    completionTime: completionTime
+                };
             });
             
             try {
@@ -173,7 +203,8 @@ class CrosswordArchive {
             }
             const href = `mini?puzzle=${puzzle.filename}`;
             
-            const completedBadge = puzzle.isCompleted ? '<span class="completed-badge">Completed</span>' : '';
+            const completedBadge = puzzle.isCompleted ? 
+                `<span class="completed-badge">Completed in ${this.formatTimeFromSeconds(puzzle.completionTime)}</span>` : '';
             
             if (puzzle.isToday) {
                 html += `
