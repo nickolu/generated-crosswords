@@ -1823,6 +1823,12 @@ class CrosswordPuzzle {
                 }
                 event.preventDefault();
                 break;
+            default:
+                // Prevent all other keys (numbers, punctuation, etc.) from being input
+                if (!event.ctrlKey && !event.metaKey && !event.altKey) {
+                    event.preventDefault();
+                }
+                break;
         }
         
         if (nextIndex !== null) {
