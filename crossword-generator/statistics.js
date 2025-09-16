@@ -343,7 +343,7 @@ class CrosswordStatistics {
         
         labels.forEach((label, index) => {
             const x = padding + index * barWidth + barWidth / 2;
-            const y = height - padding + 15;
+            const y = height - padding + 30;
             
             // Rotate text for solve times chart to fit better
             if (title === 'Solve Times') {
