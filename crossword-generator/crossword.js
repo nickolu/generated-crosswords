@@ -861,17 +861,11 @@ class CrosswordPuzzle {
     
     getClueDirection(clueIndex) {
         // Find which direction list contains this clue
-        console.log('getClueDirection called for clue', clueIndex);
-        console.log('Available clueLists:', this.puzzle.clueLists?.map(list => ({name: list.name, clues: list.clues})));
-        
         for (const clueList of this.puzzle.clueLists) {
             if (clueList.clues.includes(clueIndex)) {
-                const direction = clueList.name.toLowerCase();
-                console.log(`Clue ${clueIndex} found in list "${clueList.name}", returning "${direction}"`);
-                return direction; // "across" or "down"
+                return clueList.name.toLowerCase(); // "across" or "down"
             }
         }
-        console.log(`Clue ${clueIndex} not found in any list`);
         return null;
     }
     
@@ -1430,20 +1424,10 @@ class CrosswordPuzzle {
     }
     
     findCrossingClue(direction) {
-        console.log('=== FIND CROSSING CLUE ===');
-        console.log('Looking for direction:', direction);
-        console.log('Selected cell:', this.selectedCell);
-        console.log('Selected clue:', this.selectedClue);
-        
         if (this.selectedCell === null || this.selectedClue === null) return null;
         
         const cell = this.puzzle.cells[this.selectedCell];
-        console.log('Cell data:', cell);
-        
         if (!cell || !cell.clues) return null;
-        
-        console.log('Cell clues:', cell.clues);
-        console.log('Current clue direction:', this.getClueDirection(this.selectedClue));
         
         // Find a clue in the specified direction that crosses the current cell
         let crossingClue = null;
@@ -1451,16 +1435,13 @@ class CrosswordPuzzle {
             const clueDirection = this.getClueDirection(clueIndex);
             const matches = clueDirection === direction;
             const different = clueIndex !== this.selectedClue;
-            console.log(`Checking clue ${clueIndex}: direction=${clueDirection}, matches=${matches}, different=${different}`);
             
             if (different && matches) {
-                console.log(`Found matching crossing clue: ${clueIndex}`);
                 crossingClue = clueIndex;
                 break;
             }
         }
         
-        console.log('Found crossing clue:', crossingClue);
         return crossingClue;
     }
     
@@ -1839,24 +1820,18 @@ class CrosswordPuzzle {
             case 'ArrowLeft':
                 if (this.selectedClue !== null) {
                     const currentDirection = this.getClueDirection(this.selectedClue);
-                    console.log('ArrowLeft: current direction is', currentDirection);
                     
                     if (currentDirection === 'down') {
                         // Switch to crossing across clue if it exists
-                        console.log('ArrowLeft: Trying to find crossing across clue');
                         const crossingClue = this.findCrossingClue('across');
                         if (crossingClue !== null) {
-                            console.log('ArrowLeft: Found crossing clue', crossingClue, 'switching to it');
                             this.selectedClue = crossingClue;
                             this.selectCell(this.selectedCell, false);
                             event.preventDefault();
                             return;
-                        } else {
-                            console.log('ArrowLeft: No crossing across clue found');
                         }
                     } else if (currentDirection === 'across') {
                         // Move backward within the current across word
-                        console.log('ArrowLeft: Moving backward within across word');
                         this.moveWithinWord('backward');
                         event.preventDefault();
                         return;
@@ -1871,24 +1846,18 @@ class CrosswordPuzzle {
             case 'ArrowRight':
                 if (this.selectedClue !== null) {
                     const currentDirection = this.getClueDirection(this.selectedClue);
-                    console.log('ArrowRight: current direction is', currentDirection);
                     
                     if (currentDirection === 'down') {
                         // Switch to crossing across clue if it exists
-                        console.log('ArrowRight: Trying to find crossing across clue');
                         const crossingClue = this.findCrossingClue('across');
                         if (crossingClue !== null) {
-                            console.log('ArrowRight: Found crossing clue', crossingClue, 'switching to it');
                             this.selectedClue = crossingClue;
                             this.selectCell(this.selectedCell, false);
                             event.preventDefault();
                             return;
-                        } else {
-                            console.log('ArrowRight: No crossing across clue found');
                         }
                     } else if (currentDirection === 'across') {
                         // Move forward within the current across word
-                        console.log('ArrowRight: Moving forward within across word');
                         this.moveWithinWord('forward');
                         event.preventDefault();
                         return;
