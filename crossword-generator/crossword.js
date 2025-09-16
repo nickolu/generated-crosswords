@@ -1317,6 +1317,78 @@ class CrosswordPuzzle {
         }
     }
     
+    moveToNextIncompleteInWord() {
+        if (this.selectedClue !== null) {
+            const clue = this.puzzle.clues[this.selectedClue];
+            const currentPosition = clue.cells.indexOf(this.selectedCell);
+            
+            if (currentPosition >= 0) {
+                // Look for the next incomplete cell starting from current position + 1
+                let nextIncompleteIndex = null;
+                
+                // First, search from current position + 1 to end of word
+                for (let i = currentPosition + 1; i < clue.cells.length; i++) {
+                    const cellIndex = clue.cells[i];
+                    if (!this.userAnswers[cellIndex]) {
+                        nextIncompleteIndex = cellIndex;
+                        break;
+                    }
+                }
+                
+                // If no incomplete cell found after current position, wrap to beginning
+                if (nextIncompleteIndex === null) {
+                    for (let i = 0; i <= currentPosition; i++) {
+                        const cellIndex = clue.cells[i];
+                        if (!this.userAnswers[cellIndex]) {
+                            nextIncompleteIndex = cellIndex;
+                            break;
+                        }
+                    }
+                }
+                
+                // Move to the found incomplete cell, or stay at current if all filled
+                if (nextIncompleteIndex !== null) {
+                    this.moveToCell(nextIncompleteIndex);
+                }
+            }
+        }
+    }
+    
+    findCrossingClue(direction) {
+        if (this.selectedCell === null || this.selectedClue === null) return null;
+        
+        const cell = this.puzzle.cells[this.selectedCell];
+        if (!cell || !cell.clues) return null;
+        
+        // Find a clue in the specified direction that crosses the current cell
+        return cell.clues.find(clueIndex => 
+            clueIndex !== this.selectedClue && 
+            this.getClueDirection(clueIndex) === direction
+        ) || null;
+    }
+    
+    moveWithinWord(direction) {
+        if (this.selectedClue === null) return;
+        
+        const clue = this.puzzle.clues[this.selectedClue];
+        const currentPosition = clue.cells.indexOf(this.selectedCell);
+        
+        if (currentPosition === -1) return;
+        
+        let targetPosition;
+        if (direction === 'forward') {
+            targetPosition = currentPosition + 1;
+        } else { // backward
+            targetPosition = currentPosition - 1;
+        }
+        
+        // Check bounds and move to target position
+        if (targetPosition >= 0 && targetPosition < clue.cells.length) {
+            const targetCellIndex = clue.cells[targetPosition];
+            this.moveToCell(targetCellIndex);
+        }
+    }
+    
     moveToCell(index) {
         // Simple cell movement without changing word selection
         const wrappers = document.querySelectorAll('.cell-wrapper');
@@ -1595,22 +1667,107 @@ class CrosswordPuzzle {
                 }
                 event.preventDefault();
                 break;
+            case ' ':
+                // Spacebar: Move to next incomplete letter in current word, wrapping to beginning
+                this.moveToNextIncompleteInWord();
+                event.preventDefault();
+                break;
             case 'ArrowUp':
+                if (this.selectedClue !== null) {
+                    const currentDirection = this.getClueDirection(this.selectedClue);
+                    
+                    if (currentDirection === 'across') {
+                        // Switch to crossing down clue if it exists
+                        const crossingClue = this.findCrossingClue('down');
+                        if (crossingClue !== null) {
+                            this.selectClue(crossingClue);
+                            event.preventDefault();
+                            return;
+                        }
+                    } else if (currentDirection === 'down') {
+                        // Move backward within the current down word
+                        this.moveWithinWord('backward');
+                        event.preventDefault();
+                        return;
+                    }
+                }
+                
+                // Fallback to normal grid navigation
                 if (currentRow > 0) {
                     nextIndex = this.selectedCell - width;
                 }
                 break;
             case 'ArrowDown':
+                if (this.selectedClue !== null) {
+                    const currentDirection = this.getClueDirection(this.selectedClue);
+                    
+                    if (currentDirection === 'across') {
+                        // Switch to crossing down clue if it exists
+                        const crossingClue = this.findCrossingClue('down');
+                        if (crossingClue !== null) {
+                            this.selectClue(crossingClue);
+                            event.preventDefault();
+                            return;
+                        }
+                    } else if (currentDirection === 'down') {
+                        // Move forward within the current down word
+                        this.moveWithinWord('forward');
+                        event.preventDefault();
+                        return;
+                    }
+                }
+                
+                // Fallback to normal grid navigation
                 if (currentRow < height - 1) {
                     nextIndex = this.selectedCell + width;
                 }
                 break;
             case 'ArrowLeft':
+                if (this.selectedClue !== null) {
+                    const currentDirection = this.getClueDirection(this.selectedClue);
+                    
+                    if (currentDirection === 'down') {
+                        // Switch to crossing across clue if it exists
+                        const crossingClue = this.findCrossingClue('across');
+                        if (crossingClue !== null) {
+                            this.selectClue(crossingClue);
+                            event.preventDefault();
+                            return;
+                        }
+                    } else if (currentDirection === 'across') {
+                        // Move backward within the current across word
+                        this.moveWithinWord('backward');
+                        event.preventDefault();
+                        return;
+                    }
+                }
+                
+                // Fallback to normal grid navigation
                 if (currentCol > 0) {
                     nextIndex = this.selectedCell - 1;
                 }
                 break;
             case 'ArrowRight':
+                if (this.selectedClue !== null) {
+                    const currentDirection = this.getClueDirection(this.selectedClue);
+                    
+                    if (currentDirection === 'down') {
+                        // Switch to crossing across clue if it exists
+                        const crossingClue = this.findCrossingClue('across');
+                        if (crossingClue !== null) {
+                            this.selectClue(crossingClue);
+                            event.preventDefault();
+                            return;
+                        }
+                    } else if (currentDirection === 'across') {
+                        // Move forward within the current across word
+                        this.moveWithinWord('forward');
+                        event.preventDefault();
+                        return;
+                    }
+                }
+                
+                // Fallback to normal grid navigation
                 if (currentCol < width - 1) {
                     nextIndex = this.selectedCell + 1;
                 }
