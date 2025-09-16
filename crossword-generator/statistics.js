@@ -248,12 +248,12 @@ class CrosswordStatistics {
         for (let i = 1; i <= 6; i++) {
             const emoji = this.getRankEmoji(i);
             emojiBins[emoji] = 0;
-            emojiLabels.push(`${emoji} (${i}${this.getOrdinalSuffix(i)})`);
+            emojiLabels.push(`${emoji}\n${i}${this.getOrdinalSuffix(i)}`);
         }
         // Add 7+ place bin
         const defaultEmoji = this.getRankEmoji(7);
         emojiBins[defaultEmoji] = 0;
-        emojiLabels.push(`${defaultEmoji} (7th+)`);
+        emojiLabels.push(`${defaultEmoji}\n7th+`);
         
         // Count places in each bin
         this.userStats.places.forEach(place => {
@@ -296,7 +296,7 @@ class CrosswordStatistics {
         if (maxValue === 0) {
             // No data to display
             ctx.fillStyle = '#666';
-            ctx.font = '16px Arial';
+            ctx.font = '24px Arial';
             ctx.textAlign = 'center';
             ctx.fillText('No data to display', width / 2, height / 2);
             return;
@@ -319,7 +319,7 @@ class CrosswordStatistics {
             // Draw value on top of bar if greater than 0
             if (value > 0) {
                 ctx.fillStyle = '#333';
-                ctx.font = '12px Arial';
+                ctx.font = '18px Arial';
                 ctx.textAlign = 'center';
                 ctx.fillText(value, x + actualBarWidth / 2, y - 5);
             }
@@ -338,7 +338,7 @@ class CrosswordStatistics {
         
         // Draw labels
         ctx.fillStyle = '#333';
-        ctx.font = '10px Arial';
+        ctx.font = '15px Arial';
         ctx.textAlign = 'center';
         
         labels.forEach((label, index) => {
@@ -353,12 +353,17 @@ class CrosswordStatistics {
                 ctx.fillText(label, 0, 0);
                 ctx.restore();
             } else {
-                ctx.fillText(label, x, y);
+                // Handle multi-line labels for leaderboard positions
+                const lines = label.split('\n');
+                lines.forEach((line, lineIndex) => {
+                    ctx.fillText(line, x, y + (lineIndex * 20));
+                });
             }
         });
         
         // Draw Y-axis labels
         ctx.textAlign = 'right';
+        ctx.font = '15px Arial';
         for (let i = 0; i <= maxValue; i += Math.ceil(maxValue / 5)) {
             const y = height - padding - (i * scale);
             ctx.fillText(i.toString(), padding - 10, y + 3);
