@@ -1898,6 +1898,46 @@ class CrosswordPuzzle {
                 }
                 event.preventDefault();
                 break;
+            case 'Delete':
+                if (this.selectedClue !== null) {
+                    const currentCell = document.querySelector(`input.cell[data-index="${this.selectedCell}"]`);
+                    
+                    // Check if current cell has content
+                    if (currentCell && currentCell.value) {
+                        // Delete current cell content
+                        currentCell.value = '';
+                        delete this.userAnswers[this.selectedCell];
+                        currentCell.classList.remove('autocheck-correct', 'autocheck-incorrect');
+                        currentCell.style.removeProperty('background');
+                        
+                        // Update empty state for cursor display
+                        const wrapper = currentCell.closest('.cell-wrapper');
+                        if (wrapper) this.updateCellEmptyState(wrapper, this.selectedCell);
+                    } else {
+                        // Current cell is empty, move to next cell and delete its content
+                        const clue = this.puzzle.clues[this.selectedClue];
+                        const currentPosition = clue.cells.indexOf(this.selectedCell);
+                        if (currentPosition < clue.cells.length - 1) {
+                            const nextCellIndex = clue.cells[currentPosition + 1];
+                            // Move to next cell
+                            this.moveToCell(nextCellIndex);
+                            // Immediately delete the letter in the next cell
+                            const nextCell = document.querySelector(`input.cell[data-index="${nextCellIndex}"]`);
+                            if (nextCell) {
+                                nextCell.value = '';
+                                delete this.userAnswers[nextCellIndex];
+                                nextCell.classList.remove('autocheck-correct', 'autocheck-incorrect');
+                                nextCell.style.removeProperty('background');
+                                
+                                // Update empty state for cursor display
+                                const wrapper = nextCell.closest('.cell-wrapper');
+                                if (wrapper) this.updateCellEmptyState(wrapper, nextCellIndex);
+                            }
+                        }
+                    }
+                }
+                event.preventDefault();
+                break;
             default:
                 // Prevent all other keys (numbers, punctuation, etc.) from being input
                 if (!event.ctrlKey && !event.metaKey && !event.altKey) {
