@@ -20,7 +20,24 @@ class CrosswordPuzzle {
         this.isKeyboardVisible = false; // Track keyboard state for scroll prevention
         this.keydownHandler = null; // Store reference to keydown event handler for cleanup
         this.visibilityChangeHandler = null; // Store reference to visibilitychange event handler for cleanup
+        
+        // Place emojis for leaderboard rankings
+        this.placeEmojis = {
+            1: '🥇',
+            2: '🥈', 
+            3: '🥉',
+            4: '🦥',
+            5: '🐌',
+            6: '🐢',
+            default: '⏳' // For 7th place and beyond
+        };
+        
         this.init();
+    }
+    
+    // Helper method to get the emoji for a given rank
+    getRankEmoji(rank) {
+        return this.placeEmojis[rank] || this.placeEmojis.default;
     }
     
     init() {
@@ -1291,14 +1308,7 @@ class CrosswordPuzzle {
         
         entries.forEach((entry, index) => {
             const rank = index + 1;
-            let rankEmoji = `${rank}.`;
-            
-            if (rank === 1) rankEmoji = '🥇';
-            else if (rank === 2) rankEmoji = '🥈';
-            else if (rank === 3) rankEmoji = '🥉';
-            else if (rank === 4) rankEmoji = '🦥';
-            else if (rank === 5) rankEmoji = '🐌';
-            else rankEmoji = '🐢';
+            const rankEmoji = this.getRankEmoji(rank);
             
             shareText += `${rankEmoji} ${entry.name} - ${entry.timeFormatted}\n`;
         });
@@ -2059,10 +2069,7 @@ class CrosswordPuzzle {
             const isTopThree = rank <= 3;
             const isCurrentUser = this.userName && entry.name === this.userName;
             
-            let rankDisplay = rank;
-            if (rank === 1) rankDisplay = '🥇';
-            else if (rank === 2) rankDisplay = '🥈';
-            else if (rank === 3) rankDisplay = '🥉';
+            const rankDisplay = this.getRankEmoji(rank);
             
             const itemClasses = [];
             if (isTopThree) itemClasses.push('top-3');
