@@ -601,7 +601,7 @@ class CrosswordPuzzle {
             if (input) {
                 wrapper.addEventListener('click', (e) => this.handleCellClick(cellIndex, e));
                 // Add input cleanup for paste/edge cases (but don't handle normal typing)
-                // input.addEventListener('input', (e) => this.cleanupInput(e, cellIndex));
+                input.addEventListener('input', (e) => this.cleanupInput(e, cellIndex));
             }
         });
         
@@ -1014,25 +1014,38 @@ class CrosswordPuzzle {
         });
     }
     
-    // cleanupInput(event, cellIndex) {
-    //     // Simple cleanup for paste/edge cases - only ensures valid single letter
-    //     const value = event.target.value.toUpperCase();
-    //     const firstValidChar = value.match(/[A-Z]/)?.[0] || '';
+    cleanupInput(event, cellIndex) {
+        // Simple cleanup for paste/edge cases - only ensures valid single letter
+        const value = event.target.value.toUpperCase();
+        const firstValidChar = value.match(/[A-Z]/)?.[0] || '';
         
-    //     if (firstValidChar && firstValidChar !== value) {
-    //         // Input has invalid characters or multiple characters, clean it
-    //         event.target.value = firstValidChar;
-    //         this.userAnswers[cellIndex] = firstValidChar;
-    //     } else if (!firstValidChar && value) {
-    //         // Input has no valid characters but has content, clear it
-    //         event.target.value = '';
-    //         delete this.userAnswers[cellIndex];
-    //     }
+        if (firstValidChar && firstValidChar !== value) {
+            // Input has invalid characters or multiple characters, clean it
+            event.target.value = firstValidChar;
+            this.userAnswers[cellIndex] = firstValidChar;
+        } else if (!firstValidChar && value) {
+            // Input has no valid characters but has content, clear it
+            event.target.value = '';
+            delete this.userAnswers[cellIndex];
+        }
         
-    //     // Update visual state to match
-    //     const wrapper = event.target.closest('.cell-wrapper');
-    //     if (wrapper) this.updateCellEmptyState(wrapper, cellIndex);
-    // }
+        // Update visual state to match
+        const wrapper = event.target.closest('.cell-wrapper');
+        if (wrapper) this.updateCellEmptyState(wrapper, cellIndex);
+        
+        // Check completion and provide feedback if the cleanup resulted in a valid letter
+        if (firstValidChar) {
+            this.checkPuzzleCompletion();
+            if (this.showFeedback) {
+                const cell = this.puzzle.cells[cellIndex];
+                if (cell && cell.answer === firstValidChar) {
+                    event.target.style.setProperty('background', '#c8e6c9', 'important');
+                } else {
+                    event.target.style.setProperty('background', '#ffcdd2', 'important');
+                }
+            }
+        }
+    }
     
     updateCellEmptyState(wrapperElement, cellIndex) {
         // Add or remove 'empty' class and cursor element based on whether the cell has content
