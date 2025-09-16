@@ -8,6 +8,8 @@ class CrosswordStatistics {
             averageTime: 0,
             bestTime: null
         };
+        this.today = new Date();
+        this.elevenYearsAgo = new Date(this.today.getFullYear() - 11, this.today.getMonth(), this.today.getDate());
         this.yearOffset = 11; // Same offset used in crossword.js
         
         // Place emojis matching the crossword game
@@ -106,7 +108,7 @@ class CrosswordStatistics {
         // Check each puzzle for user completion
         for (const filename of puzzleFiles) {
             try {
-                // Extract date from filename
+                // Extract date from filename (same logic as archive.js)
                 let dateMatch = filename.match(/mini_(\d{4}-\d{2}-\d{2})\.json/);
                 if (!dateMatch) {
                     dateMatch = filename.match(/(\d{4}-\d{2}-\d{2})\.json/);
@@ -115,6 +117,13 @@ class CrosswordStatistics {
                 if (!dateMatch) continue;
                 
                 const puzzleDate = dateMatch[1];
+                const puzzleDateObj = new Date(puzzleDate + 'T00:00:00');
+                
+                // Filter: only include puzzles that are 11 years ago or older (same as archive.js)
+                if (puzzleDateObj > this.elevenYearsAgo) {
+                    continue;
+                }
+                
                 const displayDate = this.calculateDisplayDate(puzzleDate);
                 
                 // Check leaderboard data for this date
