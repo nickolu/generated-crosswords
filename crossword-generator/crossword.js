@@ -1764,7 +1764,8 @@ class CrosswordPuzzle {
                         // Switch to crossing down clue if it exists
                         const crossingClue = this.findCrossingClue('down');
                         if (crossingClue !== null) {
-                            this.selectCell(this.selectedCell, true);
+                            this.selectedClue = crossingClue;
+                            this.selectCell(this.selectedCell, false);
                             event.preventDefault();
                             return;
                         }
@@ -1789,7 +1790,8 @@ class CrosswordPuzzle {
                         // Switch to crossing down clue if it exists
                         const crossingClue = this.findCrossingClue('down');
                         if (crossingClue !== null) {
-                            this.selectCell(this.selectedCell, true);
+                            this.selectedClue = crossingClue;
+                            this.selectCell(this.selectedCell, false);
                             event.preventDefault();
                             return;
                         }
@@ -1814,7 +1816,8 @@ class CrosswordPuzzle {
                         // Switch to crossing across clue if it exists
                         const crossingClue = this.findCrossingClue('across');
                         if (crossingClue !== null) {
-                            this.selectCell(this.selectedCell, true);
+                            this.selectedClue = crossingClue;
+                            this.selectCell(this.selectedCell, false);
                             event.preventDefault();
                             return;
                         }
@@ -1839,7 +1842,8 @@ class CrosswordPuzzle {
                         // Switch to crossing across clue if it exists
                         const crossingClue = this.findCrossingClue('across');
                         if (crossingClue !== null) {
-                            this.selectCell(this.selectedCell, true);
+                            this.selectedClue = crossingClue;
+                            this.selectCell(this.selectedCell, false);
                             event.preventDefault();
                             return;
                         }
