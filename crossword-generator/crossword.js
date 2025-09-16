@@ -619,14 +619,17 @@ class CrosswordPuzzle {
             
             if (cell && userAnswer) {
                 if (this.showFeedback) {
-                    // Show feedback colors - use background property to override CSS gradients
+                    // Remove any existing autocheck classes
+                    cellElement.classList.remove('autocheck-correct', 'autocheck-incorrect');
+                    // Add appropriate autocheck class
                     if (cell.answer === userAnswer) {
-                        cellElement.style.setProperty('background', '#c8e6c9', 'important');
+                        cellElement.classList.add('autocheck-correct');
                     } else {
-                        cellElement.style.setProperty('background', '#ffcdd2', 'important');
+                        cellElement.classList.add('autocheck-incorrect');
                     }
                 } else {
-                    // Remove feedback colors
+                    // Remove autocheck classes and inline background styles
+                    cellElement.classList.remove('autocheck-correct', 'autocheck-incorrect');
                     cellElement.style.removeProperty('background');
                 }
             }
@@ -1089,10 +1092,12 @@ class CrosswordPuzzle {
             this.checkPuzzleCompletion();
             if (this.showFeedback) {
                 const cell = this.puzzle.cells[cellIndex];
+                // Remove any existing autocheck classes
+                event.target.classList.remove('autocheck-correct', 'autocheck-incorrect');
                 if (cell && cell.answer === firstValidChar) {
-                    event.target.style.setProperty('background', '#c8e6c9', 'important');
+                    event.target.classList.add('autocheck-correct');
                 } else {
-                    event.target.style.setProperty('background', '#ffcdd2', 'important');
+                    event.target.classList.add('autocheck-incorrect');
                 }
             }
         }
@@ -1710,12 +1715,16 @@ class CrosswordPuzzle {
                 
                 // Only show feedback if enabled
                 if (this.showFeedback && cell) {
+                    // Remove any existing autocheck classes
+                    currentCell.classList.remove('autocheck-correct', 'autocheck-incorrect');
                     if (cell.answer === letter) {
-                        currentCell.style.setProperty('background', '#c8e6c9', 'important');
+                        currentCell.classList.add('autocheck-correct');
                     } else {
-                        currentCell.style.setProperty('background', '#ffcdd2', 'important');
+                        currentCell.classList.add('autocheck-incorrect');
                     }
                 } else {
+                    // Remove autocheck classes and inline styles
+                    currentCell.classList.remove('autocheck-correct', 'autocheck-incorrect');
                     currentCell.style.removeProperty('background');
                 }
                 
@@ -1856,6 +1865,7 @@ class CrosswordPuzzle {
                         // Delete current cell content
                         currentCell.value = '';
                         delete this.userAnswers[this.selectedCell];
+                        currentCell.classList.remove('autocheck-correct', 'autocheck-incorrect');
                         currentCell.style.removeProperty('background');
                         
                         // Update empty state for cursor display
@@ -1874,6 +1884,7 @@ class CrosswordPuzzle {
                             if (prevCell) {
                                 prevCell.value = '';
                                 delete this.userAnswers[prevCellIndex];
+                                prevCell.classList.remove('autocheck-correct', 'autocheck-incorrect');
                                 prevCell.style.removeProperty('background');
                                 
                                 // Update empty state for cursor display
