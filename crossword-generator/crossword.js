@@ -1446,11 +1446,19 @@ class CrosswordPuzzle {
         console.log('Current clue direction:', this.getClueDirection(this.selectedClue));
         
         // Find a clue in the specified direction that crosses the current cell
-        const crossingClue = cell.clues.find(clueIndex => {
+        let crossingClue = null;
+        for (const clueIndex of cell.clues) {
             const clueDirection = this.getClueDirection(clueIndex);
-            console.log(`Checking clue ${clueIndex}: direction=${clueDirection}, matches=${clueDirection === direction}, different=${clueIndex !== this.selectedClue}`);
-            return clueIndex !== this.selectedClue && clueDirection === direction;
-        }) || null;
+            const matches = clueDirection === direction;
+            const different = clueIndex !== this.selectedClue;
+            console.log(`Checking clue ${clueIndex}: direction=${clueDirection}, matches=${matches}, different=${different}`);
+            
+            if (different && matches) {
+                console.log(`Found matching crossing clue: ${clueIndex}`);
+                crossingClue = clueIndex;
+                break;
+            }
+        }
         
         console.log('Found crossing clue:', crossingClue);
         return crossingClue;
