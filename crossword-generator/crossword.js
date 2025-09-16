@@ -27,6 +27,7 @@ class CrosswordPuzzle {
         console.log('isCompleted:', this.isCompleted);
         
         this.setupGrid();
+        this.clearAllFormInputs(); // Ensure clean state
         this.setupTimer();
         this.setupEventListeners();
         this.setupMobileClueNavigator();
@@ -389,6 +390,30 @@ class CrosswordPuzzle {
             // Use CSS custom property for responsive cell sizing
             grid.style.gridTemplateColumns = `repeat(${this.puzzle.dimensions.width}, var(--cell-size))`;
         }
+    }
+    
+    clearAllFormInputs() {
+        // Clear all form inputs to prevent state carryover between puzzles
+        const inputs = document.querySelectorAll('#crossword input.cell');
+        inputs.forEach(input => {
+            input.value = '';
+            input.removeAttribute('value');
+        });
+        
+        // Reset userAnswers object to be completely clean
+        this.userAnswers = {};
+        
+        // Clear any selected state
+        this.selectedCell = null;
+        this.selectedClue = null;
+        
+        // Remove any visual selections
+        document.querySelectorAll('.cell-wrapper.selected, .cell.selected').forEach(el => {
+            el.classList.remove('selected');
+        });
+        document.querySelectorAll('.clue-item.active').forEach(el => {
+            el.classList.remove('active');
+        });
     }
     
     setupMobileClueNavigator() {
@@ -2454,9 +2479,6 @@ class CrosswordLoader {
                 this.crosswordInstance.mobileMenuClickHandler = null;
             }
             
-            // Clear user answers before destroying instance
-            this.crosswordInstance.userAnswers = {};
-            
             // Clear the crossword instance
             this.crosswordInstance = null;
         }
@@ -2496,13 +2518,14 @@ class CrosswordLoader {
         if (persistentShareBtn) persistentShareBtn.disabled = true;
         if (mobileShareBtn) mobileShareBtn.disabled = true;
         
-        // Clear the puzzle grid and any input values
+        // Clear the puzzle grid
         const crosswordContainer = document.getElementById('crossword');
         if (crosswordContainer) {
-            // Clear any input values before removing elements
-            const inputs = crosswordContainer.querySelectorAll('input.cell');
+            // Clear any form inputs first to prevent browser caching
+            const inputs = crosswordContainer.querySelectorAll('input');
             inputs.forEach(input => {
                 input.value = '';
+                input.removeAttribute('value');
             });
             crosswordContainer.innerHTML = '';
         }
@@ -2774,25 +2797,22 @@ class CrosswordLoader {
         // Set grid template columns with responsive sizing
         grid.style.gridTemplateColumns = `repeat(${width}, var(--cell-size))`;
         
+        // Generate a unique puzzle identifier to prevent form state carryover
+        const puzzleId = this.puzzle.date ? this.puzzle.date.replace(/-/g, '') : Date.now().toString();
+        
         let gridHTML = '';
         this.puzzle.cells.forEach((cell, index) => {
             if (!cell || Object.keys(cell).length === 0) {
                 gridHTML += `<div class="cell black" data-index="${index}"></div>`;
             } else {
                 gridHTML += `<div class="cell-wrapper" data-index="${index}" style="position: relative;">
-                    <input class="cell" type="text" maxlength="1" data-index="${index}" autocomplete="off">
+                    <input class="cell" type="text" maxlength="1" data-index="${index}" autocomplete="off" value="" name="cell_${puzzleId}_${index}">
                     ${cell.label ? `<span class="cell-number">${cell.label}</span>` : ''}
                 </div>`;
             }
         });
         
         grid.innerHTML = gridHTML;
-        
-        // Explicitly clear all input values to prevent browser restoration
-        const inputs = grid.querySelectorAll('input.cell');
-        inputs.forEach(input => {
-            input.value = '';
-        });
     }
 
     generateClues() {
