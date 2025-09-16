@@ -213,11 +213,9 @@ class CrosswordStatistics {
         // Create bins for 0 to 240 seconds (4 minutes) in 20-second intervals
         for (let i = 0; i < 240; i += 20) {
             bins.push(0);
-            const startMin = Math.floor(i / 60);
-            const startSec = i % 60;
             const endMin = Math.floor((i + 20) / 60);
             const endSec = (i + 20) % 60;
-            binLabels.push(`${startMin}:${startSec.toString().padStart(2, '0')}-${endMin}:${endSec.toString().padStart(2, '0')}`);
+            binLabels.push(`${endMin}:${endSec.toString().padStart(2, '0')}`);
         }
         // Add 4+ minutes bin
         bins.push(0);

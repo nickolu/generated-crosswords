@@ -37,7 +37,7 @@
 
 .chart-container {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 40px;
     margin: 40px 0;
 }
@@ -173,7 +173,6 @@
     }
 
     .chart-container {
-        grid-template-columns: 1fr;
         gap: 20px;
         margin: 20px 0;
     }
