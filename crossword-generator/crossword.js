@@ -2454,6 +2454,9 @@ class CrosswordLoader {
                 this.crosswordInstance.mobileMenuClickHandler = null;
             }
             
+            // Clear user answers before destroying instance
+            this.crosswordInstance.userAnswers = {};
+            
             // Clear the crossword instance
             this.crosswordInstance = null;
         }
@@ -2493,9 +2496,14 @@ class CrosswordLoader {
         if (persistentShareBtn) persistentShareBtn.disabled = true;
         if (mobileShareBtn) mobileShareBtn.disabled = true;
         
-        // Clear the puzzle grid
+        // Clear the puzzle grid and any input values
         const crosswordContainer = document.getElementById('crossword');
         if (crosswordContainer) {
+            // Clear any input values before removing elements
+            const inputs = crosswordContainer.querySelectorAll('input.cell');
+            inputs.forEach(input => {
+                input.value = '';
+            });
             crosswordContainer.innerHTML = '';
         }
         
@@ -2772,13 +2780,19 @@ class CrosswordLoader {
                 gridHTML += `<div class="cell black" data-index="${index}"></div>`;
             } else {
                 gridHTML += `<div class="cell-wrapper" data-index="${index}" style="position: relative;">
-                    <input class="cell" type="text" maxlength="1" data-index="${index}">
+                    <input class="cell" type="text" maxlength="1" data-index="${index}" autocomplete="off">
                     ${cell.label ? `<span class="cell-number">${cell.label}</span>` : ''}
                 </div>`;
             }
         });
         
         grid.innerHTML = gridHTML;
+        
+        // Explicitly clear all input values to prevent browser restoration
+        const inputs = grid.querySelectorAll('input.cell');
+        inputs.forEach(input => {
+            input.value = '';
+        });
     }
 
     generateClues() {
