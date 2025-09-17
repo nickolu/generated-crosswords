@@ -6,28 +6,28 @@ class CrosswordStatistics {
             places: [],
             totalCompleted: 0,
             averageTime: 0,
-            bestTime: null
+            bestTime: null,
         };
         this.today = new Date();
         this.elevenYearsAgo = new Date(this.today.getFullYear() - 11, this.today.getMonth(), this.today.getDate());
         this.yearOffset = 11; // Same offset used in crossword.js
-        
+
         // Place emojis matching the crossword game
         this.placeEmojis = {
             1: '🥇',
-            2: '🥈', 
+            2: '🥈',
             3: '🥉',
             4: '🦥',
             5: '🐌',
             6: '🐢',
-            default: '⏳' // For 7th place and beyond
+            default: '⏳', // For 7th place and beyond
         };
-        
+
         this.init();
     }
 
     getCookie(name) {
-        const nameEQ = name + "=";
+        const nameEQ = name + '=';
         const ca = document.cookie.split(';');
         for (let i = 0; i < ca.length; i++) {
             let c = ca[i];
@@ -99,12 +99,12 @@ class CrosswordStatistics {
         if (!response.ok) {
             throw new Error('Failed to fetch puzzle list');
         }
-        
+
         const data = await response.json();
         const puzzleFiles = data.files || [];
-        
+
         const userCompletions = [];
-        
+
         // Check each puzzle for user completion
         for (const filename of puzzleFiles) {
             try {
@@ -113,43 +113,43 @@ class CrosswordStatistics {
                 if (!dateMatch) {
                     dateMatch = filename.match(/(\d{4}-\d{2}-\d{2})\.json/);
                 }
-                
+
                 if (!dateMatch) continue;
-                
+
                 const puzzleDate = dateMatch[1];
                 const puzzleDateObj = new Date(puzzleDate + 'T00:00:00');
-                
+
                 // Filter: only include puzzles that are 11 years ago or older (same as archive.js)
                 if (puzzleDateObj > this.elevenYearsAgo) {
                     continue;
                 }
-                
+
                 const displayDate = this.calculateDisplayDate(puzzleDate);
-                
+
                 // Check leaderboard data for this date
                 const leaderboardResponse = await fetch(`data/${displayDate}.json`, {
                     method: 'GET',
                     mode: 'cors',
-                    cache: 'no-cache'
+                    cache: 'no-cache',
                 });
-                
+
                 if (leaderboardResponse.ok) {
                     const leaderboardData = await leaderboardResponse.json();
                     const userTime = leaderboardData[this.userName];
-                    
+
                     if (userTime) {
                         // Calculate user's rank for this puzzle
                         const allTimes = Object.values(leaderboardData)
-                            .map(time => parseInt(time))
+                            .map((time) => parseInt(time))
                             .sort((a, b) => a - b);
-                        
+
                         const userTimeInt = parseInt(userTime);
                         const userRank = allTimes.indexOf(userTimeInt) + 1;
-                        
+
                         userCompletions.push({
                             date: displayDate,
                             time: userTimeInt,
-                            rank: userRank
+                            rank: userRank,
                         });
                     }
                 }
@@ -161,7 +161,7 @@ class CrosswordStatistics {
 
         // Process the completions into statistics
         this.processStatistics(userCompletions);
-        
+
         // Update the loading message
         if (userCompletions.length === 0) {
             statsContent.innerHTML = `
@@ -182,14 +182,14 @@ class CrosswordStatistics {
 
     processStatistics(completions) {
         this.userStats.totalCompleted = completions.length;
-        this.userStats.solveTimes = completions.map(c => c.time);
-        this.userStats.places = completions.map(c => c.rank);
-        
+        this.userStats.solveTimes = completions.map((c) => c.time);
+        this.userStats.places = completions.map((c) => c.rank);
+
         if (completions.length > 0) {
             // Calculate average time
             const totalTime = this.userStats.solveTimes.reduce((sum, time) => sum + time, 0);
             this.userStats.averageTime = Math.round(totalTime / completions.length);
-            
+
             // Find best time
             this.userStats.bestTime = Math.min(...this.userStats.solveTimes);
         }
@@ -197,7 +197,7 @@ class CrosswordStatistics {
 
     renderCharts() {
         if (this.userStats.totalCompleted === 0) return;
-        
+
         this.renderSolveTimesChart();
         this.renderPlacesChart();
     }
@@ -205,11 +205,11 @@ class CrosswordStatistics {
     renderSolveTimesChart() {
         const canvas = document.getElementById('solveTimesChart');
         const ctx = canvas.getContext('2d');
-        
+
         // Create time bins: 0-20s, 20-40s, 40-60s, etc., up to 4 minutes, then 4+ minutes
         const bins = [];
         const binLabels = [];
-        
+
         // Create bins for 0 to 240 seconds (4 minutes) in 20-second intervals
         for (let i = 0; i < 240; i += 20) {
             bins.push(0);
@@ -220,9 +220,9 @@ class CrosswordStatistics {
         // Add 4+ minutes bin
         bins.push(0);
         binLabels.push('4:00+');
-        
+
         // Count times in each bin
-        this.userStats.solveTimes.forEach(time => {
+        this.userStats.solveTimes.forEach((time) => {
             if (time >= 240) {
                 bins[bins.length - 1]++; // 4+ minutes bin
             } else {
@@ -232,18 +232,18 @@ class CrosswordStatistics {
                 }
             }
         });
-        
+
         this.drawBarChart(ctx, canvas, bins, binLabels, 'Solve Times', '#4a90e2');
     }
 
     renderPlacesChart() {
         const canvas = document.getElementById('placesChart');
         const ctx = canvas.getContext('2d');
-        
+
         // Create bins for each emoji place (1-6, then 7+)
         const emojiBins = {};
         const emojiLabels = [];
-        
+
         // Initialize bins for known emoji places
         for (let i = 1; i <= 6; i++) {
             const emoji = this.getRankEmoji(i);
@@ -254,13 +254,13 @@ class CrosswordStatistics {
         const defaultEmoji = this.getRankEmoji(7);
         emojiBins[defaultEmoji] = 0;
         emojiLabels.push(`${defaultEmoji}\n7th+`);
-        
+
         // Count places in each bin
-        this.userStats.places.forEach(place => {
+        this.userStats.places.forEach((place) => {
             const emoji = this.getRankEmoji(place);
             emojiBins[emoji]++;
         });
-        
+
         const bins = Object.values(emojiBins);
         this.drawBarChart(ctx, canvas, bins, emojiLabels, 'Leaderboard Positions', '#e67e22');
     }
@@ -268,16 +268,20 @@ class CrosswordStatistics {
     getOrdinalSuffix(num) {
         const lastDigit = num % 10;
         const lastTwoDigits = num % 100;
-        
+
         if (lastTwoDigits >= 11 && lastTwoDigits <= 13) {
             return 'th';
         }
-        
+
         switch (lastDigit) {
-            case 1: return 'st';
-            case 2: return 'nd';
-            case 3: return 'rd';
-            default: return 'th';
+            case 1:
+                return 'st';
+            case 2:
+                return 'nd';
+            case 3:
+                return 'rd';
+            default:
+                return 'th';
         }
     }
 
@@ -287,10 +291,10 @@ class CrosswordStatistics {
         const padding = 60;
         const chartWidth = width - padding * 2;
         const chartHeight = height - padding * 2;
-        
+
         // Clear canvas
         ctx.clearRect(0, 0, width, height);
-        
+
         // Find max value for scaling
         const maxValue = Math.max(...data);
         if (maxValue === 0) {
@@ -301,21 +305,21 @@ class CrosswordStatistics {
             ctx.fillText('No data to display', width / 2, height / 2);
             return;
         }
-        
+
         const barWidth = chartWidth / data.length;
         const scale = chartHeight / maxValue;
-        
+
         // Draw bars
         data.forEach((value, index) => {
             const barHeight = value * scale;
             const x = padding + index * barWidth + barWidth * 0.1;
             const y = height - padding - barHeight;
             const actualBarWidth = barWidth * 0.8;
-            
+
             // Draw bar
             ctx.fillStyle = color;
             ctx.fillRect(x, y, actualBarWidth, barHeight);
-            
+
             // Draw value on top of bar if greater than 0
             if (value > 0) {
                 ctx.fillStyle = '#333';
@@ -324,7 +328,7 @@ class CrosswordStatistics {
                 ctx.fillText(value, x + actualBarWidth / 2, y - 5);
             }
         });
-        
+
         // Draw axes
         ctx.strokeStyle = '#333';
         ctx.lineWidth = 1;
@@ -335,16 +339,16 @@ class CrosswordStatistics {
         // X-axis
         ctx.lineTo(width - padding, height - padding);
         ctx.stroke();
-        
+
         // Draw labels
         ctx.fillStyle = '#333';
         ctx.font = '15px Arial';
         ctx.textAlign = 'center';
-        
+
         labels.forEach((label, index) => {
             const x = padding + index * barWidth + barWidth / 2;
             const y = height - padding + 22;
-            
+
             // Rotate text for solve times chart to fit better
             if (title === 'Solve Times') {
                 ctx.save();
@@ -356,38 +360,38 @@ class CrosswordStatistics {
                 // Handle multi-line labels for leaderboard positions
                 const lines = label.split('\n');
                 lines.forEach((line, lineIndex) => {
-                    ctx.fillText(line, x, y + (lineIndex * 20));
+                    ctx.fillText(line, x, y + lineIndex * 20);
                 });
             }
         });
-        
+
         // Draw Y-axis labels
         ctx.textAlign = 'right';
         ctx.font = '15px Arial';
         for (let i = 0; i <= maxValue; i += Math.ceil(maxValue / 5)) {
-            const y = height - padding - (i * scale);
+            const y = height - padding - i * scale;
             ctx.fillText(i.toString(), padding - 10, y + 3);
         }
     }
 
     updateStatsSummary() {
         if (this.userStats.totalCompleted === 0) return;
-        
+
         // Show the summary section
         const summaryElement = document.getElementById('statsSummary');
         summaryElement.style.display = 'block';
-        
+
         // Update values
         document.getElementById('totalCompleted').textContent = this.userStats.totalCompleted;
         document.getElementById('averageTime').textContent = this.formatTimeFromSeconds(this.userStats.averageTime);
         document.getElementById('bestTime').textContent = this.formatTimeFromSeconds(this.userStats.bestTime);
-        
+
         // Find most common position
         const placeCounts = {};
-        this.userStats.places.forEach(place => {
+        this.userStats.places.forEach((place) => {
             placeCounts[place] = (placeCounts[place] || 0) + 1;
         });
-        
+
         let mostCommonPlace = 1;
         let maxCount = 0;
         for (const [place, count] of Object.entries(placeCounts)) {
@@ -396,10 +400,11 @@ class CrosswordStatistics {
                 mostCommonPlace = parseInt(place);
             }
         }
-        
+
         const mostCommonEmoji = this.getRankEmoji(mostCommonPlace);
-        document.getElementById('mostCommonPosition').textContent = 
-            `${mostCommonEmoji} ${mostCommonPlace}${this.getOrdinalSuffix(mostCommonPlace)} place`;
+        document.getElementById('mostCommonPosition').textContent = `${mostCommonEmoji} ${mostCommonPlace}${this.getOrdinalSuffix(
+            mostCommonPlace
+        )} place`;
     }
 }
 
