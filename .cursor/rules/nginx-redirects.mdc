@@ -1,0 +1,5 @@
+---
+description: our nginx config redirects links to our html files, don't rename the html files to match these links
+globs:
+alwaysApply: true
+---
