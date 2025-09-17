@@ -4,7 +4,9 @@
   "description": "A web-based crossword puzzle platform featuring interactive crossword solving with timer functionality, score tracking, and an archive system for historical puzzles.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "format": "prettier --write \"**/*.{js,css,html}\"",
+    "format:check": "prettier --check \"**/*.{js,css,html}\""
   },
   "repository": {
     "type": "git",
@@ -19,6 +21,14 @@
   "devDependencies": {
     "@eslint/js": "^9.34.0",
     "eslint": "^9.34.0",
-    "globals": "^16.3.0"
+    "globals": "^16.3.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.6",
+    "prettier": "^3.6.2"
+  },
+  "lint-staged": {
+    "*.{js,css,html}": [
+      "prettier --write"
+    ]
   }
 }
