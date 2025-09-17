@@ -1,209 +1,232 @@
 /* Archive Page Styles */
 
 .archive-container {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
 }
 
 .puzzle-list {
-    display: grid;
-    gap: 15px;
-    margin-top: 30px;
+  display: grid;
+  gap: 15px;
+  margin-top: 30px;
 }
 
 .puzzle-item {
-    padding: 20px;
-    background: linear-gradient(145deg, var(--color-background-surface), var(--color-background-surface-secondary));
-    border: 1px solid var(--color-border-primary);
-    border-radius: 8px;
-    text-decoration: none;
-    color: var(--color-text-primary);
-    transition: all 0.2s ease;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  padding: 20px;
+  background: linear-gradient(
+    145deg,
+    var(--color-background-surface),
+    var(--color-background-surface-secondary)
+  );
+  border: 1px solid var(--color-border-primary);
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--color-text-primary);
+  transition: all 0.2s ease;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .puzzle-item:hover {
-    background: linear-gradient(145deg, var(--color-background-surface-hover), var(--color-background-surface-hover-secondary));
-    border-color: var(--color-border-secondary);
-    box-shadow: 0 4px 12px var(--color-shadow-tertiary);
-    transform: translateY(-2px);
+  background: linear-gradient(
+    145deg,
+    var(--color-background-surface-hover),
+    var(--color-background-surface-hover-secondary)
+  );
+  border-color: var(--color-border-secondary);
+  box-shadow: 0 4px 12px var(--color-shadow-tertiary);
+  transform: translateY(-2px);
 }
 
 .puzzle-name {
-    font-size: 18px;
-    font-weight: 600;
-    font-family: 'Oswald', sans-serif;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+  font-size: 18px;
+  font-weight: 600;
+  font-family: 'Oswald', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .puzzle-date {
-    color: var(--color-text-secondary);
-    font-size: 14px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
 }
 
 .archive-loading {
-    text-align: center;
-    padding: 40px;
-    color: var(--color-text-secondary);
-    font-style: italic;
+  text-align: center;
+  padding: 40px;
+  color: var(--color-text-secondary);
+  font-style: italic;
 }
 
 .archive-error {
-    text-align: center;
-    padding: 40px;
-    color: var(--primitive-gold-500);
-    background: linear-gradient(145deg, var(--color-disabled-background), var(--color-disabled-background-secondary));
-    border-radius: 8px;
-    border: 1px solid var(--color-border-secondary);
+  text-align: center;
+  padding: 40px;
+  color: var(--primitive-gold-500);
+  background: linear-gradient(
+    145deg,
+    var(--color-disabled-background),
+    var(--color-disabled-background-secondary)
+  );
+  border-radius: 8px;
+  border: 1px solid var(--color-border-secondary);
 }
 
 .today-link {
-    background: linear-gradient(145deg, var(--color-selected-background), var(--color-selected-background-secondary));
-    border: 2px solid var(--color-selected-border);
-    color: var(--color-text-on-accent);
+  background: linear-gradient(
+    145deg,
+    var(--color-selected-background),
+    var(--color-selected-background-secondary)
+  );
+  border: 2px solid var(--color-selected-border);
+  color: var(--color-text-on-accent);
 }
 
 .today-link:hover {
-    background: linear-gradient(145deg, var(--color-hover-background), var(--color-hover-background-secondary));
+  background: linear-gradient(
+    145deg,
+    var(--color-hover-background),
+    var(--color-hover-background-secondary)
+  );
 }
 
 .puzzle-item.completed {
-    position: relative;
+  position: relative;
 }
 
 .puzzle-item.completed::after {
-    content: "✓";
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    background: #4caf50;
-    color: white;
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    font-weight: bold;
+  content: '✓';
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: #4caf50;
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
 }
 
-
 .completed-badge {
-    display: inline-block;
-    background: #4caf50;
-    color: white;
-    font-size: 12px;
-    font-weight: bold;
-    padding: 3px 8px;
-    border-radius: 12px;
-    margin-left: 8px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    vertical-align: middle;
+  display: inline-block;
+  background: #4caf50;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  padding: 3px 8px;
+  border-radius: 12px;
+  margin-left: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  vertical-align: middle;
 }
 
 /* Mobile-specific overrides for archive page */
 @media (max-width: 768px) {
-    /* Override the restrictive mobile rules from base.css for archive page */
-    html {
-        position: static !important;
-        height: auto !important;
-        overflow: auto !important;
-        touch-action: auto !important;
-    }
-    
-    body {
-        position: static !important;
-        height: auto !important;
-        overflow: auto !important;
-        min-height: 100vh !important;
-        padding: 10px !important;
-        margin: 0 !important;
-        width: auto !important;
-        -webkit-overflow-scrolling: touch !important;
-    }
-    
-    .page-container {
-        position: static !important;
-        height: auto !important;
-        overflow: visible !important;
-        display: block !important;
-        width: auto !important;
-        max-width: none !important;
-    }
-    
-    .archive-container {
-        padding: 15px;
-        max-width: none;
-    }
-    
-    .puzzle-list {
-        margin-top: 20px;
-        gap: 12px;
-    }
-    
-    .puzzle-item {
-        padding: 15px;
-        font-size: 16px;
-    }
-    
-    .puzzle-name {
-        font-size: 16px;
-    }
-    
-    .puzzle-date {
-        font-size: 13px;
-    }
-    
-    .puzzle-item.completed::after {
-        top: 10px;
-        right: 10px;
-        width: 20px;
-        height: 20px;
-        font-size: 12px;
-    }
-    
-    .completed-badge {
-        font-size: 11px;
-        padding: 2px 6px;
-        margin-left: 6px;
-    }
+  /* Override the restrictive mobile rules from base.css for archive page */
+  html {
+    position: static !important;
+    height: auto !important;
+    overflow: auto !important;
+    touch-action: auto !important;
+  }
+
+  body {
+    position: static !important;
+    height: auto !important;
+    overflow: auto !important;
+    min-height: 100vh !important;
+    padding: 10px !important;
+    margin: 0 !important;
+    width: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .page-container {
+    position: static !important;
+    height: auto !important;
+    overflow: visible !important;
+    display: block !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+
+  .archive-container {
+    padding: 15px;
+    max-width: none;
+  }
+
+  .puzzle-list {
+    margin-top: 20px;
+    gap: 12px;
+  }
+
+  .puzzle-item {
+    padding: 15px;
+    font-size: 16px;
+  }
+
+  .puzzle-name {
+    font-size: 16px;
+  }
+
+  .puzzle-date {
+    font-size: 13px;
+  }
+
+  .puzzle-item.completed::after {
+    top: 10px;
+    right: 10px;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+  }
+
+  .completed-badge {
+    font-size: 11px;
+    padding: 2px 6px;
+    margin-left: 6px;
+  }
 }
 
 /* Extra small mobile screens */
 @media (max-width: 430px) {
-    .archive-container {
-        padding: 10px;
-    }
-    
-    .puzzle-item {
-        padding: 12px;
-    }
-    
-    .puzzle-name {
-        font-size: 15px;
-    }
-    
-    .puzzle-date {
-        font-size: 12px;
-    }
-    
-    .puzzle-item.completed::after {
-        top: 8px;
-        right: 8px;
-        width: 18px;
-        height: 18px;
-        font-size: 11px;
-    }
-    
-    .completed-badge {
-        font-size: 10px;
-        padding: 2px 5px;
-        margin-left: 4px;
-    }
+  .archive-container {
+    padding: 10px;
+  }
+
+  .puzzle-item {
+    padding: 12px;
+  }
+
+  .puzzle-name {
+    font-size: 15px;
+  }
+
+  .puzzle-date {
+    font-size: 12px;
+  }
+
+  .puzzle-item.completed::after {
+    top: 8px;
+    right: 8px;
+    width: 18px;
+    height: 18px;
+    font-size: 11px;
+  }
+
+  .completed-badge {
+    font-size: 10px;
+    padding: 2px 5px;
+    margin-left: 4px;
+  }
+}
+
+.test-test-test {
+  background: red;
 }
