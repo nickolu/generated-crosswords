@@ -131,7 +131,7 @@
 }
 
 .calendar-day.completed:hover {
-  background: linear-gradient(145deg, #bbdefb, #90caf9);
+  background: linear-gradient(145deg, #95cfff, #5ab5ff);
   box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
   transform: translateY(-2px);
 }
