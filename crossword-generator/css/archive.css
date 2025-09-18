@@ -167,6 +167,9 @@
 
 .completion-place {
   font-size: 16px;
+  background: rgba(255, 255, 255, 0.801);
+  padding: 2px 6px;
+  border-radius: 4px;
 }
 
 .play-button {
