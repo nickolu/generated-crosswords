@@ -392,18 +392,18 @@
 
   /* Calendar mobile styles */
   .calendar-header {
-    flex-direction: column;
-    gap: 15px;
+    flex-direction: row;
+    gap: 10px;
     margin-bottom: 15px;
   }
 
   .calendar-header-center {
-    order: 1;
+    flex: 1;
     gap: 6px;
   }
 
   .calendar-month-title {
-    font-size: 20px;
+    font-size: 18px;
   }
 
   .calendar-today-btn {
@@ -412,9 +412,32 @@
   }
 
   .calendar-nav-btn {
-    padding: 12px 20px;
-    font-size: 14px;
-    min-width: 120px;
+    padding: 8px 12px;
+    font-size: 18px;
+    min-width: auto;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Change button text to arrows on mobile */
+  .calendar-nav-btn:first-child::before {
+    content: '<';
+  }
+
+  .calendar-nav-btn:last-child::before {
+    content: '>';
+  }
+
+  .calendar-nav-btn {
+    font-size: 0; /* Hide original text */
+  }
+
+  .calendar-nav-btn::before {
+    font-size: 18px;
+    font-weight: bold;
   }
 
   .calendar-day-header {
@@ -486,7 +509,7 @@
   }
 
   .calendar-month-title {
-    font-size: 18px;
+    font-size: 16px;
   }
 
   .calendar-today-btn {
@@ -495,9 +518,13 @@
   }
 
   .calendar-nav-btn {
-    padding: 10px 16px;
-    font-size: 13px;
-    min-width: 100px;
+    width: 40px;
+    height: 40px;
+    padding: 6px;
+  }
+
+  .calendar-nav-btn::before {
+    font-size: 16px;
   }
 
   .calendar-day-header {
