@@ -125,13 +125,13 @@
 
 .calendar-day.completed {
   cursor: pointer;
-  background: linear-gradient(145deg, #e3f2fd, #bbdefb);
+  background: linear-gradient(145deg, #bce3ff, #8dcbff);
   border: 2px solid #4caf50;
   color: #1565c0;
 }
 
 .calendar-day.completed:hover {
-  background: linear-gradient(145deg, #95cfff, #5ab5ff);
+  background: linear-gradient(145deg, #98d1ff, #90caf9);
   box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
   transform: translateY(-2px);
 }
