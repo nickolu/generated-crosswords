@@ -19,6 +19,13 @@
   padding: 0 10px;
 }
 
+.calendar-header-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
 .calendar-month-title {
   font-size: 24px;
   font-weight: 700;
@@ -27,6 +34,35 @@
   letter-spacing: 1px;
   color: var(--color-text-primary);
   margin: 0;
+}
+
+.calendar-today-btn {
+  background: linear-gradient(
+    145deg,
+    var(--color-selected-background),
+    var(--color-selected-background-secondary)
+  );
+  border: 1px solid var(--color-selected-border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Oswald', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-on-accent);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.calendar-today-btn:hover {
+  background: linear-gradient(
+    145deg,
+    var(--color-hover-background),
+    var(--color-hover-background-secondary)
+  );
+  box-shadow: 0 2px 8px var(--color-shadow-tertiary);
+  transform: translateY(-1px);
 }
 
 .calendar-nav-btn {
@@ -361,9 +397,18 @@
     margin-bottom: 15px;
   }
 
+  .calendar-header-center {
+    order: 1;
+    gap: 6px;
+  }
+
   .calendar-month-title {
     font-size: 20px;
-    order: 1;
+  }
+
+  .calendar-today-btn {
+    font-size: 11px;
+    padding: 5px 10px;
   }
 
   .calendar-nav-btn {
@@ -442,6 +487,11 @@
 
   .calendar-month-title {
     font-size: 18px;
+  }
+
+  .calendar-today-btn {
+    font-size: 10px;
+    padding: 4px 8px;
   }
 
   .calendar-nav-btn {

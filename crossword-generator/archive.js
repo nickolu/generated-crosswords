@@ -150,6 +150,7 @@ class CrosswordArchive {
   setupNavigationHandlers() {
     const prevButton = document.getElementById('prevMonth');
     const nextButton = document.getElementById('nextMonth');
+    const todayButton = document.getElementById('todayBtn');
 
     prevButton.addEventListener('click', () => {
       this.currentDate.setMonth(this.currentDate.getMonth() - 1);
@@ -158,6 +159,12 @@ class CrosswordArchive {
 
     nextButton.addEventListener('click', () => {
       this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+      this.renderCalendar();
+    });
+
+    todayButton.addEventListener('click', () => {
+      // Jump to today's month (which is 11 years ago in puzzle terms)
+      this.currentDate = new Date(this.elevenYearsAgo);
       this.renderCalendar();
     });
   }
