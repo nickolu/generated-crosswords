@@ -24,6 +24,7 @@ classifiers = [
 ]
 
 dependencies = [
+    "argparse>=1.4.0",
     # No external dependencies needed for basic functionality
     "tqdm>=4.67.1",
 ]

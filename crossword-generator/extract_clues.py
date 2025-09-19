@@ -4,6 +4,7 @@ Extracts clue/answer pairs from crossword JSON files and builds a master list.
 Now includes Collins Scrabble Words dictionary with quality ratings.
 """
 
+import argparse
 import csv
 import json
 from pathlib import Path
@@ -134,6 +135,7 @@ def build_master_clue_list(crosswords_dir: str, collins_file: str = None, output
     file_count = 0
     seen_pairs = set()  # Track exact clue/answer pairs to avoid duplicates
     answer_quality = {}  # Track the best quality for each answer
+    max_clue_length = 0  # Track maximum clue length from crossword files
     
     print(f"Scanning crossword files in {crosswords_path}...")
     
@@ -146,6 +148,9 @@ def build_master_clue_list(crosswords_dir: str, collins_file: str = None, output
         clue_pairs = extract_clue_answer_pairs(str(json_file))
         
         for clue, answer in clue_pairs.items():
+            # Track maximum clue length
+            max_clue_length = max(max_clue_length, len(clue))
+            
             clue_answer_pair = (clue, answer)
             if clue_answer_pair in seen_pairs:
                 # Exact same clue/answer pair already exists
@@ -162,6 +167,7 @@ def build_master_clue_list(crosswords_dir: str, collins_file: str = None, output
     print(f"\nProcessed {file_count} crossword files")
     print(f"Found {len(master_clues)} unique clue/answer pairs from crosswords")
     print(f"Skipped {duplicate_count} exact duplicate clue/answer pairs")
+    print(f"Maximum clue length from crosswords: {max_clue_length} characters")
     
     # Process Collins dictionary if provided (quality = 2)
     if collins_file and Path(collins_file).exists():
@@ -170,8 +176,14 @@ def build_master_clue_list(crosswords_dir: str, collins_file: str = None, output
         collins_added = 0
         collins_duplicates = 0
         collins_quality_skipped = 0
+        collins_length_skipped = 0
         
         for clue, answer in collins_words:
+            # Skip Collins clues that are longer than the maximum clue length from crosswords
+            if len(clue) > max_clue_length:
+                collins_length_skipped += 1
+                continue
+                
             clue_answer_pair = (clue, answer)
             if clue_answer_pair in seen_pairs:
                 collins_duplicates += 1
@@ -193,6 +205,7 @@ def build_master_clue_list(crosswords_dir: str, collins_file: str = None, output
         print(f"Added {collins_added} unique clue/answer pairs from Collins dictionary")
         print(f"Skipped {collins_duplicates} Collins pairs that matched existing crossword clues")
         print(f"Skipped {collins_quality_skipped} Collins pairs where higher quality clues already exist")
+        print(f"Skipped {collins_length_skipped} Collins pairs with clue length > {max_clue_length} characters")
     
     print(f"\nTotal unique clue/answer pairs: {len(master_clues)}")
     
@@ -205,13 +218,67 @@ def build_master_clue_list(crosswords_dir: str, collins_file: str = None, output
     return master_clues
 
 
-if __name__ == "__main__":
-    # Extract clues from crosswords directory and Collins dictionary
-    crosswords_directory = "../crosswords"
-    collins_dictionary = "Collins-Scrabble-Words-2019.tsv"
-    master_clues = build_master_clue_list(crosswords_directory, collins_dictionary)
+def parse_arguments():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Extract clue/answer pairs from crossword JSON files and Collins dictionary",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+This script processes crossword JSON files and optionally a Collins Scrabble Words dictionary
+to build a master list of clue/answer pairs with quality ratings.
+
+Quality ratings:
+  - Quality 1: Clues from existing crossword files (highest priority)
+  - Quality 2: Clues from Collins dictionary (lower priority)
+
+The script automatically filters Collins clues to match the length of existing crossword clues
+and skips duplicates, prioritizing higher quality clues.
+
+Examples:
+  python extract_clues.py
+  python extract_clues.py --crosswords-dir ./my-crosswords --output my_clues.json
+  python extract_clues.py --no-collins --output crossword_only.json
+        """
+    )
     
-    # Print some statistics
+    parser.add_argument(
+        "--crosswords-dir",
+        type=str,
+        default="../crosswords",
+        help="Directory containing crossword JSON files (default: ../crosswords)"
+    )
+    
+    parser.add_argument(
+        "--collins-file",
+        type=str,
+        default="Collins-Scrabble-Words-2019.tsv",
+        help="Path to Collins Scrabble Words TSV file (default: Collins-Scrabble-Words-2019.tsv)"
+    )
+    
+    parser.add_argument(
+        "--output",
+        type=str,
+        default="master_clues.json",
+        help="Output file for master clue list (default: master_clues.json)"
+    )
+    
+    parser.add_argument(
+        "--no-collins",
+        action="store_true",
+        help="Skip processing Collins dictionary, only use crossword files"
+    )
+    
+    parser.add_argument(
+        "--stats",
+        action="store_true",
+        help="Show detailed statistics after processing"
+    )
+    
+    return parser.parse_args()
+
+
+def print_statistics(master_clues: List[Tuple[str, str, int]]):
+    """Print detailed statistics about the master clue list."""
     answer_lengths = {}
     quality_counts = {1: 0, 2: 0}
     
@@ -227,3 +294,34 @@ if __name__ == "__main__":
     print("\nQuality distribution:")
     print(f"  Quality 1 (crossword clues): {quality_counts[1]} answers")
     print(f"  Quality 2 (dictionary words): {quality_counts[2]} answers")
+
+
+def main():
+    """Main workflow for clue extraction."""
+    args = parse_arguments()
+    
+    # Check if crosswords directory exists
+    if not Path(args.crosswords_dir).exists():
+        print(f"Error: Crosswords directory '{args.crosswords_dir}' not found!")
+        print("Please ensure the crosswords directory exists and contains JSON files.")
+        return 1
+    
+    # Check if Collins file exists (if not skipping it)
+    collins_file = None if args.no_collins else args.collins_file
+    if collins_file and not Path(collins_file).exists():
+        print(f"Warning: Collins dictionary file '{collins_file}' not found!")
+        print("Proceeding without Collins dictionary...")
+        collins_file = None
+    
+    # Extract clues
+    master_clues = build_master_clue_list(args.crosswords_dir, collins_file, args.output)
+    
+    # Print statistics if requested
+    if args.stats:
+        print_statistics(master_clues)
+    
+    return 0
+
+
+if __name__ == "__main__":
+    exit(main())

@@ -5,13 +5,14 @@ Complete crossword generator script that handles the entire workflow:
 2. Generate new 5x5 crosswords using those pairs
 """
 
+import argparse
 import json
 import random
 import sys
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Set, Tuple
+from typing import List, Set, Tuple
 
 from extract_clues import build_master_clue_list
 from tqdm import tqdm
@@ -680,20 +681,34 @@ class CrosswordGenerator:
         total_quality = sum(word.quality for word in final_words)
         return total_quality / len(final_words)
 
-    def generate_crossword(
-        self, max_attempts: int = 1000, verbose_level: int = 1
-    ) -> Optional[CrosswordGrid]:
-        """Generate a valid 5x5 crossword."""
-        verbose_attempts_max = 1000
-        best_grid = None
-        best_score = float('inf')
-        valid_crosswords = []  # Store all valid crosswords to choose best quality
+
+    def generate_crosswords_batch(
+        self, count: int, max_iterations: int, verbose_level: int = 1
+    ) -> List[CrosswordGrid]:
+        """Generate multiple crosswords with a total iteration limit.
         
-        for attempt in tqdm(range(max_attempts)):
-            verbose_iteration_1 = verbose_level >= 1 and attempt < verbose_attempts_max
-            verbose_iteration_2 = verbose_level >= 2 and attempt < verbose_attempts_max
-            if verbose_iteration_1 and (attempt % 100 == 0 or attempt < verbose_attempts_max):
+        Args:
+            count: Number of crosswords to return
+            max_iterations: Maximum total iterations to run
+            verbose_level: Verbosity level for output
+            
+        Returns:
+            List of crosswords, with perfect puzzles first, then imperfect puzzles
+        """
+        perfect_crosswords = []
+        imperfect_crosswords = []
+        
+        print(f"Generating {count} crosswords with max {max_iterations} total iterations...")
+        
+        # Single iteration counter running to max_iterations
+        for attempt in tqdm(range(max_iterations)):
+            verbose_iteration_1 = verbose_level >= 1 and attempt < 1000
+            verbose_iteration_2 = verbose_level >= 2 and attempt < 1000
+            
+            if verbose_iteration_1 and (attempt % 100 == 0 or attempt < 1000):
                 tqdm.write(f"\nAttempt {attempt + 1}:")
+                tqdm.write(f"  Perfect puzzles found: {len(perfect_crosswords)}")
+                tqdm.write(f"  Imperfect puzzles found: {len(imperfect_crosswords)}")
 
             grid = CrosswordGrid()
 
@@ -704,7 +719,9 @@ class CrosswordGenerator:
                 + self.get_best_quality_words(5, target_quality=1, max_results=20)
             )
             if not center_words:
-                raise ValueError("  ✗ No center words available")
+                if verbose_iteration_1:
+                    tqdm.write("  ✗ No center words available")
+                continue
 
             start_word, start_clue, start_quality = random.choice(center_words)
             start_direction = random.choice([Direction.ACROSS, Direction.DOWN])
@@ -785,12 +802,6 @@ class CrosswordGenerator:
             used_answers = grid.get_used_answers()
             invalid_sequences = grid.count_invalid_sequences(self.available_answers)
 
-            # Track best attempt so far
-            current_score = self._score_puzzle_quality(grid)
-            if current_score < best_score:
-                best_score = current_score
-                best_grid = CrosswordGrid(grid.size, [row[:] for row in grid.grid], grid.words[:])
-
             if verbose_iteration_1:
                 # Calculate final word count including unintended sequences
                 final_word_count = grid.get_final_word_count(self.available_answers, self.clue_lookup, self.clue_list)
@@ -801,88 +812,128 @@ class CrosswordGenerator:
                     f"  → Validation: all_sequences_valid={invalid_sequences == 0}, no_repeats={len(used_answers) == len(grid.words)}"
                 )
 
-            if (
+            # Check if this is a valid crossword
+            is_valid = (
                 empty_squares <= 6
                 and len(used_answers) == len(grid.words)  # No repeated answers
                 and len(grid.words) >= 6  # Minimum number of words
                 and invalid_sequences == 0
-            ):  # All letter sequences are valid words
-                # Store this valid crossword with its quality score (using final words including unintended sequences)
+            )  # All letter sequences are valid words
+
+            if is_valid:
+                # Calculate quality score
                 quality_score = self.calculate_average_quality(grid, self.available_answers, self.clue_lookup)
-                valid_crosswords.append((CrosswordGrid(grid.size, [row[:] for row in grid.grid], grid.words[:]), quality_score))
                 
-                if verbose_iteration_1:
-                    tqdm.write(f"\n✓ Found valid crossword #{len(valid_crosswords)} in {attempt + 1} attempts! (Quality: {quality_score:.2f})")
+                # Create a copy of the grid
+                grid_copy = CrosswordGrid(grid.size, [row[:] for row in grid.grid], grid.words[:])
                 
-                # If this is a perfect quality score (1.0), return immediately
                 if quality_score == 1.0:
-                    tqdm.write("\n🎯 Perfect quality crossword found! Returning immediately.")
-                    return CrosswordGrid(grid.size, [row[:] for row in grid.grid], grid.words[:])
+                    # Perfect puzzle
+                    perfect_crosswords.append(grid_copy)
+                    tqdm.write(f"\n🎯 Found perfect crossword #{len(perfect_crosswords)} in {attempt + 1} attempts! (Quality: {quality_score:.2f})")
+                else:
+                    # Imperfect but valid puzzle
+                    imperfect_crosswords.append(grid_copy)
+                    if verbose_iteration_1:
+                        tqdm.write(f"\n✓ Found imperfect crossword #{len(imperfect_crosswords)} in {attempt + 1} attempts! (Quality: {quality_score:.2f})")
                 
-                # Continue searching for more crosswords instead of returning immediately
+                # Check if we have enough perfect puzzles
+                if len(perfect_crosswords) >= count:
+                    tqdm.write(f"\n🎯 Found {len(perfect_crosswords)} perfect puzzles! Stopping early.")
+                    break
+                    
+            else:
+                # Show why this attempt failed if verbose
+                if verbose_iteration_1:
+                    reasons = []
+                    if empty_squares > 6:
+                        reasons.append(f"too many empty squares ({empty_squares})")
+                    if len(used_answers) != len(grid.words):
+                        reasons.append(
+                            f"repeated answers ({len(grid.words) - len(used_answers)} duplicates)"
+                        )
+                    if len(grid.words) < 6:
+                        reasons.append(f"too few words ({len(grid.words)})")
+                    if invalid_sequences > 0:
+                        reasons.append(f"invalid letter sequences ({invalid_sequences})")
+                    tqdm.write(f"  ✗ Failed: {', '.join(reasons)}")
 
-            # Show why this attempt failed if verbose
-            if verbose_iteration_1:
-                reasons = []
-                if empty_squares > 6:
-                    reasons.append(f"too many empty squares ({empty_squares})")
-                if len(used_answers) != len(grid.words):
-                    reasons.append(
-                        f"repeated answers ({len(grid.words) - len(used_answers)} duplicates)"
-                    )
-                if len(grid.words) < 6:
-                    reasons.append(f"too few words ({len(grid.words)})")
-                if invalid_sequences > 0:
-                    reasons.append(f"invalid letter sequences ({invalid_sequences})")
-                tqdm.write(f"  ✗ Failed: {', '.join(reasons)}")
+        # Prepare final results
+        result = []
+        
+        # Add perfect puzzles first (up to count)
+        perfect_to_add = min(len(perfect_crosswords), count)
+        result.extend(perfect_crosswords[:perfect_to_add])
+        
+        # Add imperfect puzzles to fill remaining slots
+        remaining_slots = count - perfect_to_add
+        if remaining_slots > 0:
+            imperfect_to_add = min(len(imperfect_crosswords), remaining_slots)
+            result.extend(imperfect_crosswords[:imperfect_to_add])
+        
+        # Print summary
+        print(f"\n{'='*60}")
+        print("BATCH GENERATION SUMMARY")
+        print(f"{'='*60}")
+        print(f"Total iterations: {max_iterations}")
+        print(f"Perfect puzzles found: {len(perfect_crosswords)}")
+        print(f"Imperfect puzzles found: {len(imperfect_crosswords)}")
+        print(f"Puzzles returned: {len(result)}")
+        print(f"Perfect puzzles in result: {perfect_to_add}")
+        print(f"Imperfect puzzles in result: {len(result) - perfect_to_add}")
+        
+        return result
 
-        # After all attempts, select the best quality crossword if any were found
-        if valid_crosswords:
-            # Sort by quality score (lower is better - quality 1 is better than quality 2)
-            valid_crosswords.sort(key=lambda x: x[1])
-            best_quality_grid, best_quality_score = valid_crosswords[0]
-            
-            tqdm.write(f"\n🎉 Generated {len(valid_crosswords)} valid crossword(s) after {max_attempts} attempts!")
-            tqdm.write(f"Selected crossword with best quality score: {best_quality_score:.2f}")
-            
-            return best_quality_grid
-        
-        tqdm.write(f"Failed to generate valid crossword after {max_attempts} attempts")
-        
-        # Show summary of closest match
-        if best_grid is not None:
-            tqdm.write(f"\n{'='*60}")
-            tqdm.write("CLOSEST MATCH TO VALID PUZZLE:")
-            tqdm.write(f"{'='*60}")
-            
-            best_empty = best_grid.count_empty_squares()
-            best_invalid = best_grid.count_invalid_sequences(self.available_answers)
-            best_avg_quality = self.calculate_average_quality(best_grid, self.available_answers, self.clue_lookup)
-            
-            # Calculate final word counts including unintended sequences
-            best_final_word_count = best_grid.get_final_word_count(self.available_answers, self.clue_lookup, self.clue_list)
-            best_final_words = best_grid.get_final_words(self.available_answers, self.clue_lookup, self.clue_list)
-            best_final_used_answers = {word.text for word in best_final_words}
-            
-            tqdm.write(f"Overall Score: {best_score} (lower is better)")
-            tqdm.write(f"Quality Score: {best_avg_quality:.2f} (lower is better)")
-            tqdm.write(f"Empty squares: {best_empty}")
-            tqdm.write(f"Invalid letter sequences: {best_invalid}")
-            tqdm.write(f"Placed words: {len(best_grid.words)}")
-            tqdm.write(f"Total words: {best_final_word_count} (including unintended sequences)")
-            tqdm.write(f"Unique answers: {len(best_final_used_answers)}")
-            tqdm.write(f"Repeated answers: {best_final_word_count - len(best_final_used_answers)}")
-            
-            # Display the best grid
-            best_grid.display(self.available_answers, self.clue_lookup, self.clue_list)
-        
-        return None
+
+def parse_arguments():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Generate 5x5 crosswords using extracted clue/answer pairs",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Note: The generator uses batch mode and will:
+  - Run up to max-iterations total attempts
+  - Collect both perfect and imperfect valid puzzles
+  - Return perfect puzzles first, then imperfect puzzles
+  - Stop early if enough perfect puzzles are found
+
+Examples:
+  python crossword_generator.py
+  python crossword_generator.py --count 5
+  python crossword_generator.py --count 3 --max-iterations 5000
+  python crossword_generator.py --extract --count 3
+        """
+    )
+    
+    parser.add_argument(
+        "--extract",
+        action="store_true",
+        help="Force re-extraction of clues from JSON files"
+    )
+    
+    parser.add_argument(
+        "--count",
+        type=int,
+        default=1,
+        help="Generate N crosswords (default: 1)"
+    )
+    
+    parser.add_argument(
+        "--max-iterations",
+        type=int,
+        help="Set maximum total iterations (default: 2000 * count)"
+    )
+    
+    return parser.parse_args()
 
 
 def main():
     """Main workflow for crossword generation."""
     print("Crossword Generator")
     print("==================")
+
+    # Parse command line arguments
+    args = parse_arguments()
 
     crosswords_dir = "../crosswords"
     master_clues_file = "master_clues.json"
@@ -894,7 +945,7 @@ def main():
         sys.exit(1)
 
     # Step 1: Extract clues if master file doesn't exist or if forced
-    if not Path(master_clues_file).exists() or "--extract" in sys.argv:
+    if not Path(master_clues_file).exists() or args.extract:
         print("\nStep 1: Extracting clue/answer pairs from crossword files...")
         try:
             collins_dictionary = "Collins-Scrabble-Words-2019.tsv"
@@ -915,42 +966,41 @@ def main():
         generator = CrosswordGenerator(master_clues_file)
 
         # Determine how many crosswords to generate
-        num_crosswords = 1
-        if "--count" in sys.argv:
-            try:
-                count_idx = sys.argv.index("--count") + 1
-                if count_idx < len(sys.argv):
-                    num_crosswords = int(sys.argv[count_idx])
-            except (ValueError, IndexError):
-                print("Invalid --count argument, using default of 1")
+        num_crosswords = args.count
 
+        # Determine maximum iterations
+        if args.max_iterations is not None:
+            max_iterations = args.max_iterations
+        else:
+            max_iterations = 2000 * num_crosswords  # Default: 2000 per crossword
+
+        # Use batch generation for all cases
+        print(f"Using batch generation: {num_crosswords} crosswords, max {max_iterations} iterations")
+        crosswords = generator.generate_crosswords_batch(num_crosswords, max_iterations, verbose_level=0)
+        
         success_count = 0
-        for i in range(num_crosswords):
+        for i, crossword in enumerate(crosswords):
             print(f"\n{'=' * 60}")
-            print(f"Generating crossword #{i + 1} of {num_crosswords}")
+            print(f"Crossword #{i + 1} of {len(crosswords)}")
             print("=" * 60)
-
-            # Only show verbose output for the first crossword to avoid spam
-            crossword = generator.generate_crossword(verbose_level=0)
-            if crossword:
-                crossword.display(generator.available_answers, generator.clue_lookup, generator.clue_list)
-                
-                # Get final words including unintended sequences
-                final_words = crossword.get_final_words(generator.available_answers, generator.clue_lookup, generator.clue_list)
-                final_word_count = len(final_words)
-                final_used_answers = {word.text for word in final_words}
-                
-                # Calculate average quality using final words
-                avg_quality = generator.calculate_average_quality(crossword, generator.available_answers, generator.clue_lookup)
-                
-                print("\nStats:")
-                print(f"  Empty squares: {crossword.count_empty_squares()}")
-                print(f"  Total words: {final_word_count}")
-                print(f"  Unique answers: {len(final_used_answers)}")
-                print(f"  Average quality score: {avg_quality:.2f}")
-                success_count += 1
-            else:
-                print("Failed to generate this crossword")
+            
+            crossword.display(generator.available_answers, generator.clue_lookup, generator.clue_list)
+            
+            # Get final words including unintended sequences
+            final_words = crossword.get_final_words(generator.available_answers, generator.clue_lookup, generator.clue_list)
+            final_word_count = len(final_words)
+            final_used_answers = {word.text for word in final_words}
+            
+            # Calculate average quality using final words
+            avg_quality = generator.calculate_average_quality(crossword, generator.available_answers, generator.clue_lookup)
+            
+            print("\nStats:")
+            print(f"  Empty squares: {crossword.count_empty_squares()}")
+            print(f"  Total words: {final_word_count}")
+            print(f"  Unique answers: {len(final_used_answers)}")
+            print(f"  Average quality score: {avg_quality:.2f}")
+            print(f"  Puzzle type: {'Perfect' if avg_quality == 1.0 else 'Imperfect'}")
+            success_count += 1
 
         print(f"\n{'=' * 60}")
         print(f"Generated {success_count} out of {num_crosswords} crosswords successfully!")
@@ -960,23 +1010,5 @@ def main():
         sys.exit(1)
 
 
-def print_usage():
-    """Print usage information."""
-    print("Usage: python crossword_generator.py [OPTIONS]")
-    print()
-    print("Options:")
-    print("  --extract    Force re-extraction of clues from JSON files")
-    print("  --count N    Generate N crosswords (default: 1)")
-    print("  --help       Show this help message")
-    print()
-    print("Examples:")
-    print("  python crossword_generator.py")
-    print("  python crossword_generator.py --count 5")
-    print("  python crossword_generator.py --extract --count 3")
-
-
 if __name__ == "__main__":
-    if "--help" in sys.argv:
-        print_usage()
-    else:
-        main()
+    main()
