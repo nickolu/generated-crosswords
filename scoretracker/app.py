@@ -10,7 +10,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory
 
 app = Flask(__name__)
 
@@ -142,8 +142,8 @@ def list_crosswords():
 
 @app.route('/crossword-generator/<path:filename>')
 def crossword_assets(filename):
-    """Serve crossword generator assets (JS, CSS, etc.)."""
-    return send_from_directory(ROOT_DIR / 'crossword-generator', filename)
+    """Serve crossword generator assets (JS, CSS, etc.) from root directory."""
+    return send_from_directory(ROOT_DIR, filename)
 
 
 @app.route('/data/<path:filename>')

@@ -16,7 +16,7 @@ A web-based crossword puzzle platform featuring interactive crossword solving wi
   - Archive access for historical puzzles
 - **`archive.html`** - Archive browser displaying available crossword puzzles with date filtering
 
-### Crossword Engine (`/crossword-generator/`)
+### Web Assets (`/`)
 
 - **`crossword.js`** - Core crossword puzzle JavaScript library providing:
   - Interactive grid navigation and input handling
@@ -25,13 +25,24 @@ A web-based crossword puzzle platform featuring interactive crossword solving wi
   - Leaderboard functionality with score submission
   - Cookie-based user preferences
   - Dynamic puzzle loading from JSON data
+- **`archive.js`** - Archive browser functionality for navigating historical puzzles
+- **`statistics.js`** - Statistics page functionality for viewing user performance data
 - **`crossword.css`** - Styling for the crossword interface with responsive design
+- **`css/`** - Additional CSS modules for specific components (animations, layout, etc.)
 
 ### Puzzle Data (`/crosswords/`)
 
 Contains JSON files with crossword puzzle data in a structured format:
 - **`mini_YYYY-MM-DD.json`** - Daily mini crossword puzzles from 2014
 - Each file contains puzzle metadata, grid dimensions, cell data, clues, and answers
+
+### Crossword Generator (`/crossword-generator/`)
+
+Python-based crossword puzzle generation system:
+- **`crossword_generator.py`** - Main script for generating crossword puzzles
+- **`extract_clues.py`** - Utility for extracting clues from crossword data
+- **`master_clues.json`** - Master database of crossword clues and answers
+- **`pyproject.toml`** - Python project configuration with dependencies
 
 ### Score Tracker API (`/scoretracker/`)
 
@@ -143,13 +154,24 @@ generated-crosswords/
 ├── index.html                   # Landing page
 ├── crossword.html              # Main crossword interface
 ├── archive.html                # Puzzle archive browser
+├── statistics.html             # Statistics page
 ├── favicon.ico                 # Site favicon
+├── crossword.js                # Core crossword functionality
+├── archive.js                  # Archive browser functionality
+├── statistics.js               # Statistics page functionality
+├── crossword.css               # Main crossword styling
+├── css/                        # Additional CSS modules
+│   ├── animations.css
+│   ├── layout.css
+│   └── ...
 ├── crossword-generator/
-│   ├── crossword.js           # Core crossword functionality
-│   └── crossword.css          # Crossword styling
+│   ├── crossword_generator.py  # Python crossword generator
+│   ├── extract_clues.py        # Clue extraction utility
+│   ├── master_clues.json       # Master clues database
+│   └── pyproject.toml          # Python dependencies
 ├── crosswords/
-│   ├── mini_2014-08-21.json  # Crossword puzzle data
-│   └── ...                   # Additional puzzle files
+│   ├── mini_2014-08-21.json   # Crossword puzzle data
+│   └── ...                    # Additional puzzle files
 └── scoretracker/
     ├── app.py                 # Flask score tracking API
     ├── pyproject.toml         # Python dependencies
@@ -160,8 +182,9 @@ generated-crosswords/
 ## Contributing
 
 When making changes to the puzzle interface:
-- Modify source files in `/crossword-generator/` for JavaScript and CSS changes
+- Modify JavaScript and CSS files in the root directory for frontend changes
 - Update puzzle data in `/crosswords/` for new crossword content
+- Modify Python generator code in `/crossword-generator/` for puzzle generation changes
 - Test changes with a local web server before deployment
 
 For score tracker modifications, see the detailed documentation in `/scoretracker/README.md`.
