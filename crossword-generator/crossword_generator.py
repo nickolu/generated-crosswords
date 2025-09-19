@@ -146,6 +146,38 @@ class CrosswordGrid:
                     count += 1
         return count
 
+    def has_excessive_consecutive_empty_squares(self) -> bool:
+        """Check if any row or column has (dimension // 2) or more consecutive empty squares.
+        
+        Returns:
+            True if any row or column has too many consecutive empty squares, False otherwise.
+        """
+        max_consecutive = max(self.width, self.height) // 2
+        
+        # Check rows for consecutive empty squares
+        for row in self.grid:
+            consecutive_empty = 0
+            for cell in row:
+                if cell == ".":
+                    consecutive_empty += 1
+                    if consecutive_empty > max_consecutive:
+                        return True
+                else:
+                    consecutive_empty = 0
+        
+        # Check columns for consecutive empty squares
+        for col in range(self.width):
+            consecutive_empty = 0
+            for row in range(self.height):
+                if self.grid[row][col] == ".":
+                    consecutive_empty += 1
+                    if consecutive_empty > max_consecutive:
+                        return True
+                else:
+                    consecutive_empty = 0
+        
+        return False
+
     def get_used_answers(self) -> Set[str]:
         """Get set of all answers used in this crossword."""
         return {word.text for word in self.words}
@@ -756,6 +788,41 @@ class CrosswordGenerator:
         invalid_sequences = grid.count_invalid_sequences(self.available_answers)
         return empty_squares + invalid_sequences
 
+    def _score_constraint_violating_puzzle(self, grid: CrosswordGrid) -> float:
+        """Score constraint-violating puzzles - higher is better.
+        
+        This method calculates a score for puzzles that violate constraints.
+        The score is based on:
+        - Number of words (more is better)
+        - Average quality of clues (higher is better)
+        - Fewer empty squares (more is better)
+        - Fewer invalid sequences (more is better)
+        
+        Returns a float score where higher is better.
+        """
+        # Get final word count including unintended sequences
+        final_word_count = grid.get_final_word_count(
+            self.available_answers, self.clue_lookup, self.clue_list
+        )
+        
+        # Calculate average quality
+        avg_quality = self.calculate_average_quality(
+            grid, self.available_answers, self.clue_lookup
+        )
+        
+        # Count empty squares and invalid sequences
+        empty_squares = grid.count_empty_squares()
+        invalid_sequences = grid.count_invalid_sequences(self.available_answers)
+        
+        # Calculate score components
+        word_score = final_word_count * 10  # 10 points per word
+        quality_score = 1 / avg_quality * 50  # Up to 50 points for quality
+        density_score = (self.width * self.height - empty_squares) * 2  # Up to 50 points for density
+        validity_score = max(0, 20 - invalid_sequences * 5)  # Up to 20 points, minus 5 per invalid sequence
+        
+        total_score = word_score + quality_score + density_score + validity_score
+        return total_score
+
     def calculate_average_quality(
         self,
         grid: CrosswordGrid,
@@ -801,7 +868,7 @@ class CrosswordGenerator:
         # Try different word lengths based on grid size
         max_word_length = min(self.width, self.height)
         center_words = []
-        for length in range(3, max_word_length + 1):
+        for length in range(max_word_length - 1, max_word_length + 1):
             center_words.extend(
                 self.get_best_quality_words(length, target_quality=1, max_results=20)
             )
@@ -840,15 +907,8 @@ class CrosswordGenerator:
 
         # Try to add more words
         words_added = 1
-        # Calculate max words based on grid size (roughly 1.5 words per row/column)
-        max_words = max(6, int((self.width + self.height) * 0.75))
 
-        for iteration in range(20):  # Max iterations to add words
-            if words_added >= max_words:
-                if verbose_iteration_2:
-                    tqdm.write(f"  → Reached max words ({max_words})")
-                break
-
+        for iteration in range(100):  # Max iterations to add words
             # Find intersecting words for existing words
             found_word = False
             total_candidates = 0
@@ -921,6 +981,7 @@ class CrosswordGenerator:
             and len(used_answers) == len(grid.words)  # No repeated answers
             and len(grid.words) >= min_words  # Minimum number of words
             and invalid_sequences == 0
+            and not grid.has_excessive_consecutive_empty_squares()  # No excessive consecutive empty squares
         )  # All letter sequences are valid words
 
         if is_valid:
@@ -945,6 +1006,8 @@ class CrosswordGenerator:
                     reasons.append(f"too few words ({len(grid.words)}/{min_words})")
                 if invalid_sequences > 0:
                     reasons.append(f"invalid letter sequences ({invalid_sequences})")
+                if grid.has_excessive_consecutive_empty_squares():
+                    reasons.append("excessive consecutive empty squares")
                 tqdm.write(f"  ✗ Failed: {', '.join(reasons)}")
             return grid, False, 0.0
 
@@ -959,10 +1022,12 @@ class CrosswordGenerator:
             verbose_level: Verbosity level for output
 
         Returns:
-            List of crosswords, with perfect puzzles first, then imperfect puzzles
+            List of crosswords, with perfect puzzles first, then imperfect puzzles,
+            then highest-scoring constraint-violating puzzles
         """
         perfect_crosswords = []
         imperfect_crosswords = []
+        constraint_violating_crosswords = []  # List of (grid, score) tuples
 
         print(
             f"Generating {count} crosswords with max {max_iterations} total iterations..."
@@ -970,7 +1035,16 @@ class CrosswordGenerator:
 
         # Single iteration counter running to max_iterations
         last_perfect_attempts = 0
-        for attempt in tqdm(range(max_iterations)):
+        
+        # Create progress bar with dynamic description
+        progress_bar = tqdm(range(max_iterations), desc="Generating crosswords...")
+        
+        def update_progress_description():
+            """Update the progress bar description with current counts."""
+            desc = f"🟢: {len(perfect_crosswords)}, 🟡: {len(imperfect_crosswords)}, 🔴: {len(constraint_violating_crosswords)}"
+            progress_bar.set_description(desc)
+        
+        for attempt in progress_bar:
             verbose_iteration_1 = verbose_level >= 1 and attempt < 1000
             verbose_iteration_2 = verbose_level >= 2 and attempt < 1000
 
@@ -978,6 +1052,7 @@ class CrosswordGenerator:
                 tqdm.write(f"\nAttempt {attempt + 1}:")
                 tqdm.write(f"  Perfect puzzles found: {len(perfect_crosswords)}")
                 tqdm.write(f"  Imperfect puzzles found: {len(imperfect_crosswords)}")
+                tqdm.write(f"  Constraint-violating puzzles found: {len(constraint_violating_crosswords)}")
 
             # Generate a single crossword attempt
             grid, is_valid, quality_score = self.generate_single_crossword_attempt(
@@ -999,6 +1074,7 @@ class CrosswordGenerator:
                 if quality_score == 1.0:
                     # Perfect puzzle
                     perfect_crosswords.append(grid_copy)
+                    update_progress_description()
                     tqdm.write(
                         f"🎯 Found perfect crossword #{len(perfect_crosswords)} in {attempt + 1 - last_perfect_attempts} attempts! (Quality: {quality_score:.2f})"
                     )
@@ -1006,6 +1082,12 @@ class CrosswordGenerator:
                 else:
                     # Imperfect but valid puzzle
                     imperfect_crosswords.append(grid_copy)
+                    
+                    # Only keep (count - perfect) imperfect puzzles since perfect are prioritized first
+                    if len(imperfect_crosswords) > count - len(perfect_crosswords):
+                        imperfect_crosswords = imperfect_crosswords[:count - len(perfect_crosswords)]
+                    
+                    update_progress_description()
                     if verbose_iteration_1:
                         tqdm.write(
                             f"✓ Found imperfect crossword #{len(imperfect_crosswords)} in {attempt + 1} attempts! (Quality: {quality_score:.2f})"
@@ -1017,6 +1099,36 @@ class CrosswordGenerator:
                         f"🎯 Found {len(perfect_crosswords)} perfect puzzles! Stopping early."
                     )
                     break
+            else:
+                # Constraint-violating puzzle - calculate score and track it
+                constraint_score = self._score_constraint_violating_puzzle(grid)
+                
+                # Create a copy of the grid
+                grid_copy = CrosswordGrid(
+                    grid.width,
+                    grid.height,
+                    [row[:] for row in grid.grid],
+                    grid.words[:],
+                )
+                
+                # Add to constraint-violating list
+                constraint_violating_crosswords.append((grid_copy, constraint_score))
+                
+                # Keep only the top-scoring constraint-violating puzzles to avoid memory issues
+                # Sort by score (descending) and keep only (count - perfect - imperfect) since perfect and imperfect are prioritized first
+                constraint_violating_crosswords.sort(key=lambda x: x[1], reverse=True)
+                max_invalid_needed = count - len(perfect_crosswords) - len(imperfect_crosswords)
+                if len(constraint_violating_crosswords) > max_invalid_needed:
+                    constraint_violating_crosswords = constraint_violating_crosswords[:max_invalid_needed]
+                
+                update_progress_description()
+                if verbose_iteration_1:
+                    tqdm.write(
+                        f"⚠ Found constraint-violating crossword #{len(constraint_violating_crosswords)} in {attempt + 1} attempts! (Score: {constraint_score:.1f})"
+                    )
+
+        # Close the progress bar
+        progress_bar.close()
 
         # Prepare final results
         result = []
@@ -1027,9 +1139,19 @@ class CrosswordGenerator:
 
         # Add imperfect puzzles to fill remaining slots
         remaining_slots = count - perfect_to_add
+        imperfect_to_add = 0
         if remaining_slots > 0:
             imperfect_to_add = min(len(imperfect_crosswords), remaining_slots)
             result.extend(imperfect_crosswords[:imperfect_to_add])
+            remaining_slots -= imperfect_to_add
+
+        # Add constraint-violating puzzles to fill remaining slots
+        constraint_violating_to_add = 0
+        if remaining_slots > 0 and constraint_violating_crosswords:
+            constraint_violating_to_add = min(len(constraint_violating_crosswords), remaining_slots)
+            # Extract just the grids (not the scores) from the tuples
+            constraint_violating_grids = [grid for grid, score in constraint_violating_crosswords[:constraint_violating_to_add]]
+            result.extend(constraint_violating_grids)
 
         # Print summary
         print(f"\n{'=' * 60}")
@@ -1038,9 +1160,11 @@ class CrosswordGenerator:
         print(f"Total iterations: {max_iterations}")
         print(f"Perfect puzzles found: {len(perfect_crosswords)}")
         print(f"Imperfect puzzles found: {len(imperfect_crosswords)}")
+        print(f"Constraint-violating puzzles found: {len(constraint_violating_crosswords)}")
         print(f"Puzzles returned: {len(result)}")
         print(f"Perfect puzzles in result: {perfect_to_add}")
-        print(f"Imperfect puzzles in result: {len(result) - perfect_to_add}")
+        print(f"Imperfect puzzles in result: {imperfect_to_add}")
+        print(f"Constraint-violating puzzles in result: {constraint_violating_to_add}")
 
         return result
 
@@ -1182,12 +1306,41 @@ def main():
                 crossword, generator.available_answers, generator.clue_lookup
             )
 
+            # Check if this is a valid puzzle (same logic as in generate_single_crossword_attempt)
+            empty_squares = crossword.count_empty_squares()
+            used_answers = crossword.get_used_answers()
+            invalid_sequences = crossword.count_invalid_sequences(generator.available_answers)
+            
+            max_empty_squares = int((crossword.width * crossword.height) * 0.25)
+            min_words = max(6, int((crossword.width + crossword.height) * 0.5))
+            
+            is_valid = (
+                empty_squares <= max_empty_squares
+                and len(used_answers) == len(crossword.words)  # No repeated answers
+                and len(crossword.words) >= min_words  # Minimum number of words
+                and invalid_sequences == 0
+                and not crossword.has_excessive_consecutive_empty_squares()  # No excessive consecutive empty squares
+            )  # All letter sequences are valid words
+
+            # Determine puzzle type
+            if is_valid:
+                if avg_quality == 1.0:
+                    puzzle_type = "Perfect"
+                else:
+                    puzzle_type = "Imperfect"
+            else:
+                puzzle_type = "Constraint-violating"
+                # Calculate constraint-violating score for display
+                constraint_score = generator._score_constraint_violating_puzzle(crossword)
+
             print("\nStats:")
-            print(f"  Empty squares: {crossword.count_empty_squares()}")
+            print(f"  Empty squares: {empty_squares}")
             print(f"  Total words: {final_word_count}")
             print(f"  Unique answers: {len(final_used_answers)}")
             print(f"  Average quality score: {avg_quality:.2f}")
-            print(f"  Puzzle type: {'Perfect' if avg_quality == 1.0 else 'Imperfect'}")
+            print(f"  Puzzle type: {puzzle_type}")
+            if puzzle_type == "Constraint-violating":
+                print(f"  Constraint-violating score: {constraint_score:.1f}")
             success_count += 1
 
         print(f"\n{'=' * 60}")

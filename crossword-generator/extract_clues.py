@@ -75,7 +75,7 @@ def extract_collins_words(collins_file: str) -> List[Tuple[str, str]]:
                     definition = row[1].strip()
 
                     # Filter by word length (2-5 letters only)
-                    if len(word) < 2 or len(word) > 5:
+                    if len(word) < 2 or len(word) > 6:
                         continue
 
                     # Clean up the definition to create a clue
