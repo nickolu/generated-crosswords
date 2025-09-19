@@ -190,7 +190,7 @@ class CrosswordGrid:
 
         return invalid_sequences
 
-    def process_unintended_sequences(self, available_answers: Set[str], clue_lookup: dict) -> List[Word]:
+    def process_unintended_sequences(self, available_answers: Set[str], clue_lookup: dict, clue_list: List[Tuple[str, str, int]] = None) -> List[Word]:
         """Process unintended sequences and return updated word list with valid sequences added and overlapping clues removed."""
         all_sequences = self.get_all_letter_sequences()
         placed_words = self.get_placed_words_set()
@@ -200,9 +200,16 @@ class CrosswordGrid:
         for sequence, row, col, direction in all_sequences:
             if (sequence, row, col, direction) not in placed_words:
                 if len(sequence) >= 3 and sequence in available_answers:
-                    # Find a clue for this sequence
+                    # Find a clue and quality for this sequence
                     clue = clue_lookup.get(sequence, f"Unknown word: {sequence}")
-                    unintended_sequences.append(Word(sequence, row, col, direction, clue, 2))
+                    # Look up the actual quality from the clue list
+                    quality = 2  # Default fallback
+                    if clue_list:
+                        for clue_text, answer, q in clue_list:
+                            if answer == sequence:
+                                quality = q
+                                break
+                    unintended_sequences.append(Word(sequence, row, col, direction, clue, quality))
         
         # Create a new word list starting with existing words
         updated_words = self.words[:]
@@ -228,18 +235,18 @@ class CrosswordGrid:
         
         return final_words
 
-    def get_final_word_count(self, available_answers: Set[str] = None, clue_lookup: dict = None) -> int:
+    def get_final_word_count(self, available_answers: Set[str] = None, clue_lookup: dict = None, clue_list: List[Tuple[str, str, int]] = None) -> int:
         """Get the total word count including unintended sequences that become valid words."""
         if available_answers is not None and clue_lookup is not None:
-            final_words = self.process_unintended_sequences(available_answers, clue_lookup)
+            final_words = self.process_unintended_sequences(available_answers, clue_lookup, clue_list)
             return len(final_words)
         else:
             return len(self.words)
 
-    def get_final_words(self, available_answers: Set[str] = None, clue_lookup: dict = None) -> List[Word]:
+    def get_final_words(self, available_answers: Set[str] = None, clue_lookup: dict = None, clue_list: List[Tuple[str, str, int]] = None) -> List[Word]:
         """Get the final word list including unintended sequences that become valid words."""
         if available_answers is not None and clue_lookup is not None:
-            return self.process_unintended_sequences(available_answers, clue_lookup)
+            return self.process_unintended_sequences(available_answers, clue_lookup, clue_list)
         else:
             return self.words
 
@@ -259,7 +266,7 @@ class CrosswordGrid:
                     word2.row >= word1.row and 
                     word2.row < word1.row + len(word1.text))
 
-    def display(self, available_answers: Set[str] = None, clue_lookup: dict = None):
+    def display(self, available_answers: Set[str] = None, clue_lookup: dict = None, clue_list: List[Tuple[str, str, int]] = None):
         """Display the crossword grid."""
         print("\nCrossword Grid:")
         for row in self.grid:
@@ -267,7 +274,7 @@ class CrosswordGrid:
 
         # Process unintended sequences if we have the necessary data
         if available_answers is not None and clue_lookup is not None:
-            final_words = self.process_unintended_sequences(available_answers, clue_lookup)
+            final_words = self.process_unintended_sequences(available_answers, clue_lookup, clue_list)
         else:
             final_words = self.words
 
@@ -277,11 +284,11 @@ class CrosswordGrid:
 
         print("Across:")
         for word in sorted(across_words, key=lambda w: (w.row, w.col)):
-            print(f"  {word.text}: {word.clue}")
+            print(f"  {word.text}: {word.clue} (quality: {word.quality})")
 
         print("Down:")
         for word in sorted(down_words, key=lambda w: (w.col, w.row)):
-            print(f"  {word.text}: {word.clue}")
+            print(f"  {word.text}: {word.clue} (quality: {word.quality})")
 
         # Show all letter sequences for debugging
         if available_answers is not None:
@@ -663,7 +670,7 @@ class CrosswordGenerator:
         """
         # Use final words if available_answers and clue_lookup are provided
         if available_answers is not None and clue_lookup is not None:
-            final_words = grid.get_final_words(available_answers, clue_lookup)
+            final_words = grid.get_final_words(available_answers, clue_lookup, self.clue_list)
         else:
             final_words = grid.words
             
@@ -786,7 +793,7 @@ class CrosswordGenerator:
 
             if verbose_iteration_1:
                 # Calculate final word count including unintended sequences
-                final_word_count = grid.get_final_word_count(self.available_answers, self.clue_lookup)
+                final_word_count = grid.get_final_word_count(self.available_answers, self.clue_lookup, self.clue_list)
                 tqdm.write(
                     f"  → Final stats: {len(grid.words)} placed words, {final_word_count} total words (including unintended sequences), {empty_squares} empty squares"
                 )
@@ -800,8 +807,8 @@ class CrosswordGenerator:
                 and len(grid.words) >= 6  # Minimum number of words
                 and invalid_sequences == 0
             ):  # All letter sequences are valid words
-                # Store this valid crossword with its quality score
-                quality_score = self.calculate_average_quality(grid)
+                # Store this valid crossword with its quality score (using final words including unintended sequences)
+                quality_score = self.calculate_average_quality(grid, self.available_answers, self.clue_lookup)
                 valid_crosswords.append((CrosswordGrid(grid.size, [row[:] for row in grid.grid], grid.words[:]), quality_score))
                 
                 if verbose_iteration_1:
@@ -850,11 +857,11 @@ class CrosswordGenerator:
             
             best_empty = best_grid.count_empty_squares()
             best_invalid = best_grid.count_invalid_sequences(self.available_answers)
-            best_avg_quality = self.calculate_average_quality(best_grid)
+            best_avg_quality = self.calculate_average_quality(best_grid, self.available_answers, self.clue_lookup)
             
             # Calculate final word counts including unintended sequences
-            best_final_word_count = best_grid.get_final_word_count(self.available_answers, self.clue_lookup)
-            best_final_words = best_grid.get_final_words(self.available_answers, self.clue_lookup)
+            best_final_word_count = best_grid.get_final_word_count(self.available_answers, self.clue_lookup, self.clue_list)
+            best_final_words = best_grid.get_final_words(self.available_answers, self.clue_lookup, self.clue_list)
             best_final_used_answers = {word.text for word in best_final_words}
             
             tqdm.write(f"Overall Score: {best_score} (lower is better)")
@@ -867,7 +874,7 @@ class CrosswordGenerator:
             tqdm.write(f"Repeated answers: {best_final_word_count - len(best_final_used_answers)}")
             
             # Display the best grid
-            best_grid.display(self.available_answers, self.clue_lookup)
+            best_grid.display(self.available_answers, self.clue_lookup, self.clue_list)
         
         return None
 
@@ -926,10 +933,10 @@ def main():
             # Only show verbose output for the first crossword to avoid spam
             crossword = generator.generate_crossword(verbose_level=0)
             if crossword:
-                crossword.display(generator.available_answers, generator.clue_lookup)
+                crossword.display(generator.available_answers, generator.clue_lookup, generator.clue_list)
                 
                 # Get final words including unintended sequences
-                final_words = crossword.get_final_words(generator.available_answers, generator.clue_lookup)
+                final_words = crossword.get_final_words(generator.available_answers, generator.clue_lookup, generator.clue_list)
                 final_word_count = len(final_words)
                 final_used_answers = {word.text for word in final_words}
                 
