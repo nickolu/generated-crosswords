@@ -45,7 +45,7 @@ class CrosswordGrid:
             self.grid = [["." for _ in range(self.width)] for _ in range(self.height)]
         if self.words is None:
             self.words = []
-    
+
     @property
     def size(self):
         """For backwards compatibility, return the maximum dimension."""
@@ -100,13 +100,17 @@ class CrosswordGrid:
                     temp_grid[row + i][col] = char
 
             # Only check sequences that are exactly full width/height
-            temp_crossword = CrosswordGrid(self.width, self.height, temp_grid, self.words[:])
+            temp_crossword = CrosswordGrid(
+                self.width, self.height, temp_grid, self.words[:]
+            )
             all_sequences = temp_crossword.get_all_letter_sequences()
             placed_words = temp_crossword.get_placed_words_set()
 
             for sequence, seq_row, seq_col, seq_direction in all_sequences:
                 # Only validate complete sequences (full width for across, full height for down)
-                expected_length = self.width if seq_direction == Direction.ACROSS else self.height
+                expected_length = (
+                    self.width if seq_direction == Direction.ACROSS else self.height
+                )
                 if len(sequence) == expected_length:
                     if (sequence, seq_row, seq_col, seq_direction) not in placed_words:
                         if sequence not in available_answers:
@@ -115,7 +119,13 @@ class CrosswordGrid:
         return True
 
     def place_word(
-        self, word: str, row: int, col: int, direction: Direction, clue: str, quality: int = 2
+        self,
+        word: str,
+        row: int,
+        col: int,
+        direction: Direction,
+        clue: str,
+        quality: int = 2,
     ):
         """Place a word on the grid."""
         if direction == Direction.ACROSS:
@@ -198,12 +208,17 @@ class CrosswordGrid:
 
         return invalid_sequences
 
-    def process_unintended_sequences(self, available_answers: Set[str], clue_lookup: dict, clue_list: List[Tuple[str, str, int]] = None) -> List[Word]:
+    def process_unintended_sequences(
+        self,
+        available_answers: Set[str],
+        clue_lookup: dict,
+        clue_list: List[Tuple[str, str, int]] = None,
+    ) -> List[Word]:
         """Process unintended sequences and return updated word list with valid sequences added and overlapping clues removed."""
         all_sequences = self.get_all_letter_sequences()
         placed_words = self.get_placed_words_set()
         unintended_sequences = []
-        
+
         # Find all unintended sequences that are valid words
         for sequence, row, col, direction in all_sequences:
             if (sequence, row, col, direction) not in placed_words:
@@ -217,44 +232,63 @@ class CrosswordGrid:
                             if answer == sequence:
                                 quality = q
                                 break
-                    unintended_sequences.append(Word(sequence, row, col, direction, clue, quality))
-        
+                    unintended_sequences.append(
+                        Word(sequence, row, col, direction, clue, quality)
+                    )
+
         # Create a new word list starting with existing words
         updated_words = self.words[:]
-        
+
         # Add valid unintended sequences as new words
         for seq_word in unintended_sequences:
             updated_words.append(seq_word)
-        
+
         # Remove words that are substrings of longer valid sequences
         words_to_remove = []
         for word in updated_words:
             for other_word in updated_words:
-                if (word != other_word and 
-                    word.text in other_word.text and 
-                    len(word.text) < len(other_word.text) and
+                if (
+                    word != other_word
+                    and word.text in other_word.text
+                    and len(word.text) < len(other_word.text)
+                    and
                     # Check if they overlap in the grid
-                    self._words_overlap(word, other_word)):
+                    self._words_overlap(word, other_word)
+                ):
                     words_to_remove.append(word)
                     break
-        
+
         # Remove the overlapping words
         final_words = [w for w in updated_words if w not in words_to_remove]
-        
+
         return final_words
 
-    def get_final_word_count(self, available_answers: Set[str] = None, clue_lookup: dict = None, clue_list: List[Tuple[str, str, int]] = None) -> int:
+    def get_final_word_count(
+        self,
+        available_answers: Set[str] = None,
+        clue_lookup: dict = None,
+        clue_list: List[Tuple[str, str, int]] = None,
+    ) -> int:
         """Get the total word count including unintended sequences that become valid words."""
         if available_answers is not None and clue_lookup is not None:
-            final_words = self.process_unintended_sequences(available_answers, clue_lookup, clue_list)
+            final_words = self.process_unintended_sequences(
+                available_answers, clue_lookup, clue_list
+            )
             return len(final_words)
         else:
             return len(self.words)
 
-    def get_final_words(self, available_answers: Set[str] = None, clue_lookup: dict = None, clue_list: List[Tuple[str, str, int]] = None) -> List[Word]:
+    def get_final_words(
+        self,
+        available_answers: Set[str] = None,
+        clue_lookup: dict = None,
+        clue_list: List[Tuple[str, str, int]] = None,
+    ) -> List[Word]:
         """Get the final word list including unintended sequences that become valid words."""
         if available_answers is not None and clue_lookup is not None:
-            return self.process_unintended_sequences(available_answers, clue_lookup, clue_list)
+            return self.process_unintended_sequences(
+                available_answers, clue_lookup, clue_list
+            )
         else:
             return self.words
 
@@ -262,19 +296,28 @@ class CrosswordGrid:
         """Check if two words overlap in the grid."""
         if word1.direction == word2.direction:
             return False  # Same direction words don't overlap
-        
+
         if word1.direction == Direction.ACROSS:
             # word1 is across, word2 is down
-            return (word1.row == word2.row and 
-                    word2.col >= word1.col and 
-                    word2.col < word1.col + len(word1.text))
+            return (
+                word1.row == word2.row
+                and word2.col >= word1.col
+                and word2.col < word1.col + len(word1.text)
+            )
         else:
             # word1 is down, word2 is across
-            return (word1.col == word2.col and 
-                    word2.row >= word1.row and 
-                    word2.row < word1.row + len(word1.text))
+            return (
+                word1.col == word2.col
+                and word2.row >= word1.row
+                and word2.row < word1.row + len(word1.text)
+            )
 
-    def display(self, available_answers: Set[str] = None, clue_lookup: dict = None, clue_list: List[Tuple[str, str, int]] = None):
+    def display(
+        self,
+        available_answers: Set[str] = None,
+        clue_lookup: dict = None,
+        clue_list: List[Tuple[str, str, int]] = None,
+    ):
         """Display the crossword grid."""
         print("\nCrossword Grid:")
         for row in self.grid:
@@ -282,7 +325,9 @@ class CrosswordGrid:
 
         # Process unintended sequences if we have the necessary data
         if available_answers is not None and clue_lookup is not None:
-            final_words = self.process_unintended_sequences(available_answers, clue_lookup, clue_list)
+            final_words = self.process_unintended_sequences(
+                available_answers, clue_lookup, clue_list
+            )
         else:
             final_words = self.words
 
@@ -328,7 +373,7 @@ class CrosswordGenerator:
         """Initialize the crossword generator with a clue list and grid dimensions."""
         self.width = width
         self.height = height
-        
+
         with open(clue_list_file, "r", encoding="utf-8") as file:
             self.clue_list = json.load(file)
 
@@ -336,17 +381,25 @@ class CrosswordGenerator:
         if self.clue_list and len(self.clue_list[0]) == 2:
             # Old format: convert to new format with default quality 2
             self.clue_list = [(clue, answer, 2) for clue, answer in self.clue_list]
-        
+
         # Calculate maximum word length that can fit in the grid
         max_word_length = max(self.width, self.height)
-        
+
         # Create set of all available answers for validation
         # Only include words that can fit in the grid (length <= max(width, height))
-        self.available_answers = set(answer for clue, answer, quality in self.clue_list if len(answer) <= max_word_length)
+        self.available_answers = set(
+            answer
+            for clue, answer, quality in self.clue_list
+            if len(answer) <= max_word_length
+        )
 
         # Create clue lookup dictionary for unintended sequences
         # Only include words that can fit in the grid
-        self.clue_lookup = {answer: clue for clue, answer, quality in self.clue_list if len(answer) <= max_word_length}
+        self.clue_lookup = {
+            answer: clue
+            for clue, answer, quality in self.clue_list
+            if len(answer) <= max_word_length
+        }
 
         # Group answers by length for efficient lookup
         # Only include words that can fit in the grid (length <= max(width, height))
@@ -359,25 +412,27 @@ class CrosswordGenerator:
                 self.answers_by_length[length].append((answer, clue, quality))
 
         print(f"Loaded {len(self.clue_list)} clue/answer pairs")
-        
+
         # Show quality distribution
         quality_counts = {}
         for clue, answer, quality in self.clue_list:
             quality_counts[quality] = quality_counts.get(quality, 0) + 1
-        
+
         print("Quality distribution:")
         for quality in sorted(quality_counts.keys()):
             percentage = (quality_counts[quality] / len(self.clue_list)) * 100
-            print(f"  Quality {quality}: {quality_counts[quality]} clues ({percentage:.1f}%)")
-        
+            print(
+                f"  Quality {quality}: {quality_counts[quality]} clues ({percentage:.1f}%)"
+            )
+
         # Show quality distribution by word length
         print("\nQuality distribution by word length:")
         for length in sorted(self.answers_by_length.keys()):
             stats = self.get_quality_stats(length)
             print(f"  {length} letters: {stats['total_words']} words")
-            for quality in sorted(stats['quality_counts'].keys()):
-                count = stats['quality_counts'][quality]
-                percentage = stats['quality_percentages'][quality]
+            for quality in sorted(stats["quality_counts"].keys()):
+                count = stats["quality_counts"][quality]
+                percentage = stats["quality_percentages"][quality]
                 print(f"    Quality {quality}: {count} ({percentage:.1f}%)")
 
     def get_possible_words(
@@ -389,7 +444,7 @@ class CrosswordGenerator:
         prioritize_quality: bool = True,
     ) -> List[Tuple[str, str, int]]:
         """Get possible words of given length that match pattern and aren't used.
-        
+
         Args:
             length: Word length to search for
             pattern: Pattern to match (e.g., "A..E" for words starting with A and ending with E)
@@ -406,13 +461,13 @@ class CrosswordGenerator:
         possible = []
         checked = 0
         max_to_check = min(1000, len(self.answers_by_length[length]))
-        
+
         # If prioritizing quality, we can be more efficient since the list is sorted
         if prioritize_quality:
             # First pass: collect quality 1 clues (they're at the beginning of the sorted list)
             quality_1_results = []
             quality_2_results = []
-            
+
             for answer, clue, quality in self.answers_by_length[length]:
                 checked += 1
                 if checked > max_to_check:
@@ -438,15 +493,15 @@ class CrosswordGenerator:
                     quality_1_results.append((answer, clue, quality))
                 else:
                     quality_2_results.append((answer, clue, quality))
-                
+
                 # If we have enough quality 1 results, we can stop early
                 if len(quality_1_results) >= max_results:
                     break
-            
+
             # Return quality 1 results first, then quality 2 if needed
             possible = quality_1_results
             if len(possible) < max_results:
-                possible.extend(quality_2_results[:max_results - len(possible)])
+                possible.extend(quality_2_results[: max_results - len(possible)])
         else:
             # Original logic for non-quality-prioritized search
             for answer, clue, quality in self.answers_by_length[length]:
@@ -485,11 +540,11 @@ class CrosswordGenerator:
         target_quality: int = 1,
     ) -> List[Tuple[str, str, int]]:
         """Get the best quality words of given length, optimized for quality-sorted data.
-        
+
         This method is more efficient than get_possible_words when you specifically
         want the highest quality clues, since it can stop early once it finds enough
         quality 1 clues.
-        
+
         Args:
             length: Word length to search for
             pattern: Pattern to match (e.g., "A..E" for words starting with A and ending with E)
@@ -505,7 +560,9 @@ class CrosswordGenerator:
 
         results = []
         checked = 0
-        max_to_check = min(500, len(self.answers_by_length[length]))  # Reduced limit for efficiency
+        max_to_check = min(
+            500, len(self.answers_by_length[length])
+        )  # Reduced limit for efficiency
 
         for answer, clue, quality in self.answers_by_length[length]:
             checked += 1
@@ -532,7 +589,7 @@ class CrosswordGenerator:
                     continue
 
             results.append((answer, clue, quality))
-            
+
             # Early termination: if we found enough target quality results, stop
             if len(results) >= max_results:
                 break
@@ -541,10 +598,10 @@ class CrosswordGenerator:
 
     def get_quality_stats(self, length: int = None) -> dict:
         """Get quality statistics for words of a given length or all lengths.
-        
+
         Args:
             length: Specific word length to analyze, or None for all lengths
-            
+
         Returns:
             Dictionary with quality distribution statistics
         """
@@ -553,24 +610,26 @@ class CrosswordGenerator:
                 return {}
             words_to_analyze = self.answers_by_length[length]
         else:
-            words_to_analyze = [(answer, clue, quality) for answer, clue, quality in self.clue_list]
-        
+            words_to_analyze = [
+                (answer, clue, quality) for answer, clue, quality in self.clue_list
+            ]
+
         quality_counts = {}
         total_words = len(words_to_analyze)
-        
+
         for answer, clue, quality in words_to_analyze:
             quality_counts[quality] = quality_counts.get(quality, 0) + 1
-        
+
         # Calculate percentages
         quality_percentages = {}
         for quality, count in quality_counts.items():
             quality_percentages[quality] = (count / total_words) * 100
-        
+
         return {
-            'total_words': total_words,
-            'quality_counts': quality_counts,
-            'quality_percentages': quality_percentages,
-            'length': length
+            "total_words": total_words,
+            "quality_counts": quality_counts,
+            "quality_percentages": quality_percentages,
+            "length": length,
         }
 
     def find_intersecting_words(
@@ -595,7 +654,9 @@ class CrosswordGenerator:
 
                     end_row = min(start_row + 4, grid.height - 1)
                     length = end_row - start_row + 1
-                    if length < 3 or length > min(grid.width, grid.height):  # Reasonable word length for grid
+                    if length < 3 or length > min(
+                        grid.width, grid.height
+                    ):  # Reasonable word length for grid
                         continue
 
                     # Create pattern with the intersecting character
@@ -606,7 +667,11 @@ class CrosswordGenerator:
                         pattern_str = "".join(pattern)
 
                         possible_words = self.get_best_quality_words(
-                            length, pattern_str, used_answers, max_results=10, target_quality=1
+                            length,
+                            pattern_str,
+                            used_answers,
+                            max_results=10,
+                            target_quality=1,
                         )
                         for answer, clue, quality in possible_words:
                             if len(intersecting) >= max_intersections:
@@ -619,7 +684,14 @@ class CrosswordGenerator:
                                 self.available_answers,
                             ):
                                 intersecting.append(
-                                    (answer, clue, quality, start_row, word_col, Direction.DOWN)
+                                    (
+                                        answer,
+                                        clue,
+                                        quality,
+                                        start_row,
+                                        word_col,
+                                        Direction.DOWN,
+                                    )
                                 )
 
         else:  # DOWN
@@ -636,7 +708,9 @@ class CrosswordGenerator:
 
                     end_col = min(start_col + 4, grid.width - 1)
                     length = end_col - start_col + 1
-                    if length < 3 or length > min(grid.width, grid.height):  # Reasonable word length for grid
+                    if length < 3 or length > min(
+                        grid.width, grid.height
+                    ):  # Reasonable word length for grid
                         continue
 
                     # Create pattern with the intersecting character
@@ -647,7 +721,11 @@ class CrosswordGenerator:
                         pattern_str = "".join(pattern)
 
                         possible_words = self.get_best_quality_words(
-                            length, pattern_str, used_answers, max_results=10, target_quality=1
+                            length,
+                            pattern_str,
+                            used_answers,
+                            max_results=10,
+                            target_quality=1,
                         )
                         for answer, clue, quality in possible_words:
                             if len(intersecting) >= max_intersections:
@@ -678,9 +756,14 @@ class CrosswordGenerator:
         invalid_sequences = grid.count_invalid_sequences(self.available_answers)
         return empty_squares + invalid_sequences
 
-    def calculate_average_quality(self, grid: CrosswordGrid, available_answers: Set[str] = None, clue_lookup: dict = None) -> float:
+    def calculate_average_quality(
+        self,
+        grid: CrosswordGrid,
+        available_answers: Set[str] = None,
+        clue_lookup: dict = None,
+    ) -> float:
         """Calculate the average quality score for all clues in the crossword.
-        
+
         Args:
             grid: The crossword grid
             available_answers: Set of available answers (for processing unintended sequences)
@@ -688,24 +771,27 @@ class CrosswordGenerator:
         """
         # Use final words if available_answers and clue_lookup are provided
         if available_answers is not None and clue_lookup is not None:
-            final_words = grid.get_final_words(available_answers, clue_lookup, self.clue_list)
+            final_words = grid.get_final_words(
+                available_answers, clue_lookup, self.clue_list
+            )
         else:
             final_words = grid.words
-            
+
         if not final_words:
             return 0.0
-        
+
         total_quality = sum(word.quality for word in final_words)
         return total_quality / len(final_words)
 
-
-    def generate_single_crossword_attempt(self, verbose_iteration_1: bool, verbose_iteration_2: bool) -> Tuple[CrosswordGrid, bool, float]:
+    def generate_single_crossword_attempt(
+        self, verbose_iteration_1: bool, verbose_iteration_2: bool
+    ) -> Tuple[CrosswordGrid, bool, float]:
         """Generate a single crossword attempt.
-        
+
         Args:
             verbose_iteration_1: Whether to show basic progress output
             verbose_iteration_2: Whether to show detailed progress output
-            
+
         Returns:
             Tuple of (grid, is_valid, quality_score)
         """
@@ -716,8 +802,10 @@ class CrosswordGenerator:
         max_word_length = min(self.width, self.height)
         center_words = []
         for length in range(3, max_word_length + 1):
-            center_words.extend(self.get_best_quality_words(length, target_quality=1, max_results=20))
-        
+            center_words.extend(
+                self.get_best_quality_words(length, target_quality=1, max_results=20)
+            )
+
         if not center_words:
             if verbose_iteration_1:
                 tqdm.write("  ✗ No center words available")
@@ -742,7 +830,9 @@ class CrosswordGenerator:
                 )
             return None, False, 0.0
 
-        grid.place_word(start_word, start_row, start_col, start_direction, start_clue, start_quality)
+        grid.place_word(
+            start_word, start_row, start_col, start_direction, start_clue, start_quality
+        )
         if verbose_iteration_2:
             tqdm.write(
                 f"  ✓ Placed start word '{start_word}' at ({start_row},{start_col}) {start_direction.value}"
@@ -763,7 +853,9 @@ class CrosswordGenerator:
             found_word = False
             total_candidates = 0
 
-            for existing_word in grid.words[:]:  # Use slice to avoid modification during iteration
+            for existing_word in grid.words[
+                :
+            ]:  # Use slice to avoid modification during iteration
                 intersecting_words = self.find_intersecting_words(
                     grid,
                     existing_word.text,
@@ -776,7 +868,9 @@ class CrosswordGenerator:
                 if intersecting_words:
                     # Shuffle and try a few
                     random.shuffle(intersecting_words)
-                    for word, clue, quality, row, col, direction in intersecting_words[:5]:  # Try up to 5
+                    for word, clue, quality, row, col, direction in intersecting_words[
+                        :5
+                    ]:  # Try up to 5
                         if grid.is_valid_placement(
                             word, row, col, direction, self.available_answers
                         ):
@@ -805,7 +899,9 @@ class CrosswordGenerator:
 
         if verbose_iteration_1:
             # Calculate final word count including unintended sequences
-            final_word_count = grid.get_final_word_count(self.available_answers, self.clue_lookup, self.clue_list)
+            final_word_count = grid.get_final_word_count(
+                self.available_answers, self.clue_lookup, self.clue_list
+            )
             tqdm.write(
                 f"  → Final stats: {len(grid.words)} placed words, {final_word_count} total words (including unintended sequences), {empty_squares} empty squares"
             )
@@ -816,8 +912,10 @@ class CrosswordGenerator:
         # Check if this is a valid crossword
         # Calculate max empty squares based on grid size (roughly 25% of total squares)
         max_empty_squares = int((self.width * self.height) * 0.25)
-        min_words = max(6, int((self.width + self.height) * 0.5))  # Minimum words based on grid size
-        
+        min_words = max(
+            6, int((self.width + self.height) * 0.5)
+        )  # Minimum words based on grid size
+
         is_valid = (
             empty_squares <= max_empty_squares
             and len(used_answers) == len(grid.words)  # No repeated answers
@@ -827,14 +925,18 @@ class CrosswordGenerator:
 
         if is_valid:
             # Calculate quality score
-            quality_score = self.calculate_average_quality(grid, self.available_answers, self.clue_lookup)
+            quality_score = self.calculate_average_quality(
+                grid, self.available_answers, self.clue_lookup
+            )
             return grid, True, quality_score
         else:
             # Show why this attempt failed if verbose
             if verbose_iteration_1:
                 reasons = []
                 if empty_squares > max_empty_squares:
-                    reasons.append(f"too many empty squares ({empty_squares}/{max_empty_squares})")
+                    reasons.append(
+                        f"too many empty squares ({empty_squares}/{max_empty_squares})"
+                    )
                 if len(used_answers) != len(grid.words):
                     reasons.append(
                         f"repeated answers ({len(grid.words) - len(used_answers)} duplicates)"
@@ -850,81 +952,96 @@ class CrosswordGenerator:
         self, count: int, max_iterations: int, verbose_level: int = 1
     ) -> List[CrosswordGrid]:
         """Generate multiple crosswords with a total iteration limit.
-        
+
         Args:
             count: Number of crosswords to return
             max_iterations: Maximum total iterations to run
             verbose_level: Verbosity level for output
-            
+
         Returns:
             List of crosswords, with perfect puzzles first, then imperfect puzzles
         """
         perfect_crosswords = []
         imperfect_crosswords = []
-        
-        print(f"Generating {count} crosswords with max {max_iterations} total iterations...")
-        
+
+        print(
+            f"Generating {count} crosswords with max {max_iterations} total iterations..."
+        )
+
         # Single iteration counter running to max_iterations
         last_perfect_attempts = 0
         for attempt in tqdm(range(max_iterations)):
             verbose_iteration_1 = verbose_level >= 1 and attempt < 1000
             verbose_iteration_2 = verbose_level >= 2 and attempt < 1000
-            
+
             if verbose_iteration_1 and (attempt % 100 == 0 or attempt < 1000):
                 tqdm.write(f"\nAttempt {attempt + 1}:")
                 tqdm.write(f"  Perfect puzzles found: {len(perfect_crosswords)}")
                 tqdm.write(f"  Imperfect puzzles found: {len(imperfect_crosswords)}")
 
             # Generate a single crossword attempt
-            grid, is_valid, quality_score = self.generate_single_crossword_attempt(verbose_iteration_1, verbose_iteration_2)
-            
+            grid, is_valid, quality_score = self.generate_single_crossword_attempt(
+                verbose_iteration_1, verbose_iteration_2
+            )
+
             if grid is None:  # No center words available
                 continue
 
             if is_valid:
                 # Create a copy of the grid
-                grid_copy = CrosswordGrid(grid.width, grid.height, [row[:] for row in grid.grid], grid.words[:])
-                
+                grid_copy = CrosswordGrid(
+                    grid.width,
+                    grid.height,
+                    [row[:] for row in grid.grid],
+                    grid.words[:],
+                )
+
                 if quality_score == 1.0:
                     # Perfect puzzle
                     perfect_crosswords.append(grid_copy)
-                    tqdm.write(f"🎯 Found perfect crossword #{len(perfect_crosswords)} in {attempt + 1 - last_perfect_attempts} attempts! (Quality: {quality_score:.2f})")
+                    tqdm.write(
+                        f"🎯 Found perfect crossword #{len(perfect_crosswords)} in {attempt + 1 - last_perfect_attempts} attempts! (Quality: {quality_score:.2f})"
+                    )
                     last_perfect_attempts = attempt + 1
                 else:
                     # Imperfect but valid puzzle
                     imperfect_crosswords.append(grid_copy)
                     if verbose_iteration_1:
-                        tqdm.write(f"✓ Found imperfect crossword #{len(imperfect_crosswords)} in {attempt + 1} attempts! (Quality: {quality_score:.2f})")
-                
+                        tqdm.write(
+                            f"✓ Found imperfect crossword #{len(imperfect_crosswords)} in {attempt + 1} attempts! (Quality: {quality_score:.2f})"
+                        )
+
                 # Check if we have enough perfect puzzles
                 if len(perfect_crosswords) >= count:
-                    tqdm.write(f"🎯 Found {len(perfect_crosswords)} perfect puzzles! Stopping early.")
+                    tqdm.write(
+                        f"🎯 Found {len(perfect_crosswords)} perfect puzzles! Stopping early."
+                    )
                     break
 
         # Prepare final results
         result = []
-        
+
         # Add perfect puzzles first (up to count)
         perfect_to_add = min(len(perfect_crosswords), count)
         result.extend(perfect_crosswords[:perfect_to_add])
-        
+
         # Add imperfect puzzles to fill remaining slots
         remaining_slots = count - perfect_to_add
         if remaining_slots > 0:
             imperfect_to_add = min(len(imperfect_crosswords), remaining_slots)
             result.extend(imperfect_crosswords[:imperfect_to_add])
-        
+
         # Print summary
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("BATCH GENERATION SUMMARY")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"Total iterations: {max_iterations}")
         print(f"Perfect puzzles found: {len(perfect_crosswords)}")
         print(f"Imperfect puzzles found: {len(imperfect_crosswords)}")
         print(f"Puzzles returned: {len(result)}")
         print(f"Perfect puzzles in result: {perfect_to_add}")
         print(f"Imperfect puzzles in result: {len(result) - perfect_to_add}")
-        
+
         return result
 
 
@@ -947,42 +1064,36 @@ Examples:
   python crossword_generator.py --extract --count 3
   python crossword_generator.py --width 7 --height 7
   python crossword_generator.py --width 10  # height will be set to 10 as well
-        """
+        """,
     )
-    
+
     parser.add_argument(
         "--extract",
         action="store_true",
-        help="Force re-extraction of clues from JSON files"
+        help="Force re-extraction of clues from JSON files",
     )
-    
+
     parser.add_argument(
-        "--count",
-        type=int,
-        default=1,
-        help="Generate N crosswords (default: 1)"
+        "--count", type=int, default=1, help="Generate N crosswords (default: 1)"
     )
-    
+
     parser.add_argument(
         "--max-iterations",
         type=int,
-        help="Set maximum total iterations (default: 2000 * count)"
+        help="Set maximum total iterations (default: 2000 * count)",
     )
-    
+
     parser.add_argument(
-        "--width",
-        type=int,
-        default=5,
-        help="Width of the crossword grid (default: 5)"
+        "--width", type=int, default=5, help="Width of the crossword grid (default: 5)"
     )
-    
+
     parser.add_argument(
         "--height",
         type=int,
         default=None,
-        help="Height of the crossword grid (default: same as width)"
+        help="Height of the crossword grid (default: same as width)",
     )
-    
+
     return parser.parse_args()
 
 
@@ -993,7 +1104,7 @@ def main():
 
     # Parse command line arguments
     args = parse_arguments()
-    
+
     # Set height to match width if not specified
     if args.height is None:
         args.height = args.width
@@ -1012,9 +1123,13 @@ def main():
         print("\nStep 1: Extracting clue/answer pairs from crossword files...")
         try:
             collins_dictionary = "Collins-Scrabble-Words-2019.tsv"
-            master_clues = build_master_clue_list(crosswords_dir, collins_dictionary, master_clues_file)
+            master_clues = build_master_clue_list(
+                crosswords_dir, collins_dictionary, master_clues_file
+            )
             if not master_clues:
-                print("No clues extracted! Check if JSON files exist in the crosswords directory.")
+                print(
+                    "No clues extracted! Check if JSON files exist in the crosswords directory."
+                )
                 sys.exit(1)
         except Exception as e:
             print(f"Error extracting clues: {e}")
@@ -1038,25 +1153,35 @@ def main():
             max_iterations = 2000 * num_crosswords  # Default: 2000 per crossword
 
         # Use batch generation for all cases
-        print(f"Using batch generation: {num_crosswords} crosswords, max {max_iterations} iterations")
-        crosswords = generator.generate_crosswords_batch(num_crosswords, max_iterations, verbose_level=0)
-        
+        print(
+            f"Using batch generation: {num_crosswords} crosswords, max {max_iterations} iterations"
+        )
+        crosswords = generator.generate_crosswords_batch(
+            num_crosswords, max_iterations, verbose_level=0
+        )
+
         success_count = 0
         for i, crossword in enumerate(crosswords):
             print(f"\n{'=' * 60}")
             print(f"Crossword #{i + 1} of {len(crosswords)}")
             print("=" * 60)
-            
-            crossword.display(generator.available_answers, generator.clue_lookup, generator.clue_list)
-            
+
+            crossword.display(
+                generator.available_answers, generator.clue_lookup, generator.clue_list
+            )
+
             # Get final words including unintended sequences
-            final_words = crossword.get_final_words(generator.available_answers, generator.clue_lookup, generator.clue_list)
+            final_words = crossword.get_final_words(
+                generator.available_answers, generator.clue_lookup, generator.clue_list
+            )
             final_word_count = len(final_words)
             final_used_answers = {word.text for word in final_words}
-            
+
             # Calculate average quality using final words
-            avg_quality = generator.calculate_average_quality(crossword, generator.available_answers, generator.clue_lookup)
-            
+            avg_quality = generator.calculate_average_quality(
+                crossword, generator.available_answers, generator.clue_lookup
+            )
+
             print("\nStats:")
             print(f"  Empty squares: {crossword.count_empty_squares()}")
             print(f"  Total words: {final_word_count}")
@@ -1066,7 +1191,9 @@ def main():
             success_count += 1
 
         print(f"\n{'=' * 60}")
-        print(f"Generated {success_count} out of {num_crosswords} crosswords successfully!")
+        print(
+            f"Generated {success_count} out of {num_crosswords} crosswords successfully!"
+        )
 
     except Exception as e:
         print(f"Error generating crosswords: {e}")
