@@ -39,12 +39,28 @@ class CrosswordGrid:
     height: int = 5
     grid: List[List[str]] = None
     words: List[Word] = None
+    # Cache for expensive calculations
+    _cached_sequences: List[Tuple[str, int, int, Direction]] = None
+    _cached_placed_words: Set[Tuple[str, int, int, Direction]] = None
+    _cached_used_answers: Set[str] = None
+    _cached_empty_squares: int = None
+    _cached_invalid_sequences: int = None
 
     def __post_init__(self):
         if self.grid is None:
             self.grid = [["." for _ in range(self.width)] for _ in range(self.height)]
         if self.words is None:
             self.words = []
+        # Initialize cache
+        self._invalidate_cache()
+
+    def _invalidate_cache(self):
+        """Invalidate all cached values when grid or words change."""
+        self._cached_sequences = None
+        self._cached_placed_words = None
+        self._cached_used_answers = None
+        self._cached_empty_squares = None
+        self._cached_invalid_sequences = None
 
     @property
     def size(self):
@@ -90,33 +106,125 @@ class CrosswordGrid:
         # If available_answers is provided, do a more thorough check
         # Only validate when we have complete sequences (full width/height)
         if available_answers is not None:
-            # Create a temporary grid to check what new sequences would be created
-            temp_grid = [row[:] for row in self.grid]  # Deep copy
-            if direction == Direction.ACROSS:
-                for i, char in enumerate(word):
-                    temp_grid[row][col + i] = char
-            else:  # DOWN
-                for i, char in enumerate(word):
-                    temp_grid[row + i][col] = char
-
-            # Only check sequences that are exactly full width/height
-            temp_crossword = CrosswordGrid(
-                self.width, self.height, temp_grid, self.words[:]
-            )
-            all_sequences = temp_crossword.get_all_letter_sequences()
-            placed_words = temp_crossword.get_placed_words_set()
-
-            for sequence, seq_row, seq_col, seq_direction in all_sequences:
-                # Only validate complete sequences (full width for across, full height for down)
-                expected_length = (
-                    self.width if seq_direction == Direction.ACROSS else self.height
-                )
-                if len(sequence) == expected_length:
-                    if (sequence, seq_row, seq_col, seq_direction) not in placed_words:
-                        if sequence not in available_answers:
-                            return False
+            # OPTIMIZATION: Instead of creating a temporary grid and CrosswordGrid object,
+            # we can directly check for new sequences that would be created by this placement
+            # This avoids the expensive temporary object creation and method calls
+            
+            # Check for new sequences that would be created by this word placement
+            new_sequences = self._get_new_sequences_from_placement(word, row, col, direction)
+            
+            # Check if any new sequences are invalid
+            for sequence, seq_row, seq_col, seq_direction in new_sequences:
+                # Only validate sequences of 3+ letters that are not already placed words
+                if len(sequence) >= 3:
+                    # Check if this sequence corresponds to an already placed word
+                    is_placed_word = False
+                    for existing_word in self.words:
+                        if (existing_word.text == sequence and 
+                            existing_word.row == seq_row and 
+                            existing_word.col == seq_col and 
+                            existing_word.direction == seq_direction):
+                            is_placed_word = True
+                            break
+                    
+                    if not is_placed_word and sequence not in available_answers:
+                        return False
 
         return True
+
+    def _get_new_sequences_from_placement(
+        self, word: str, row: int, col: int, direction: Direction
+    ) -> List[Tuple[str, int, int, Direction]]:
+        """Get new letter sequences that would be created by placing a word.
+        
+        This is an optimized version that directly analyzes the grid without
+        creating temporary objects, avoiding the expensive temporary grid creation.
+        """
+        new_sequences = []
+        
+        if direction == Direction.ACROSS:
+            # Check for new vertical sequences that would be created
+            for i, char in enumerate(word):
+                word_col = col + i
+                word_row = row
+                
+                # Find the start of any vertical sequence at this position
+                start_row = word_row
+                while (start_row > 0 and 
+                       self.grid[start_row - 1][word_col] != "."):
+                    start_row -= 1
+                
+                # Find the end of any vertical sequence at this position
+                end_row = word_row
+                while (end_row < self.height - 1 and 
+                       self.grid[end_row + 1][word_col] != "."):
+                    end_row += 1
+                
+                # If we have a sequence of 2+ characters, check if it's new
+                if end_row - start_row + 1 >= 2:
+                    # Build the sequence
+                    sequence = ""
+                    for r in range(start_row, end_row + 1):
+                        if r == word_row:
+                            sequence += char  # Use the new character
+                        else:
+                            sequence += self.grid[r][word_col]
+                    
+                    # Only add if it's a new sequence (not already a placed word)
+                    is_existing_word = False
+                    for existing_word in self.words:
+                        if (existing_word.direction == Direction.DOWN and
+                            existing_word.row == start_row and
+                            existing_word.col == word_col and
+                            existing_word.text == sequence):
+                            is_existing_word = True
+                            break
+                    
+                    if not is_existing_word:
+                        new_sequences.append((sequence, start_row, word_col, Direction.DOWN))
+        
+        else:  # DOWN
+            # Check for new horizontal sequences that would be created
+            for i, char in enumerate(word):
+                word_row = row + i
+                word_col = col
+                
+                # Find the start of any horizontal sequence at this position
+                start_col = word_col
+                while (start_col > 0 and 
+                       self.grid[word_row][start_col - 1] != "."):
+                    start_col -= 1
+                
+                # Find the end of any horizontal sequence at this position
+                end_col = word_col
+                while (end_col < self.width - 1 and 
+                       self.grid[word_row][end_col + 1] != "."):
+                    end_col += 1
+                
+                # If we have a sequence of 2+ characters, check if it's new
+                if end_col - start_col + 1 >= 2:
+                    # Build the sequence
+                    sequence = ""
+                    for c in range(start_col, end_col + 1):
+                        if c == word_col:
+                            sequence += char  # Use the new character
+                        else:
+                            sequence += self.grid[word_row][c]
+                    
+                    # Only add if it's a new sequence (not already a placed word)
+                    is_existing_word = False
+                    for existing_word in self.words:
+                        if (existing_word.direction == Direction.ACROSS and
+                            existing_word.row == word_row and
+                            existing_word.col == start_col and
+                            existing_word.text == sequence):
+                            is_existing_word = True
+                            break
+                    
+                    if not is_existing_word:
+                        new_sequences.append((sequence, word_row, start_col, Direction.ACROSS))
+        
+        return new_sequences
 
     def place_word(
         self,
@@ -136,24 +244,41 @@ class CrosswordGrid:
                 self.grid[row + i][col] = char
 
         self.words.append(Word(word, row, col, direction, clue, quality))
+        # Invalidate cache when grid changes
+        self._invalidate_cache()
 
     def count_empty_squares(self) -> int:
         """Count the number of empty squares in the grid."""
+        if self._cached_empty_squares is not None:
+            return self._cached_empty_squares
+        
         count = 0
         for row in self.grid:
             for cell in row:
                 if cell == ".":
                     count += 1
+        self._cached_empty_squares = count
         return count
 
     def has_excessive_consecutive_empty_squares(self) -> bool:
         """Check if any row or column has (dimension // 2) or more consecutive empty squares.
-        
+
         Returns:
             True if any row or column has too many consecutive empty squares, False otherwise.
         """
+        return self.count_consecutive_empty_violations() > 0
+
+    def count_consecutive_empty_violations(self) -> int:
+        """Count the number of consecutive empty square violations.
+
+        A violation occurs when a row or column has (dimension // 2) or more consecutive empty squares.
+
+        Returns:
+            Number of violations found in the grid.
+        """
         max_consecutive = max(self.width, self.height) // 2
-        
+        violations = 0
+
         # Check rows for consecutive empty squares
         for row in self.grid:
             consecutive_empty = 0
@@ -161,10 +286,10 @@ class CrosswordGrid:
                 if cell == ".":
                     consecutive_empty += 1
                     if consecutive_empty > max_consecutive:
-                        return True
+                        violations += 1
                 else:
                     consecutive_empty = 0
-        
+
         # Check columns for consecutive empty squares
         for col in range(self.width):
             consecutive_empty = 0
@@ -172,18 +297,25 @@ class CrosswordGrid:
                 if self.grid[row][col] == ".":
                     consecutive_empty += 1
                     if consecutive_empty > max_consecutive:
-                        return True
+                        violations += 1
                 else:
                     consecutive_empty = 0
-        
-        return False
+
+        return violations
 
     def get_used_answers(self) -> Set[str]:
         """Get set of all answers used in this crossword."""
-        return {word.text for word in self.words}
+        if self._cached_used_answers is not None:
+            return self._cached_used_answers
+        
+        self._cached_used_answers = {word.text for word in self.words}
+        return self._cached_used_answers
 
     def get_all_letter_sequences(self) -> List[Tuple[str, int, int, Direction]]:
         """Get all contiguous letter sequences in the grid (potential words)."""
+        if self._cached_sequences is not None:
+            return self._cached_sequences
+        
         sequences = []
 
         # Check horizontal sequences (across)
@@ -218,14 +350,25 @@ class CrosswordGrid:
                 else:
                     row += 1
 
+        self._cached_sequences = sequences
         return sequences
 
     def get_placed_words_set(self) -> Set[Tuple[str, int, int, Direction]]:
         """Get set of all placed words as (text, row, col, direction) tuples."""
-        return {(word.text, word.row, word.col, word.direction) for word in self.words}
+        if self._cached_placed_words is not None:
+            return self._cached_placed_words
+        
+        self._cached_placed_words = {(word.text, word.row, word.col, word.direction) for word in self.words}
+        return self._cached_placed_words
 
     def count_invalid_sequences(self, available_answers: Set[str]) -> int:
         """Count number of invalid letter sequences in the grid."""
+        # Use a cache key that includes available_answers to avoid conflicts
+        cache_key = id(available_answers)  # Use object id as cache key
+        if hasattr(self, '_cached_invalid_sequences') and hasattr(self, '_cached_invalid_answers_id'):
+            if self._cached_invalid_answers_id == cache_key:
+                return self._cached_invalid_sequences
+        
         all_sequences = self.get_all_letter_sequences()
         placed_words = self.get_placed_words_set()
         invalid_sequences = 0
@@ -238,6 +381,8 @@ class CrosswordGrid:
                 if len(sequence) >= 2 and sequence not in available_answers:
                     invalid_sequences += 1
 
+        self._cached_invalid_sequences = invalid_sequences
+        self._cached_invalid_answers_id = cache_key
         return invalid_sequences
 
     def process_unintended_sequences(
@@ -508,16 +653,12 @@ class CrosswordGenerator:
                 if answer in used_answers:
                     continue
 
-                # Check pattern match
+                # Check pattern match - optimized with early exit
                 if pattern is not None:
                     if len(answer) != len(pattern):
                         continue
-                    matches = True
-                    for i, (p, a) in enumerate(zip(pattern, answer)):
-                        if p != "." and p != a:
-                            matches = False
-                            break
-                    if not matches:
+                    # Use all() with generator for early exit
+                    if not all(p == "." or p == a for p, a in zip(pattern, answer)):
                         continue
 
                 # Add to appropriate quality bucket
@@ -547,15 +688,9 @@ class CrosswordGenerator:
                 if pattern is None:
                     possible.append((answer, clue, quality))
                 else:
-                    # Check if answer matches pattern (. means any character)
-                    if len(answer) == len(pattern):
-                        matches = True
-                        for i, (p, a) in enumerate(zip(pattern, answer)):
-                            if p != "." and p != a:
-                                matches = False
-                                break
-                        if matches:
-                            possible.append((answer, clue, quality))
+                    # Check if answer matches pattern (. means any character) - optimized
+                    if len(answer) == len(pattern) and all(p == "." or p == a for p, a in zip(pattern, answer)):
+                        possible.append((answer, clue, quality))
 
                 # Limit results to prevent excessive processing
                 if len(possible) >= max_results:
@@ -608,16 +743,9 @@ class CrosswordGenerator:
             if answer in used_answers:
                 continue
 
-            # Check pattern match
+            # Check pattern match - optimized with early exit
             if pattern is not None:
-                if len(answer) != len(pattern):
-                    continue
-                matches = True
-                for i, (p, a) in enumerate(zip(pattern, answer)):
-                    if p != "." and p != a:
-                        matches = False
-                        break
-                if not matches:
+                if len(answer) != len(pattern) or not all(p == "." or p == a for p, a in zip(pattern, answer)):
                     continue
 
             results.append((answer, clue, quality))
@@ -708,23 +836,27 @@ class CrosswordGenerator:
                         for answer, clue, quality in possible_words:
                             if len(intersecting) >= max_intersections:
                                 break
-                            if grid.is_valid_placement(
-                                answer,
-                                start_row,
-                                word_col,
-                                Direction.DOWN,
-                                self.available_answers,
-                            ):
-                                intersecting.append(
-                                    (
-                                        answer,
-                                        clue,
-                                        quality,
-                                        start_row,
-                                        word_col,
-                                        Direction.DOWN,
+                            # OPTIMIZATION: Do basic validation first before expensive validation
+                            if (start_row + len(answer) <= grid.height and
+                                (start_row == 0 or grid.grid[start_row - 1][word_col] == ".") and
+                                (start_row + len(answer) >= grid.height or grid.grid[start_row + len(answer)][word_col] == ".")):
+                                if grid.is_valid_placement(
+                                    answer,
+                                    start_row,
+                                    word_col,
+                                    Direction.DOWN,
+                                    self.available_answers,
+                                ):
+                                    intersecting.append(
+                                        (
+                                            answer,
+                                            clue,
+                                            quality,
+                                            start_row,
+                                            word_col,
+                                            Direction.DOWN,
+                                        )
                                     )
-                                )
 
         else:  # DOWN
             # Look for horizontal words that could intersect
@@ -762,23 +894,27 @@ class CrosswordGenerator:
                         for answer, clue, quality in possible_words:
                             if len(intersecting) >= max_intersections:
                                 break
-                            if grid.is_valid_placement(
-                                answer,
-                                word_row,
-                                start_col,
-                                Direction.ACROSS,
-                                self.available_answers,
-                            ):
-                                intersecting.append(
-                                    (
-                                        answer,
-                                        clue,
-                                        quality,
-                                        word_row,
-                                        start_col,
-                                        Direction.ACROSS,
+                            # OPTIMIZATION: Do basic validation first before expensive validation
+                            if (start_col + len(answer) <= grid.width and
+                                (start_col == 0 or grid.grid[word_row][start_col - 1] == ".") and
+                                (start_col + len(answer) >= grid.width or grid.grid[word_row][start_col + len(answer)] == ".")):
+                                if grid.is_valid_placement(
+                                    answer,
+                                    word_row,
+                                    start_col,
+                                    Direction.ACROSS,
+                                    self.available_answers,
+                                ):
+                                    intersecting.append(
+                                        (
+                                            answer,
+                                            clue,
+                                            quality,
+                                            word_row,
+                                            start_col,
+                                            Direction.ACROSS,
+                                        )
                                     )
-                                )
 
         return intersecting
 
@@ -789,39 +925,65 @@ class CrosswordGenerator:
         return empty_squares + invalid_sequences
 
     def _score_constraint_violating_puzzle(self, grid: CrosswordGrid) -> float:
-        """Score constraint-violating puzzles - higher is better.
-        
+        """Score constraint-violating puzzles - lower is better.
+
         This method calculates a score for puzzles that violate constraints.
         The score is based on:
-        - Number of words (more is better)
-        - Average quality of clues (higher is better)
-        - Fewer empty squares (more is better)
-        - Fewer invalid sequences (more is better)
-        
-        Returns a float score where higher is better.
+        - Number of words (more is better, so lower penalty)
+        - Average quality of clues (higher is better, so lower penalty)
+        - Fewer empty squares (more is better, so lower penalty)
+        - Fewer invalid sequences (more is better, so lower penalty)
+        - Fewer consecutive empty square violations (more is better, so lower penalty)
+
+        Returns a float score where lower is better.
         """
         # Get final word count including unintended sequences
         final_word_count = grid.get_final_word_count(
             self.available_answers, self.clue_lookup, self.clue_list
         )
-        
+
         # Calculate average quality
         avg_quality = self.calculate_average_quality(
             grid, self.available_answers, self.clue_lookup
         )
-        
-        # Count empty squares and invalid sequences
+
+        # Count empty squares, invalid sequences, and consecutive violations
         empty_squares = grid.count_empty_squares()
         invalid_sequences = grid.count_invalid_sequences(self.available_answers)
-        
-        # Calculate score components
-        word_score = final_word_count * 10  # 10 points per word
-        quality_score = 1 / avg_quality * 50  # Up to 50 points for quality
-        density_score = (self.width * self.height - empty_squares) * 2  # Up to 50 points for density
-        validity_score = max(0, 20 - invalid_sequences * 5)  # Up to 20 points, minus 5 per invalid sequence
-        
-        total_score = word_score + quality_score + density_score + validity_score
-        return total_score
+        consecutive_violations = grid.count_consecutive_empty_violations()
+
+        # Calculate penalty components (lower is better)
+        # Penalty for having fewer words (inverse of word count)
+        word_penalty = max(
+            0, 20 - final_word_count
+        )  # Penalty decreases as word count increases
+
+        # Penalty for lower quality (inverse of quality)
+        quality_penalty = max(
+            0, 50 - avg_quality * 50
+        )  # Penalty decreases as quality increases
+
+        # Penalty for more empty squares
+        density_penalty = empty_squares * 2  # Penalty increases with empty squares
+
+        # Penalty for invalid sequences
+        validity_penalty = (
+            invalid_sequences * 5
+        )  # Penalty increases with invalid sequences
+
+        # Penalty for consecutive empty square violations
+        consecutive_penalty = (
+            consecutive_violations * 10
+        )  # Penalty increases with violations
+
+        total_penalty = (
+            word_penalty
+            + quality_penalty
+            + density_penalty
+            + validity_penalty
+            + consecutive_penalty
+        )
+        return total_penalty
 
     def calculate_average_quality(
         self,
@@ -847,6 +1009,7 @@ class CrosswordGenerator:
         if not final_words:
             return 0.0
 
+        # Optimized: use sum() with generator expression for better performance
         total_quality = sum(word.quality for word in final_words)
         return total_quality / len(final_words)
 
@@ -908,7 +1071,7 @@ class CrosswordGenerator:
         # Try to add more words
         words_added = 1
 
-        for iteration in range(100):  # Max iterations to add words
+        for iteration in range(50):  # Reduced max iterations for better performance
             # Find intersecting words for existing words
             found_word = False
             total_candidates = 0
@@ -1035,15 +1198,15 @@ class CrosswordGenerator:
 
         # Single iteration counter running to max_iterations
         last_perfect_attempts = 0
-        
+
         # Create progress bar with dynamic description
         progress_bar = tqdm(range(max_iterations), desc="Generating crosswords...")
-        
+
         def update_progress_description():
             """Update the progress bar description with current counts."""
             desc = f"🟢: {len(perfect_crosswords)}, 🟡: {len(imperfect_crosswords)}, 🔴: {len(constraint_violating_crosswords)}"
             progress_bar.set_description(desc)
-        
+
         for attempt in progress_bar:
             verbose_iteration_1 = verbose_level >= 1 and attempt < 1000
             verbose_iteration_2 = verbose_level >= 2 and attempt < 1000
@@ -1052,7 +1215,9 @@ class CrosswordGenerator:
                 tqdm.write(f"\nAttempt {attempt + 1}:")
                 tqdm.write(f"  Perfect puzzles found: {len(perfect_crosswords)}")
                 tqdm.write(f"  Imperfect puzzles found: {len(imperfect_crosswords)}")
-                tqdm.write(f"  Constraint-violating puzzles found: {len(constraint_violating_crosswords)}")
+                tqdm.write(
+                    f"  Constraint-violating puzzles found: {len(constraint_violating_crosswords)}"
+                )
 
             # Generate a single crossword attempt
             grid, is_valid, quality_score = self.generate_single_crossword_attempt(
@@ -1063,12 +1228,12 @@ class CrosswordGenerator:
                 continue
 
             if is_valid:
-                # Create a copy of the grid
+                # Create a copy of the grid - optimized shallow copy for immutable data
                 grid_copy = CrosswordGrid(
                     grid.width,
                     grid.height,
-                    [row[:] for row in grid.grid],
-                    grid.words[:],
+                    [row[:] for row in grid.grid],  # Shallow copy is sufficient for strings
+                    grid.words[:],  # Shallow copy is sufficient for Word objects
                 )
 
                 if quality_score == 1.0:
@@ -1082,11 +1247,13 @@ class CrosswordGenerator:
                 else:
                     # Imperfect but valid puzzle
                     imperfect_crosswords.append(grid_copy)
-                    
+
                     # Only keep (count - perfect) imperfect puzzles since perfect are prioritized first
                     if len(imperfect_crosswords) > count - len(perfect_crosswords):
-                        imperfect_crosswords = imperfect_crosswords[:count - len(perfect_crosswords)]
-                    
+                        imperfect_crosswords = imperfect_crosswords[
+                            : count - len(perfect_crosswords)
+                        ]
+
                     update_progress_description()
                     if verbose_iteration_1:
                         tqdm.write(
@@ -1102,29 +1269,33 @@ class CrosswordGenerator:
             else:
                 # Constraint-violating puzzle - calculate score and track it
                 constraint_score = self._score_constraint_violating_puzzle(grid)
-                
-                # Create a copy of the grid
+
+                # Create a copy of the grid - optimized shallow copy for immutable data
                 grid_copy = CrosswordGrid(
                     grid.width,
                     grid.height,
-                    [row[:] for row in grid.grid],
-                    grid.words[:],
+                    [row[:] for row in grid.grid],  # Shallow copy is sufficient for strings
+                    grid.words[:],  # Shallow copy is sufficient for Word objects
                 )
-                
+
                 # Add to constraint-violating list
                 constraint_violating_crosswords.append((grid_copy, constraint_score))
-                
-                # Keep only the top-scoring constraint-violating puzzles to avoid memory issues
-                # Sort by score (descending) and keep only (count - perfect - imperfect) since perfect and imperfect are prioritized first
-                constraint_violating_crosswords.sort(key=lambda x: x[1], reverse=True)
-                max_invalid_needed = count - len(perfect_crosswords) - len(imperfect_crosswords)
+
+                # Keep only the best constraint-violating puzzles to avoid memory issues
+                # Sort by score (ascending) and keep only (count - perfect - imperfect) since perfect and imperfect are prioritized first
+                constraint_violating_crosswords.sort(key=lambda x: x[1], reverse=False)
+                max_invalid_needed = (
+                    count - len(perfect_crosswords) - len(imperfect_crosswords)
+                )
                 if len(constraint_violating_crosswords) > max_invalid_needed:
-                    constraint_violating_crosswords = constraint_violating_crosswords[:max_invalid_needed]
-                
+                    constraint_violating_crosswords = constraint_violating_crosswords[
+                        :max_invalid_needed
+                    ]
+
                 update_progress_description()
                 if verbose_iteration_1:
                     tqdm.write(
-                        f"⚠ Found constraint-violating crossword #{len(constraint_violating_crosswords)} in {attempt + 1} attempts! (Score: {constraint_score:.1f})"
+                        f"⚠ Found constraint-violating crossword #{len(constraint_violating_crosswords)} in {attempt + 1} attempts! (Penalty: {constraint_score:.1f})"
                     )
 
         # Close the progress bar
@@ -1148,9 +1319,16 @@ class CrosswordGenerator:
         # Add constraint-violating puzzles to fill remaining slots
         constraint_violating_to_add = 0
         if remaining_slots > 0 and constraint_violating_crosswords:
-            constraint_violating_to_add = min(len(constraint_violating_crosswords), remaining_slots)
+            constraint_violating_to_add = min(
+                len(constraint_violating_crosswords), remaining_slots
+            )
             # Extract just the grids (not the scores) from the tuples
-            constraint_violating_grids = [grid for grid, score in constraint_violating_crosswords[:constraint_violating_to_add]]
+            constraint_violating_grids = [
+                grid
+                for grid, score in constraint_violating_crosswords[
+                    :constraint_violating_to_add
+                ]
+            ]
             result.extend(constraint_violating_grids)
 
         # Print summary
@@ -1160,7 +1338,9 @@ class CrosswordGenerator:
         print(f"Total iterations: {max_iterations}")
         print(f"Perfect puzzles found: {len(perfect_crosswords)}")
         print(f"Imperfect puzzles found: {len(imperfect_crosswords)}")
-        print(f"Constraint-violating puzzles found: {len(constraint_violating_crosswords)}")
+        print(
+            f"Constraint-violating puzzles found: {len(constraint_violating_crosswords)}"
+        )
         print(f"Puzzles returned: {len(result)}")
         print(f"Perfect puzzles in result: {perfect_to_add}")
         print(f"Imperfect puzzles in result: {imperfect_to_add}")
@@ -1309,11 +1489,13 @@ def main():
             # Check if this is a valid puzzle (same logic as in generate_single_crossword_attempt)
             empty_squares = crossword.count_empty_squares()
             used_answers = crossword.get_used_answers()
-            invalid_sequences = crossword.count_invalid_sequences(generator.available_answers)
-            
+            invalid_sequences = crossword.count_invalid_sequences(
+                generator.available_answers
+            )
+
             max_empty_squares = int((crossword.width * crossword.height) * 0.25)
             min_words = max(6, int((crossword.width + crossword.height) * 0.5))
-            
+
             is_valid = (
                 empty_squares <= max_empty_squares
                 and len(used_answers) == len(crossword.words)  # No repeated answers
@@ -1331,7 +1513,9 @@ def main():
             else:
                 puzzle_type = "Constraint-violating"
                 # Calculate constraint-violating score for display
-                constraint_score = generator._score_constraint_violating_puzzle(crossword)
+                constraint_score = generator._score_constraint_violating_puzzle(
+                    crossword
+                )
 
             print("\nStats:")
             print(f"  Empty squares: {empty_squares}")
@@ -1340,7 +1524,12 @@ def main():
             print(f"  Average quality score: {avg_quality:.2f}")
             print(f"  Puzzle type: {puzzle_type}")
             if puzzle_type == "Constraint-violating":
-                print(f"  Constraint-violating score: {constraint_score:.1f}")
+                print(f"  Constraint-violating penalty: {constraint_score:.1f}")
+                # Add consecutive empty square violations count for invalid puzzles
+                consecutive_violations = crossword.count_consecutive_empty_violations()
+                print(
+                    f"  Consecutive empty square violations: {consecutive_violations}"
+                )
             success_count += 1
 
         print(f"\n{'=' * 60}")
