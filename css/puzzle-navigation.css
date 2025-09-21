@@ -1,0 +1,102 @@
+/* Puzzle Navigation Styles */
+
+/* Desktop Navigation - separate row */
+.desktop-puzzle-navigation {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin: 10px 0;
+}
+
+.desktop-puzzle-navigation .puzzle-nav-btn {
+  background: var(--color-background-surface);
+  border: 1px solid var(--color-border-primary);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Roboto Condensed', sans-serif;
+  font-weight: 500;
+  opacity: 0.8;
+  white-space: nowrap;
+}
+
+.desktop-puzzle-navigation .puzzle-nav-btn:hover {
+  background: var(--color-background-surface-hover);
+  border-color: var(--color-border-secondary);
+  color: var(--color-text-primary);
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+.desktop-puzzle-navigation .puzzle-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Mobile Navigation */
+.mobile-puzzle-navigation {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid var(--color-border-secondary);
+}
+
+.mobile-nav-puzzle-btn {
+  background: var(--color-background-surface);
+  border: 1px solid var(--color-border-primary);
+  color: var(--color-text-primary);
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex: 1;
+  text-align: center;
+}
+
+.mobile-nav-puzzle-btn:hover {
+  background: var(--color-background-surface-hover);
+  border-color: var(--color-border-secondary);
+}
+
+.mobile-nav-puzzle-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Hide navigation when not needed */
+.puzzle-nav-btn[style*='display: none'],
+.mobile-nav-puzzle-btn[style*='display: none'] {
+  display: none !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .desktop-puzzle-navigation {
+    display: none; /* Hide desktop navigation on mobile */
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-puzzle-navigation {
+    display: none; /* Hide mobile navigation on desktop */
+  }
+}
+
+/* Very small screens - make buttons more compact */
+@media (max-width: 480px) {
+  .mobile-nav-puzzle-btn {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+}
