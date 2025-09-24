@@ -21,6 +21,10 @@ class CrosswordPuzzle {
     this.keydownHandler = null; // Store reference to keydown event handler for cleanup
     this.visibilityChangeHandler = null; // Store reference to visibilitychange event handler for cleanup
 
+    // Parse URL flag to allow replaying a completed puzzle without recording stats
+    const urlParams = new URLSearchParams(window.location.search);
+    this.isResetPlaythrough = urlParams.get('reset') === 'true';
+
     // Place emojis for leaderboard rankings
     this.placeEmojis = {
       1: '🥇',
@@ -44,6 +48,7 @@ class CrosswordPuzzle {
     console.log('=== INIT START ===');
     console.log('userName:', this.userName);
     console.log('isCompleted:', this.isCompleted);
+    console.log('isResetPlaythrough:', this.isResetPlaythrough);
 
     this.setupGrid();
     this.clearAllFormInputs(); // Ensure clean state
@@ -54,30 +59,36 @@ class CrosswordPuzzle {
     this.setupMobileDynamicSizing();
     this.blurClues();
 
-    // Check if user has already completed this puzzle (only if we have a username)
-    if (this.userName) {
-      console.log('User has name, checking completion...');
-      this.checkExistingCompletion()
-        .then(() => {
-          // Only show game overlay if puzzle is not already completed
-          if (!this.isCompleted) {
-            this.showGameOverlay();
-            this.showStartGameBtn();
-          } else {
-            this.hideGameOverlay();
-          }
-        })
-        .catch(error => {
-          // If completion check fails, treat as not completed
-          console.log('Completion check failed:', error);
-          this.showGameOverlay();
-          this.showStartGameBtn();
-        });
-    } else {
-      // No username
-      console.log('No username, showing overlay for name');
+    // If reset mode is enabled, skip completion restore and start fresh
+    if (this.isResetPlaythrough) {
       this.showGameOverlay();
       this.showStartGameBtn();
+    } else {
+      // Check if user has already completed this puzzle (only if we have a username)
+      if (this.userName) {
+        console.log('User has name, checking completion...');
+        this.checkExistingCompletion()
+          .then(() => {
+            // Only show game overlay if puzzle is not already completed
+            if (!this.isCompleted) {
+              this.showGameOverlay();
+              this.showStartGameBtn();
+            } else {
+              this.hideGameOverlay();
+            }
+          })
+          .catch(error => {
+            // If completion check fails, treat as not completed
+            console.log('Completion check failed:', error);
+            this.showGameOverlay();
+            this.showStartGameBtn();
+          });
+      } else {
+        // No username
+        console.log('No username, showing overlay for name');
+        this.showGameOverlay();
+        this.showStartGameBtn();
+      }
     }
   }
 
@@ -285,6 +296,13 @@ class CrosswordPuzzle {
       this.setCookie('crossword_user_name', this.userName);
 
       this.hideGameOverlay(); // Hide the name prompt overlay
+
+      // In reset mode, skip completion restore and start fresh
+      if (this.isResetPlaythrough) {
+        this.showGameOverlay();
+        this.showStartGameBtn();
+        return;
+      }
 
       // Check if this user has already completed the puzzle
       this.checkExistingCompletion()
@@ -613,7 +631,12 @@ class CrosswordPuzzle {
   updateTimerDisplay() {
     const minutes = Math.floor(this.elapsedTime / 60000);
     const seconds = Math.floor((this.elapsedTime % 60000) / 1000);
-    const display = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    const timeDisplay = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+    // Determine if a temporary timer message should be shown
+    const now = Date.now();
+    const showMessage = this._timerMessageUntil && now < this._timerMessageUntil;
+    const display = showMessage && this._timerMessage ? this._timerMessage : timeDisplay;
 
     // Update all timer displays (desktop, mobile menu, and mobile main)
     const desktopTimer = document.getElementById('timer');
@@ -1134,7 +1157,13 @@ class CrosswordPuzzle {
 
     // Check completion and provide feedback if the cleanup resulted in a valid letter
     if (firstValidChar) {
-      this.checkPuzzleCompletion();
+      const status = this.checkPuzzleCompletion();
+      if (status && status.allFilled && !status.allCorrect && status.incorrectCount > 0) {
+        const message = `${status.incorrectCount} letter${status.incorrectCount === 1 ? '' : 's'} are incorrect!`;
+        this._timerMessage = message;
+        this._timerMessageUntil = Date.now() + 2000;
+        this.updateTimerDisplay();
+      }
       if (this.showFeedback) {
         const cell = this.puzzle.cells[cellIndex];
         // Remove any existing autocheck classes
@@ -1162,6 +1191,7 @@ class CrosswordPuzzle {
   checkPuzzleCompletion() {
     let allCorrect = true;
     let allFilled = true;
+    let incorrectCount = 0;
 
     this.puzzle.cells.forEach((cell, index) => {
       if (cell && Object.keys(cell).length > 0) {
@@ -1170,13 +1200,17 @@ class CrosswordPuzzle {
           allFilled = false;
         } else if (userAnswer !== cell.answer) {
           allCorrect = false;
+          incorrectCount++;
         }
       }
     });
 
     if (allFilled && allCorrect) {
       this.onPuzzleComplete();
+      return { allFilled: true, allCorrect: true, incorrectCount: 0 };
     }
+
+    return { allFilled, allCorrect, incorrectCount };
   }
 
   onPuzzleComplete() {
@@ -1220,6 +1254,10 @@ class CrosswordPuzzle {
 
   sendResultsToServer() {
     // Only send if we have a username and valid completion time
+    if (this.isResetPlaythrough) {
+      console.log('Skipping results submission: reset mode enabled');
+      return Promise.resolve();
+    }
     if (!this.userName || !this.elapsedTime || this.elapsedTime === 0) {
       console.log('Skipping results submission: missing username or completion time');
       return Promise.resolve(); // Return resolved promise for consistency
@@ -1771,11 +1809,17 @@ class CrosswordPuzzle {
         }
 
         // Check for puzzle completion
-        this.checkPuzzleCompletion();
+        const status = this.checkPuzzleCompletion();
 
-        // Only move to next cell if puzzle is not completed
-        if (this.isRunning) {
-          // Timer is stopped when puzzle completes
+        // If all cells are filled but some are incorrect, briefly show message in timer
+        if (status && status.allFilled && !status.allCorrect && status.incorrectCount > 0) {
+          const message = `${status.incorrectCount} letter${status.incorrectCount === 1 ? '' : 's'} are incorrect!`;
+          this._timerMessage = message;
+          this._timerMessageUntil = Date.now() + 2000; // show for 2 seconds
+          this.updateTimerDisplay();
+          // Do not auto-advance in this case; keep the last entered cell selected
+        } else if (this.isRunning) {
+          // Only move to next cell if puzzle is not completed and not in the incorrect-filled state
           this.moveToNextCell(this.selectedCell);
         }
       }
