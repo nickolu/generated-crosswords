@@ -230,7 +230,10 @@ class CrosswordArchive {
                         <div class="day-number">${day}</div>
                         <div class="completion-info">
                             <div class="completion-time">${timeStr}</div>
-                            <div class="completion-place">${placeEmoji}</div>
+                            <div class="completion-place-wrapper">
+                                <div class="completion-place">${placeEmoji}</div>
+                                <div class="completion-total">/${completionData.totalPlayers}</div>
+                            </div>
                         </div>
                         <button class="reset-replay-btn" title="Replay (no stats)"
                           onclick="event.stopPropagation(); window.location.href='${resetHref}'"
@@ -304,6 +307,7 @@ class CrosswordArchive {
       return {
         time: userTimeInt,
         rank: userRank,
+        totalPlayers: Object.keys(leaderboardData).length,
       };
     } catch {
       return null;
