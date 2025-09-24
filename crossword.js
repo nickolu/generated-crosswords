@@ -613,7 +613,12 @@ class CrosswordPuzzle {
   updateTimerDisplay() {
     const minutes = Math.floor(this.elapsedTime / 60000);
     const seconds = Math.floor((this.elapsedTime % 60000) / 1000);
-    const display = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    const timeDisplay = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+    // Determine if a temporary timer message should be shown
+    const now = Date.now();
+    const showMessage = this._timerMessageUntil && now < this._timerMessageUntil;
+    const display = showMessage && this._timerMessage ? this._timerMessage : timeDisplay;
 
     // Update all timer displays (desktop, mobile menu, and mobile main)
     const desktopTimer = document.getElementById('timer');
@@ -1134,7 +1139,13 @@ class CrosswordPuzzle {
 
     // Check completion and provide feedback if the cleanup resulted in a valid letter
     if (firstValidChar) {
-      this.checkPuzzleCompletion();
+      const status = this.checkPuzzleCompletion();
+      if (status && status.allFilled && !status.allCorrect && status.incorrectCount > 0) {
+        const message = `${status.incorrectCount} letter${status.incorrectCount === 1 ? '' : 's'} are incorrect!`;
+        this._timerMessage = message;
+        this._timerMessageUntil = Date.now() + 2000;
+        this.updateTimerDisplay();
+      }
       if (this.showFeedback) {
         const cell = this.puzzle.cells[cellIndex];
         // Remove any existing autocheck classes
@@ -1162,6 +1173,7 @@ class CrosswordPuzzle {
   checkPuzzleCompletion() {
     let allCorrect = true;
     let allFilled = true;
+    let incorrectCount = 0;
 
     this.puzzle.cells.forEach((cell, index) => {
       if (cell && Object.keys(cell).length > 0) {
@@ -1170,13 +1182,17 @@ class CrosswordPuzzle {
           allFilled = false;
         } else if (userAnswer !== cell.answer) {
           allCorrect = false;
+          incorrectCount++;
         }
       }
     });
 
     if (allFilled && allCorrect) {
       this.onPuzzleComplete();
+      return { allFilled: true, allCorrect: true, incorrectCount: 0 };
     }
+
+    return { allFilled, allCorrect, incorrectCount };
   }
 
   onPuzzleComplete() {
@@ -1771,11 +1787,17 @@ class CrosswordPuzzle {
         }
 
         // Check for puzzle completion
-        this.checkPuzzleCompletion();
+        const status = this.checkPuzzleCompletion();
 
-        // Only move to next cell if puzzle is not completed
-        if (this.isRunning) {
-          // Timer is stopped when puzzle completes
+        // If all cells are filled but some are incorrect, briefly show message in timer
+        if (status && status.allFilled && !status.allCorrect && status.incorrectCount > 0) {
+          const message = `${status.incorrectCount} letter${status.incorrectCount === 1 ? '' : 's'} are incorrect!`;
+          this._timerMessage = message;
+          this._timerMessageUntil = Date.now() + 2000; // show for 2 seconds
+          this.updateTimerDisplay();
+          // Do not auto-advance in this case; keep the last entered cell selected
+        } else if (this.isRunning) {
+          // Only move to next cell if puzzle is not completed and not in the incorrect-filled state
           this.moveToNextCell(this.selectedCell);
         }
       }
