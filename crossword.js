@@ -21,6 +21,10 @@ class CrosswordPuzzle {
     this.keydownHandler = null; // Store reference to keydown event handler for cleanup
     this.visibilityChangeHandler = null; // Store reference to visibilitychange event handler for cleanup
 
+    // Parse URL flag to allow replaying a completed puzzle without recording stats
+    const urlParams = new URLSearchParams(window.location.search);
+    this.isResetPlaythrough = urlParams.get('reset') === 'true';
+
     // Place emojis for leaderboard rankings
     this.placeEmojis = {
       1: '🥇',
@@ -44,6 +48,7 @@ class CrosswordPuzzle {
     console.log('=== INIT START ===');
     console.log('userName:', this.userName);
     console.log('isCompleted:', this.isCompleted);
+    console.log('isResetPlaythrough:', this.isResetPlaythrough);
 
     this.setupGrid();
     this.clearAllFormInputs(); // Ensure clean state
@@ -54,30 +59,36 @@ class CrosswordPuzzle {
     this.setupMobileDynamicSizing();
     this.blurClues();
 
-    // Check if user has already completed this puzzle (only if we have a username)
-    if (this.userName) {
-      console.log('User has name, checking completion...');
-      this.checkExistingCompletion()
-        .then(() => {
-          // Only show game overlay if puzzle is not already completed
-          if (!this.isCompleted) {
-            this.showGameOverlay();
-            this.showStartGameBtn();
-          } else {
-            this.hideGameOverlay();
-          }
-        })
-        .catch(error => {
-          // If completion check fails, treat as not completed
-          console.log('Completion check failed:', error);
-          this.showGameOverlay();
-          this.showStartGameBtn();
-        });
-    } else {
-      // No username
-      console.log('No username, showing overlay for name');
+    // If reset mode is enabled, skip completion restore and start fresh
+    if (this.isResetPlaythrough) {
       this.showGameOverlay();
       this.showStartGameBtn();
+    } else {
+      // Check if user has already completed this puzzle (only if we have a username)
+      if (this.userName) {
+        console.log('User has name, checking completion...');
+        this.checkExistingCompletion()
+          .then(() => {
+            // Only show game overlay if puzzle is not already completed
+            if (!this.isCompleted) {
+              this.showGameOverlay();
+              this.showStartGameBtn();
+            } else {
+              this.hideGameOverlay();
+            }
+          })
+          .catch(error => {
+            // If completion check fails, treat as not completed
+            console.log('Completion check failed:', error);
+            this.showGameOverlay();
+            this.showStartGameBtn();
+          });
+      } else {
+        // No username
+        console.log('No username, showing overlay for name');
+        this.showGameOverlay();
+        this.showStartGameBtn();
+      }
     }
   }
 
@@ -1236,6 +1247,10 @@ class CrosswordPuzzle {
 
   sendResultsToServer() {
     // Only send if we have a username and valid completion time
+    if (this.isResetPlaythrough) {
+      console.log('Skipping results submission: reset mode enabled');
+      return Promise.resolve();
+    }
     if (!this.userName || !this.elapsedTime || this.elapsedTime === 0) {
       console.log('Skipping results submission: missing username or completion time');
       return Promise.resolve(); // Return resolved promise for consistency
