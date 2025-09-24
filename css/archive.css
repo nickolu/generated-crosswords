@@ -257,6 +257,7 @@
   top: 50%;
   left: 100%;
   transform: translate(6px, -50%);
+  margin-left: -3px;
   font-size: 12px;
   color: #333; /* darker grey, closer to black */
 }
