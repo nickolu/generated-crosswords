@@ -172,6 +172,45 @@
   transform: translateY(-2px);
 }
 
+/* Reset replay button on completed tiles */
+.reset-replay-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.9);
+  color: #1565c0;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+.reset-replay-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  background: #ffffff;
+}
+
+@media (max-width: 768px) {
+  .reset-replay-btn {
+    top: 4px;
+    right: 4px;
+    width: 22px;
+    height: 22px;
+    font-size: 13px;
+  }
+}
+
 .calendar-day.unavailable {
   opacity: 0.4;
   color: var(--color-text-disabled);

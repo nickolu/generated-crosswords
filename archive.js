@@ -225,12 +225,16 @@ class CrosswordArchive {
           // Puzzle completed - show time and place emoji
           const timeStr = this.formatTimeFromSeconds(completionData.time);
           const placeEmoji = this.getRankEmoji(completionData.rank);
+          const resetHref = `mini?puzzle=${puzzleData.filename}&reset=true`;
           dayContent = `
                         <div class="day-number">${day}</div>
                         <div class="completion-info">
                             <div class="completion-time">${timeStr}</div>
                             <div class="completion-place">${placeEmoji}</div>
                         </div>
+                        <button class="reset-replay-btn" title="Replay (no stats)"
+                          onclick="event.stopPropagation(); window.location.href='${resetHref}'"
+                          aria-label="Replay this puzzle without recording stats">↺</button>
                     `;
           dayClass += ' completed';
         } else {
