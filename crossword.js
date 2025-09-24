@@ -297,6 +297,13 @@ class CrosswordPuzzle {
 
       this.hideGameOverlay(); // Hide the name prompt overlay
 
+      // In reset mode, skip completion restore and start fresh
+      if (this.isResetPlaythrough) {
+        this.showGameOverlay();
+        this.showStartGameBtn();
+        return;
+      }
+
       // Check if this user has already completed the puzzle
       this.checkExistingCompletion()
         .then(() => {
