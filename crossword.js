@@ -1012,6 +1012,11 @@ class CrosswordPuzzle {
       this.startTimer();
     }
 
+    // Unblur clues when a cell is selected on mobile, even if game hasn't started
+    if (window.innerWidth <= 768) {
+      this.unblurClues();
+    }
+
     // Update mobile clue navigator
     this.updateMobileClueDisplay();
   }
@@ -1114,6 +1119,11 @@ class CrosswordPuzzle {
     // Start timer on first interaction (only if game has been started)
     if (this.gameStarted && !this.isRunning && !this.isPaused) {
       this.startTimer();
+    }
+
+    // Unblur clues when a clue is selected on mobile, even if game hasn't started
+    if (window.innerWidth <= 768) {
+      this.unblurClues();
     }
 
     // Update mobile clue navigator
