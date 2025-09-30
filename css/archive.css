@@ -531,6 +531,12 @@
     font-size: 14px;
   }
 
+  /* Mobile: Override flex alignment for completed tiles */
+  .calendar-day.completed {
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+
   /* Mobile: Position day number in upper-left for completed tiles with reset button */
   .calendar-day.completed .day-number {
     position: absolute;
@@ -550,6 +556,7 @@
   .calendar-day.completed .completion-info {
     margin-top: 20px;
     align-self: center;
+    width: 100%;
   }
 
   .completion-time {
@@ -644,6 +651,12 @@
     font-size: 12px;
   }
 
+  /* Extra small screens: Override flex alignment for completed tiles */
+  .calendar-day.completed {
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+
   /* Extra small screens: Position day number in upper-left for completed tiles */
   .calendar-day.completed .day-number {
     position: absolute;
@@ -663,6 +676,7 @@
   .calendar-day.completed .completion-info {
     margin-top: 18px;
     align-self: center;
+    width: 100%;
   }
 
   .today-star-icon {
