@@ -297,8 +297,24 @@ class CrosswordPuzzle {
 
       this.hideGameOverlay(); // Hide the name prompt overlay
 
-      // Always show welcome overlay after name entry, regardless of completion status
-      this.showWelcomeOverlayForced();
+      // In reset mode, skip completion restore and start fresh
+      if (this.isResetPlaythrough) {
+        this.showWelcomeOverlay();
+        return;
+      }
+
+      // Check if this user has already completed the puzzle
+      this.checkExistingCompletion()
+        .then(() => {
+          if (!this.isCompleted) {
+            this.showWelcomeOverlay();
+          }
+          // If completed, just leave everything hidden (puzzle is already shown)
+        })
+        .catch(() => {
+          // If completion check fails, treat as not completed
+          this.showWelcomeOverlay();
+        });
     }
   }
 
@@ -309,10 +325,6 @@ class CrosswordPuzzle {
       return;
     }
 
-    this.showWelcomeOverlayForced();
-  }
-
-  showWelcomeOverlayForced() {
     const overlay = document.getElementById('gameOverlay');
     if (overlay) {
       const overlayContent = overlay.querySelector('.overlay-content');
@@ -333,8 +345,6 @@ class CrosswordPuzzle {
           startGameBtn.addEventListener('click', () => this.startGame());
         }
       }
-      // Make sure the overlay is visible
-      overlay.style.display = 'flex';
     }
   }
 
