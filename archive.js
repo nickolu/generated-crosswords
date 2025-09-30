@@ -221,12 +221,18 @@ class CrosswordArchive {
         // Check if this puzzle is completed
         const completionData = await this.getCompletionData(dateStr);
 
+        // Add star icon if this is today's puzzle
+        const todayStarIcon = puzzleData.isToday
+          ? '<span class="today-star-icon" title="Today\'s puzzle">⭐</span>'
+          : '';
+
         if (completionData) {
           // Puzzle completed - show time and place emoji
           const timeStr = this.formatTimeFromSeconds(completionData.time);
           const placeEmoji = this.getRankEmoji(completionData.rank);
           const resetHref = `mini?puzzle=${puzzleData.filename}&reset=true`;
           dayContent = `
+                        ${todayStarIcon}
                         <div class="day-number">${day}</div>
                         <div class="completion-info">
                             <div class="completion-time">${timeStr}</div>
@@ -243,6 +249,7 @@ class CrosswordArchive {
         } else {
           // Puzzle available but not completed
           dayContent = `
+                        ${todayStarIcon}
                         <div class="day-number">${day}</div>
                         <div class="play-button">Play</div>
                     `;

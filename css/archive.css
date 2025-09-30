@@ -172,6 +172,21 @@
   transform: translateY(-2px);
 }
 
+/* Today's date star icon */
+.today-star-icon {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  font-size: 18px;
+  line-height: 1;
+  z-index: 1;
+  transition: transform 0.2s ease;
+}
+
+.calendar-day:hover .today-star-icon {
+  transform: scale(1.1);
+}
+
 /* Reset replay button on completed tiles */
 .reset-replay-btn {
   position: absolute;
@@ -202,6 +217,12 @@
 }
 
 @media (max-width: 768px) {
+  .today-star-icon {
+    top: 4px;
+    left: 4px;
+    font-size: 16px;
+  }
+
   .reset-replay-btn {
     top: 4px;
     right: 4px;
@@ -598,6 +619,12 @@
 
   .day-number {
     font-size: 12px;
+  }
+
+  .today-star-icon {
+    top: 3px;
+    left: 3px;
+    font-size: 14px;
   }
 
   .completion-time {
