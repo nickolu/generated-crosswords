@@ -541,15 +541,15 @@
   .calendar-day.completed .day-number {
     position: absolute;
     top: 4px;
-    left: 4px;
+    left: 26px; /* Moved further right to avoid overlap with star icon */
     font-size: 14px;
     margin-bottom: 0;
     z-index: 1;
   }
 
-  /* When there's a star icon on mobile, shift the day number to the right */
-  .calendar-day.completed .today-star-icon ~ .day-number {
-    left: 22px;
+  /* When there's NO star icon on mobile, move day number back to the left */
+  .calendar-day.completed:not(:has(.today-star-icon)) .day-number {
+    left: 4px;
   }
 
   /* Adjust completion info positioning for mobile completed tiles */
@@ -661,15 +661,15 @@
   .calendar-day.completed .day-number {
     position: absolute;
     top: 3px;
-    left: 3px;
+    left: 22px; /* Moved further right to avoid overlap with star icon */
     font-size: 12px;
     margin-bottom: 0;
     z-index: 1;
   }
 
-  /* When there's a star icon on extra small screens, shift the day number to the right */
-  .calendar-day.completed .today-star-icon ~ .day-number {
-    left: 19px;
+  /* When there's NO star icon on extra small screens, move day number back to the left */
+  .calendar-day.completed:not(:has(.today-star-icon)) .day-number {
+    left: 3px;
   }
 
   /* Adjust completion info positioning for extra small completed tiles */
