@@ -284,38 +284,45 @@ class CrosswordPuzzle {
       this.userName = nameInput.value.trim();
       this.setCookie('crossword_user_name', this.userName);
 
-      // In reset mode, skip completion restore and start fresh
-      if (this.isResetPlaythrough) {
-        this.showWelcomeOverlay();
-        const overlay = document.getElementById('gameOverlay');
-        if (overlay) {
-          overlay.style.display = 'flex';
-        }
-        return;
-      }
+      // Blur the input to dismiss mobile keyboard
+      nameInput.blur();
 
-      // Check if this user has already completed the puzzle
-      this.checkExistingCompletion()
-        .then(() => {
-          if (!this.isCompleted) {
-            this.showWelcomeOverlay();
-            const overlay = document.getElementById('gameOverlay');
-            if (overlay) {
-              overlay.style.display = 'flex';
-            }
-          } else {
-            // If completed, hide the overlay
-            this.hideGameOverlay();
-          }
-        })
-        .catch(() => {
-          // If completion check fails, treat as not completed
+      // Wait for mobile keyboard to dismiss before showing welcome overlay
+      // This prevents event listener issues on mobile devices
+      setTimeout(() => {
+        // In reset mode, skip completion restore and start fresh
+        if (this.isResetPlaythrough) {
           this.showWelcomeOverlay();
           const overlay = document.getElementById('gameOverlay');
           if (overlay) {
             overlay.style.display = 'flex';
           }
-        });
+          return;
+        }
+
+        // Check if this user has already completed the puzzle
+        this.checkExistingCompletion()
+          .then(() => {
+            if (!this.isCompleted) {
+              this.showWelcomeOverlay();
+              const overlay = document.getElementById('gameOverlay');
+              if (overlay) {
+                overlay.style.display = 'flex';
+              }
+            } else {
+              // If completed, hide the overlay
+              this.hideGameOverlay();
+            }
+          })
+          .catch(() => {
+            // If completion check fails, treat as not completed
+            this.showWelcomeOverlay();
+            const overlay = document.getElementById('gameOverlay');
+            if (overlay) {
+              overlay.style.display = 'flex';
+            }
+          });
+      }, 350); // 350ms delay allows keyboard dismiss animation to complete
     }
   }
 
