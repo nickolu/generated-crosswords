@@ -299,8 +299,7 @@ class CrosswordPuzzle {
 
       // In reset mode, skip completion restore and start fresh
       if (this.isResetPlaythrough) {
-        this.showGameOverlay();
-        this.showStartGameBtn();
+        this.showWelcomeOverlay();
         return;
       }
 
@@ -308,15 +307,13 @@ class CrosswordPuzzle {
       this.checkExistingCompletion()
         .then(() => {
           if (!this.isCompleted) {
-            this.showGameOverlay();
-            this.showStartGameBtn();
+            this.showWelcomeOverlay();
           }
           // If completed, just leave everything hidden (puzzle is already shown)
         })
         .catch(() => {
           // If completion check fails, treat as not completed
-          this.showGameOverlay();
-          this.showStartGameBtn();
+          this.showWelcomeOverlay();
         });
     }
   }
