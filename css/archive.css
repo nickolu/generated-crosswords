@@ -244,6 +244,25 @@
   margin-bottom: 4px;
 }
 
+/* Position day number in upper-left when there's a reset button */
+.calendar-day.completed .day-number {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  margin-bottom: 0;
+  z-index: 1;
+}
+
+/* When there's a star icon, shift the day number to the right */
+.calendar-day.completed .today-star-icon ~ .day-number {
+  left: 26px;
+}
+
+/* Adjust completion info to have top padding when day number is positioned */
+.calendar-day.completed .completion-info {
+  margin-top: 24px;
+}
+
 .completion-info {
   display: flex;
   flex-direction: column;
@@ -529,6 +548,22 @@
     font-size: 14px;
   }
 
+  /* Adjust positioning for mobile completed tiles */
+  .calendar-day.completed .day-number {
+    top: 4px;
+    left: 4px;
+    font-size: 14px;
+  }
+
+  /* When there's a star icon on mobile, shift the day number to the right */
+  .calendar-day.completed .today-star-icon ~ .day-number {
+    left: 22px;
+  }
+
+  .calendar-day.completed .completion-info {
+    margin-top: 20px;
+  }
+
   .completion-time {
     font-size: 10px;
     padding: 1px 4px;
@@ -619,6 +654,22 @@
 
   .day-number {
     font-size: 12px;
+  }
+
+  /* Adjust positioning for extra small screens */
+  .calendar-day.completed .day-number {
+    top: 3px;
+    left: 3px;
+    font-size: 12px;
+  }
+
+  /* When there's a star icon on extra small screens, shift the day number to the right */
+  .calendar-day.completed .today-star-icon ~ .day-number {
+    left: 19px;
+  }
+
+  .calendar-day.completed .completion-info {
+    margin-top: 18px;
   }
 
   .today-star-icon {
