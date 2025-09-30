@@ -62,7 +62,6 @@ class CrosswordPuzzle {
     // If reset mode is enabled, skip completion restore and start fresh
     if (this.isResetPlaythrough) {
       this.showGameOverlay();
-      this.showStartGameBtn();
     } else {
       // Check if user has already completed this puzzle (only if we have a username)
       if (this.userName) {
@@ -72,7 +71,6 @@ class CrosswordPuzzle {
             // Only show game overlay if puzzle is not already completed
             if (!this.isCompleted) {
               this.showGameOverlay();
-              this.showStartGameBtn();
             } else {
               this.hideGameOverlay();
             }
@@ -81,13 +79,11 @@ class CrosswordPuzzle {
             // If completion check fails, treat as not completed
             console.log('Completion check failed:', error);
             this.showGameOverlay();
-            this.showStartGameBtn();
           });
       } else {
         // No username
         console.log('No username, showing overlay for name');
         this.showGameOverlay();
-        this.showStartGameBtn();
       }
     }
   }
@@ -246,13 +242,6 @@ class CrosswordPuzzle {
     }
   }
 
-  showStartGameBtn() {
-    const startGameBtn = document.getElementById('startGameBtn');
-    if (startGameBtn) {
-      startGameBtn.style.display = 'inline';
-    }
-  }
-
   showNamePrompt() {
     const overlay = document.getElementById('gameOverlay');
     if (overlay) {
@@ -295,12 +284,13 @@ class CrosswordPuzzle {
       this.userName = nameInput.value.trim();
       this.setCookie('crossword_user_name', this.userName);
 
-      this.hideGameOverlay(); // Hide the name prompt overlay
-
       // In reset mode, skip completion restore and start fresh
       if (this.isResetPlaythrough) {
-        this.showGameOverlay();
-        this.showStartGameBtn();
+        this.showWelcomeOverlay();
+        const overlay = document.getElementById('gameOverlay');
+        if (overlay) {
+          overlay.style.display = 'flex';
+        }
         return;
       }
 
@@ -308,15 +298,23 @@ class CrosswordPuzzle {
       this.checkExistingCompletion()
         .then(() => {
           if (!this.isCompleted) {
-            this.showGameOverlay();
-            this.showStartGameBtn();
+            this.showWelcomeOverlay();
+            const overlay = document.getElementById('gameOverlay');
+            if (overlay) {
+              overlay.style.display = 'flex';
+            }
+          } else {
+            // If completed, hide the overlay
+            this.hideGameOverlay();
           }
-          // If completed, just leave everything hidden (puzzle is already shown)
         })
         .catch(() => {
           // If completion check fails, treat as not completed
-          this.showGameOverlay();
-          this.showStartGameBtn();
+          this.showWelcomeOverlay();
+          const overlay = document.getElementById('gameOverlay');
+          if (overlay) {
+            overlay.style.display = 'flex';
+          }
         });
     }
   }
