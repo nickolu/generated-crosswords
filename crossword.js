@@ -300,7 +300,7 @@ class CrosswordPuzzle {
       // In reset mode, skip completion restore and start fresh
       if (this.isResetPlaythrough) {
         this.showGameOverlay();
-        this.showStartGameBtn();
+        // showStartGameBtn() is not needed here as showWelcomeOverlay() already creates the button
         return;
       }
 
@@ -309,14 +309,14 @@ class CrosswordPuzzle {
         .then(() => {
           if (!this.isCompleted) {
             this.showGameOverlay();
-            this.showStartGameBtn();
+            // showStartGameBtn() is not needed here as showWelcomeOverlay() already creates the button
           }
           // If completed, just leave everything hidden (puzzle is already shown)
         })
         .catch(() => {
           // If completion check fails, treat as not completed
           this.showGameOverlay();
-          this.showStartGameBtn();
+          // showStartGameBtn() is not needed here as showWelcomeOverlay() already creates the button
         });
     }
   }
@@ -342,10 +342,28 @@ class CrosswordPuzzle {
                     <button class="start-game-btn" id="startGameBtn">Start the Game</button>
                 `;
 
-        // Setup start button event listener
+        // Setup start button event listener with proper mobile Safari handling
         const startGameBtn = document.getElementById('startGameBtn');
         if (startGameBtn) {
-          startGameBtn.addEventListener('click', () => this.startGame());
+          // Remove any existing event listeners to prevent duplicates
+          const newStartGameBtn = startGameBtn.cloneNode(true);
+          startGameBtn.parentNode.replaceChild(newStartGameBtn, startGameBtn);
+
+          // Add event listener to the new button
+          newStartGameBtn.addEventListener('click', e => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Start game button clicked');
+            this.startGame();
+          });
+
+          // Also add touchstart for better mobile Safari support
+          newStartGameBtn.addEventListener('touchstart', e => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Start game button touched');
+            this.startGame();
+          });
         }
       }
     }
