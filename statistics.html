@@ -25,16 +25,18 @@
           <h2 class="chart-title">Solve Times Distribution</h2>
           <div class="chart-subtitle">Time in 20-second intervals (up to 4 minutes)</div>
           <div class="chart-wrapper">
-            <canvas id="solveTimesChart" width="600" height="300"></canvas>
+            <canvas id="solveTimesChart" width="800" height="300"></canvas>
           </div>
         </div>
+      </div>
 
-        <div class="chart-section">
-          <h2 class="chart-title">Leaderboard Positions</h2>
-          <div class="chart-subtitle">Your placement in daily leaderboards</div>
-          <div class="chart-wrapper">
-            <canvas id="placesChart" width="600" height="300"></canvas>
-          </div>
+      <div class="player-comparison-section" id="playerComparisonSection" style="display: none">
+        <h2 class="chart-title">Player Comparison</h2>
+        <div class="chart-subtitle">
+          All-time leaderboard positions across all completed puzzles
+        </div>
+        <div id="playerComparisonTable">
+          <!-- Table will be populated by JavaScript -->
         </div>
       </div>
 

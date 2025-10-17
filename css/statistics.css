@@ -44,9 +44,6 @@
 }
 
 .chart-container {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 40px;
   margin: 40px 0;
 }
 
@@ -162,6 +159,129 @@
   transform: translateY(-2px);
 }
 
+/* Player Comparison Table */
+.player-comparison-section {
+  margin: 40px 0;
+  padding: 20px;
+  background: linear-gradient(
+    145deg,
+    var(--color-background-surface),
+    var(--color-background-surface-secondary)
+  );
+  border: 1px solid var(--color-border-primary);
+  border-radius: 8px;
+}
+
+.player-comparison-section .chart-title {
+  margin-top: 0;
+}
+
+.player-comparison-section .chart-subtitle {
+  margin-bottom: 25px;
+}
+
+.player-comparison {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  background: white;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.player-comparison thead {
+  background: linear-gradient(
+    145deg,
+    var(--color-selected-background),
+    var(--color-selected-background-secondary)
+  );
+  border-bottom: 2px solid var(--color-selected-border);
+}
+
+.player-comparison th {
+  padding: 12px 8px;
+  text-align: center;
+  font-family: 'Oswald', sans-serif;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-on-accent);
+  font-size: 16px;
+}
+
+.player-name-header {
+  text-align: left !important;
+  padding-left: 16px !important;
+  min-width: 120px;
+}
+
+.place-header {
+  min-width: 50px;
+  font-size: 18px;
+}
+
+.score-header {
+  min-width: 70px;
+}
+
+.player-comparison tbody tr {
+  border-bottom: 1px solid var(--color-border-secondary);
+  transition: background-color 0.2s ease;
+}
+
+.player-comparison tbody tr:hover {
+  background-color: rgba(74, 144, 226, 0.05);
+}
+
+.player-comparison tbody tr.current-user-row {
+  background: linear-gradient(90deg, rgba(255, 215, 0, 0.15), rgba(255, 215, 0, 0.05));
+  border-left: 4px solid #ffd700;
+  border-right: 4px solid #ffd700;
+}
+
+.player-comparison tbody tr.current-user-row:hover {
+  background: linear-gradient(90deg, rgba(255, 215, 0, 0.25), rgba(255, 215, 0, 0.1));
+}
+
+.player-comparison td {
+  padding: 10px 8px;
+  text-align: center;
+  border-right: 1px solid var(--color-border-tertiary);
+}
+
+.player-comparison td:last-child {
+  border-right: none;
+}
+
+.player-name {
+  text-align: left !important;
+  padding-left: 16px !important;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.place-count {
+  font-weight: 600;
+  color: #2c3e50;
+  transition: all 0.2s ease;
+}
+
+.place-count.has-value {
+  font-weight: 700;
+  color: #1a252f;
+}
+
+.place-count.no-value {
+  color: #95a5a6;
+}
+
+.player-score {
+  font-weight: 700;
+  font-family: 'Oswald', sans-serif;
+  font-size: 16px;
+  color: var(--color-text-accent);
+}
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
   /* Override the restrictive mobile rules from base.css for statistics page */
@@ -234,6 +354,36 @@
   .stats-error,
   .stats-empty {
     padding: 25px;
+  }
+
+  .player-comparison-section {
+    margin: 20px 0;
+    padding: 10px;
+    overflow-x: auto;
+  }
+
+  .player-comparison {
+    font-size: 12px;
+    min-width: 600px;
+  }
+
+  .player-comparison th,
+  .player-comparison td {
+    padding: 8px 4px;
+  }
+
+  .player-name-header,
+  .player-name {
+    min-width: 100px;
+  }
+
+  .place-header {
+    min-width: 40px;
+    font-size: 14px;
+  }
+
+  .player-score {
+    font-size: 14px;
   }
 }
 
