@@ -252,21 +252,22 @@
   text-align: left !important;
   padding-left: 16px !important;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: #2c3e50;
 }
 
 .place-count {
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: #2c3e50;
   transition: all 0.2s ease;
 }
 
 .place-count.has-value {
   font-weight: 700;
+  color: #1a252f;
 }
 
 .place-count.no-value {
-  color: var(--color-text-tertiary);
+  color: #95a5a6;
 }
 
 .player-score {
