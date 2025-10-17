@@ -416,7 +416,8 @@ class CrosswordStatistics {
     if (Object.keys(this.allPlayersStats).length === 0) return;
 
     const tableContainer = document.getElementById('playerComparisonTable');
-    if (!tableContainer) return;
+    const sectionContainer = document.getElementById('playerComparisonSection');
+    if (!tableContainer || !sectionContainer) return;
 
     // Calculate max counts for each place for color coding
     const maxCounts = {};
@@ -516,7 +517,7 @@ class CrosswordStatistics {
     `;
 
     tableContainer.innerHTML = tableHTML;
-    tableContainer.style.display = 'block';
+    sectionContainer.style.display = 'block';
   }
 
   getColorForRatio(ratio) {
