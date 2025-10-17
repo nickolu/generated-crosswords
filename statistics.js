@@ -75,7 +75,7 @@ class CrosswordStatistics {
 
     try {
       await this.loadUserStatistics();
-      this.renderCharts();
+      this.renderSolveTimesChart();
       this.updateStatsSummary();
       this.renderPlayerComparisonTable();
     } catch (error) {
@@ -222,14 +222,8 @@ class CrosswordStatistics {
     }
   }
 
-  renderCharts() {
-    if (this.userStats.totalCompleted === 0) return;
-
-    this.renderSolveTimesChart();
-    this.renderPlacesChart();
-  }
-
   renderSolveTimesChart() {
+    if (this.userStats.totalCompleted === 0) return;
     const canvas = document.getElementById('solveTimesChart');
     const ctx = canvas.getContext('2d');
 
@@ -261,35 +255,6 @@ class CrosswordStatistics {
     });
 
     this.drawBarChart(ctx, canvas, bins, binLabels, 'Solve Times', '#4a90e2');
-  }
-
-  renderPlacesChart() {
-    const canvas = document.getElementById('placesChart');
-    const ctx = canvas.getContext('2d');
-
-    // Create bins for each emoji place (1-6, then 7+)
-    const emojiBins = {};
-    const emojiLabels = [];
-
-    // Initialize bins for known emoji places
-    for (let i = 1; i <= 6; i++) {
-      const emoji = this.getRankEmoji(i);
-      emojiBins[emoji] = 0;
-      emojiLabels.push(`${emoji}\n${i}${this.getOrdinalSuffix(i)}`);
-    }
-    // Add 7+ place bin
-    const defaultEmoji = this.getRankEmoji(7);
-    emojiBins[defaultEmoji] = 0;
-    emojiLabels.push(`${defaultEmoji}\n7th+`);
-
-    // Count places in each bin
-    this.userStats.places.forEach(place => {
-      const emoji = this.getRankEmoji(place);
-      emojiBins[emoji]++;
-    });
-
-    const bins = Object.values(emojiBins);
-    this.drawBarChart(ctx, canvas, bins, emojiLabels, 'Leaderboard Positions', '#e67e22');
   }
 
   getOrdinalSuffix(num) {
