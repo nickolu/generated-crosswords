@@ -8,6 +8,7 @@ class CrosswordStatistics {
       averageTime: 0,
       bestTime: null,
     };
+    this.allPlayersStats = {}; // Store stats for all players
     this.today = new Date();
     this.elevenYearsAgo = new Date(
       this.today.getFullYear() - 11,
@@ -25,6 +26,15 @@ class CrosswordStatistics {
       5: '🐌',
       6: '🐢',
       default: '⏳', // For 7th place and beyond
+    };
+
+    // Scoring system for sorting
+    this.placeScores = {
+      1: 10,
+      2: 5,
+      3: 3,
+      4: 2,
+      5: 1,
     };
 
     this.init();
@@ -67,6 +77,7 @@ class CrosswordStatistics {
       await this.loadUserStatistics();
       this.renderCharts();
       this.updateStatsSummary();
+      this.renderPlayerComparisonTable();
     } catch (error) {
       console.error('Error loading statistics:', error);
       this.showErrorMessage();
@@ -141,14 +152,26 @@ class CrosswordStatistics {
           const leaderboardData = await leaderboardResponse.json();
           const userTime = leaderboardData[this.userName];
 
-          if (userTime) {
-            // Calculate user's rank for this puzzle
-            const allTimes = Object.values(leaderboardData)
-              .map(time => parseInt(time))
-              .sort((a, b) => a - b);
+          // Process all players' data for comparison table
+          const allTimes = Object.entries(leaderboardData)
+            .map(([name, time]) => ({ name, time: parseInt(time) }))
+            .sort((a, b) => a.time - b.time);
 
+          // Store rankings for all players
+          allTimes.forEach((entry, index) => {
+            const rank = index + 1;
+            if (!this.allPlayersStats[entry.name]) {
+              this.allPlayersStats[entry.name] = {};
+            }
+            if (!this.allPlayersStats[entry.name][rank]) {
+              this.allPlayersStats[entry.name][rank] = 0;
+            }
+            this.allPlayersStats[entry.name][rank]++;
+          });
+
+          if (userTime) {
             const userTimeInt = parseInt(userTime);
-            const userRank = allTimes.indexOf(userTimeInt) + 1;
+            const userRank = allTimes.findIndex(entry => entry.name === this.userName) + 1;
 
             userCompletions.push({
               date: displayDate,
@@ -412,6 +435,135 @@ class CrosswordStatistics {
     const mostCommonEmoji = this.getRankEmoji(mostCommonPlace);
     document.getElementById('mostCommonPosition').textContent =
       `${mostCommonEmoji} ${mostCommonPlace}${this.getOrdinalSuffix(mostCommonPlace)} place`;
+  }
+
+  calculatePlayerScore(placeCounts) {
+    let score = 0;
+    for (const [place, count] of Object.entries(placeCounts)) {
+      const placeNum = parseInt(place);
+      const placeScore = this.placeScores[placeNum] || 0;
+      score += placeScore * count;
+    }
+    return score;
+  }
+
+  renderPlayerComparisonTable() {
+    if (Object.keys(this.allPlayersStats).length === 0) return;
+
+    const tableContainer = document.getElementById('playerComparisonTable');
+    if (!tableContainer) return;
+
+    // Calculate max counts for each place for color coding
+    const maxCounts = {};
+    for (let place = 1; place <= 7; place++) {
+      maxCounts[place] = 0;
+    }
+
+    for (const playerStats of Object.values(this.allPlayersStats)) {
+      for (let place = 1; place <= 6; place++) {
+        const count = playerStats[place] || 0;
+        maxCounts[place] = Math.max(maxCounts[place], count);
+      }
+      // Handle 7+ places
+      let sevenPlusCount = 0;
+      for (const [place, count] of Object.entries(playerStats)) {
+        if (parseInt(place) >= 7) {
+          sevenPlusCount += count;
+        }
+      }
+      maxCounts[7] = Math.max(maxCounts[7], sevenPlusCount);
+    }
+
+    // Sort players by score
+    const sortedPlayers = Object.entries(this.allPlayersStats)
+      .map(([name, placeCounts]) => ({
+        name,
+        placeCounts,
+        score: this.calculatePlayerScore(placeCounts),
+      }))
+      .sort((a, b) => b.score - a.score);
+
+    // Build table HTML
+    let tableHTML = `
+      <table class="player-comparison">
+        <thead>
+          <tr>
+            <th class="player-name-header">Player</th>
+            <th class="place-header">${this.getRankEmoji(1)}</th>
+            <th class="place-header">${this.getRankEmoji(2)}</th>
+            <th class="place-header">${this.getRankEmoji(3)}</th>
+            <th class="place-header">${this.getRankEmoji(4)}</th>
+            <th class="place-header">${this.getRankEmoji(5)}</th>
+            <th class="place-header">${this.getRankEmoji(6)}</th>
+            <th class="place-header">${this.getRankEmoji(7)}</th>
+            <th class="score-header">Score</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    sortedPlayers.forEach(player => {
+      const isCurrentUser = player.name === this.userName;
+      const rowClass = isCurrentUser ? 'current-user-row' : '';
+
+      tableHTML += `<tr class="${rowClass}">`;
+      tableHTML += `<td class="player-name">${player.name}</td>`;
+
+      // Add cells for places 1-6
+      for (let place = 1; place <= 6; place++) {
+        const count = player.placeCounts[place] || 0;
+        const ratio = maxCounts[place] > 0 ? count / maxCounts[place] : 0;
+        const backgroundColor = this.getColorForRatio(ratio);
+        const cellClass = count > 0 ? 'has-value' : 'no-value';
+
+        tableHTML += `
+          <td class="place-count ${cellClass}" style="background-color: ${backgroundColor}">
+            ${count > 0 ? count : ''}
+          </td>
+        `;
+      }
+
+      // Add cell for 7+ places
+      let sevenPlusCount = 0;
+      for (const [place, count] of Object.entries(player.placeCounts)) {
+        if (parseInt(place) >= 7) {
+          sevenPlusCount += count;
+        }
+      }
+      const sevenPlusRatio = maxCounts[7] > 0 ? sevenPlusCount / maxCounts[7] : 0;
+      const sevenPlusColor = this.getColorForRatio(sevenPlusRatio);
+      const sevenPlusCellClass = sevenPlusCount > 0 ? 'has-value' : 'no-value';
+
+      tableHTML += `
+        <td class="place-count ${sevenPlusCellClass}" style="background-color: ${sevenPlusColor}">
+          ${sevenPlusCount > 0 ? sevenPlusCount : ''}
+        </td>
+      `;
+
+      // Add score cell
+      tableHTML += `<td class="player-score">${player.score}</td>`;
+      tableHTML += '</tr>';
+    });
+
+    tableHTML += `
+        </tbody>
+      </table>
+    `;
+
+    tableContainer.innerHTML = tableHTML;
+    tableContainer.style.display = 'block';
+  }
+
+  getColorForRatio(ratio) {
+    if (ratio === 0) return 'transparent';
+
+    // Create a color gradient from light to dark based on ratio
+    // Using a green-blue gradient that goes from very light to more saturated
+    const hue = 200; // Blue-ish color
+    const lightness = 95 - ratio * 40; // From 95% (very light) to 55% (darker)
+    const saturation = 40 + ratio * 40; // From 40% to 80%
+
+    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
   }
 }
 
