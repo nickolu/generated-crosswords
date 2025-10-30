@@ -152,14 +152,29 @@ class CrosswordStatistics {
           const leaderboardData = await leaderboardResponse.json();
           const userTime = leaderboardData[this.userName];
 
-          // Process all players' data for comparison table
+          // Process all players' data for comparison table (tie-aware ranks)
           const allTimes = Object.entries(leaderboardData)
             .map(([name, time]) => ({ name, time: parseInt(time) }))
             .sort((a, b) => a.time - b.time);
 
-          // Store rankings for all players
+          // Assign tie-aware ranks
+          let previousTime = null;
+          let previousRank = 0;
           allTimes.forEach((entry, index) => {
-            const rank = index + 1;
+            if (index === 0) {
+              entry.rank = 1;
+            } else if (entry.time === previousTime) {
+              entry.rank = previousRank;
+            } else {
+              entry.rank = index + 1;
+            }
+            previousTime = entry.time;
+            previousRank = entry.rank;
+          });
+
+          // Store rankings for all players using tie-aware ranks
+          allTimes.forEach(entry => {
+            const rank = entry.rank;
             if (!this.allPlayersStats[entry.name]) {
               this.allPlayersStats[entry.name] = {};
             }
@@ -171,7 +186,11 @@ class CrosswordStatistics {
 
           if (userTime) {
             const userTimeInt = parseInt(userTime);
-            const userRank = allTimes.findIndex(entry => entry.name === this.userName) + 1;
+            // Find user's tie-aware rank from the computed entries
+            const userEntry = allTimes.find(entry => entry.name === this.userName);
+            const userRank = userEntry
+              ? userEntry.rank
+              : allTimes.findIndex(e => e.time === userTimeInt) + 1;
 
             userCompletions.push({
               date: displayDate,
