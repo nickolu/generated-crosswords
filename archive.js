@@ -303,13 +303,33 @@ class CrosswordArchive {
         return null;
       }
 
-      // Calculate user's rank
-      const allTimes = Object.values(leaderboardData)
-        .map(time => parseInt(time))
-        .sort((a, b) => a - b);
+      // Calculate user's rank (tie-aware)
+      const entries = Object.entries(leaderboardData)
+        .map(([name, time]) => ({ name, time: parseInt(time) }))
+        .sort((a, b) => a.time - b.time);
+
+      let previousTime = null;
+      let previousRank = 0;
+      entries.forEach((entry, index) => {
+        if (index === 0) {
+          entry.rank = 1;
+        } else if (entry.time === previousTime) {
+          entry.rank = previousRank;
+        } else {
+          entry.rank = index + 1;
+        }
+        previousTime = entry.time;
+        previousRank = entry.rank;
+      });
 
       const userTimeInt = parseInt(userTime);
-      const userRank = allTimes.indexOf(userTimeInt) + 1;
+      const userEntry =
+        entries.find(e => e.name === this.userName && e.time === userTimeInt) ||
+        entries.find(e => e.name === this.userName) ||
+        null;
+      const userRank = userEntry
+        ? userEntry.rank
+        : entries.findIndex(e => e.time === userTimeInt) + 1;
 
       return {
         time: userTimeInt,

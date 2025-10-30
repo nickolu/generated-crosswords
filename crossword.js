@@ -1405,11 +1405,26 @@ class CrosswordPuzzle {
       }))
       .sort((a, b) => a.timeInSeconds - b.timeInSeconds);
 
+    // Assign tie-aware ranks
+    let previousTime = null;
+    let previousRank = 0;
+    entries.forEach((entry, index) => {
+      if (index === 0) {
+        entry.rank = 1;
+      } else if (entry.timeInSeconds === previousTime) {
+        entry.rank = previousRank;
+      } else {
+        entry.rank = index + 1;
+      }
+      previousTime = entry.timeInSeconds;
+      previousRank = entry.rank;
+    });
+
     // Build the share text
     let shareText = `🏆 ${puzzleTitle} Leaderboard\n\n`;
 
-    entries.forEach((entry, index) => {
-      const rank = index + 1;
+    entries.forEach(entry => {
+      const rank = entry.rank;
       const rankEmoji = this.getRankEmoji(rank);
 
       shareText += `${rankEmoji} ${entry.name} - ${entry.timeFormatted}\n`;
@@ -2173,10 +2188,25 @@ class CrosswordPuzzle {
       }))
       .sort((a, b) => a.timeInSeconds - b.timeInSeconds);
 
+    // Assign tie-aware ranks (1,1,3 for times like 33,33,45)
+    let previousTime = null;
+    let previousRank = 0;
+    entries.forEach((entry, index) => {
+      if (index === 0) {
+        entry.rank = 1;
+      } else if (entry.timeInSeconds === previousTime) {
+        entry.rank = previousRank;
+      } else {
+        entry.rank = index + 1;
+      }
+      previousTime = entry.timeInSeconds;
+      previousRank = entry.rank;
+    });
+
     // Generate leaderboard HTML
     let html = '<ul class="leaderboard-list">';
-    entries.forEach((entry, index) => {
-      const rank = index + 1;
+    entries.forEach(entry => {
+      const rank = entry.rank;
       const isTopThree = rank <= 3;
       const isCurrentUser = this.userName && entry.name === this.userName;
 
