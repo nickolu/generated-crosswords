@@ -1812,6 +1812,30 @@ class CrosswordPuzzle {
   }
 
   handleKeyDown(event) {
+    // Check if spacebar is pressed and overlay is visible - handle start/pause actions
+    if (event.key === ' ') {
+      const overlay = document.getElementById('gameOverlay');
+      if (overlay && overlay.style.display === 'flex') {
+        const overlayContent = overlay.querySelector('.overlay-content');
+
+        // Check if this is the pause overlay
+        const resumeBtn = overlayContent?.querySelector('#resumeGameBtn');
+        if (resumeBtn && this.isPaused) {
+          this.resumeFromPause();
+          event.preventDefault();
+          return;
+        }
+
+        // Check if this is the start game overlay
+        const startGameBtn = overlayContent?.querySelector('#startGameBtn');
+        if (startGameBtn && !this.gameStarted) {
+          this.startGame();
+          event.preventDefault();
+          return;
+        }
+      }
+    }
+
     if (this.selectedCell === null) return;
 
     const { width, height } = this.puzzle.dimensions;
