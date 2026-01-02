@@ -1300,17 +1300,24 @@ class CrosswordPuzzle {
     // Send GET request and return the promise
     return fetch(url, {
       method: 'GET',
-      mode: 'no-cors', // Use no-cors to allow cross-origin request
+      mode: 'cors',
+      cache: 'no-cache',
     })
       .then(response => {
-        // With no-cors mode, we can't check response status, so assume success
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then(data => {
         console.log(
-          `Results sent successfully: ${this.userName} completed in ${timeInSeconds} seconds`
+          `Results sent successfully: ${this.userName} completed in ${timeInSeconds} seconds`,
+          data
         );
-        return response;
+        return data;
       })
       .catch(error => {
-        console.warn('Failed to send results to server:', error);
+        console.error('Failed to send results to server:', error);
         // Don't show error to user, just log it
         throw error; // Re-throw so caller can handle
       });

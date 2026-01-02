@@ -108,10 +108,13 @@ def store_results():
                 (submission_date, username, time_score)
             )
             conn.commit()
+            app.logger.info(f"Stored result for user {username}: {time_score} at {submission_date}")
+        except Exception as db_error:
+            app.logger.error(f"Database error storing result: {str(db_error)}")
+            conn.rollback()
+            raise
         finally:
             conn.close()
-        
-        app.logger.info(f"Stored result for user {username}: {time_score} at {submission_date}")
         
         return jsonify({
             'status': 'success',
