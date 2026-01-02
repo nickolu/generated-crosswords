@@ -206,6 +206,42 @@ def get_leaderboard(date):
         return jsonify({'error': 'Internal server error'}), 500
 
 
+@app.route('/statistics/all-leaderboards', methods=['GET'])
+def get_all_leaderboards():
+    """
+    Get all leaderboard data from SQLite database, grouped by date.
+    Optimized endpoint for statistics page to avoid multiple requests.
+    
+    Returns JSON in format {date: {username: time}} for all dates.
+    """
+    try:
+        # Initialize database if it doesn't exist
+        init_database()
+        
+        conn = get_db_connection()
+        try:
+            # Fetch all results ordered by date, then time
+            rows = conn.execute(
+                "SELECT date, username, time FROM results ORDER BY date ASC, time ASC, username ASC"
+            ).fetchall()
+            
+            # Group by date
+            leaderboards = {}
+            for row in rows:
+                date = row['date']
+                if date not in leaderboards:
+                    leaderboards[date] = {}
+                leaderboards[date][row['username']] = row['time']
+            
+            return jsonify(leaderboards), 200
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        app.logger.error(f"Error fetching all leaderboards: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+
 @app.route('/migrate', methods=['GET'])
 def migrate_json_to_sqlite():
     """

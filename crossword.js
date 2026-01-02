@@ -1295,7 +1295,7 @@ class CrosswordPuzzle {
     const timeInSeconds = Math.floor(this.elapsedTime / 1000);
 
     // Construct the URL
-    const url = `results?user=${encodeURIComponent(this.userName)}&time=${timeInSeconds}&date=${this.puzzle.date}`;
+    const url = `mini/results?user=${encodeURIComponent(this.userName)}&time=${timeInSeconds}&date=${this.puzzle.date}`;
 
     // Send GET request and return the promise
     return fetch(url, {

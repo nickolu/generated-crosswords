@@ -89,7 +89,7 @@ class CrosswordArchive {
 
     try {
       // Fetch the list of available crossword JSON files from the API
-      const response = await fetch('crossword-jsons');
+      const response = await fetch('mini/crossword-jsons');
 
       if (!response.ok) {
         throw new Error(`Failed to fetch puzzle list: ${response.status}`);
