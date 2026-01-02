@@ -77,6 +77,9 @@ class CrosswordStatistics {
     }
 
     try {
+      // Trigger migration if database doesn't exist
+      await this.ensureMigration();
+
       await this.loadUserStatistics();
       this.renderSolveTimesChart();
       this.updateStatsSummary();
@@ -84,6 +87,23 @@ class CrosswordStatistics {
     } catch (error) {
       console.error('Error loading statistics:', error);
       this.showErrorMessage();
+    }
+  }
+
+  async ensureMigration() {
+    try {
+      const response = await fetch('migrate', {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-cache',
+      });
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Migration status:', result.status);
+      }
+    } catch (error) {
+      // Migration endpoint may not be available, continue anyway
+      console.warn('Migration check failed (non-critical):', error);
     }
   }
 
@@ -145,7 +165,7 @@ class CrosswordStatistics {
         const displayDate = this.calculateDisplayDate(puzzleDate);
 
         // Check leaderboard data for this date
-        const leaderboardResponse = await fetch(`data/${displayDate}.json`, {
+        const leaderboardResponse = await fetch(`leaderboard/${displayDate}`, {
           method: 'GET',
           mode: 'cors',
           cache: 'no-cache',

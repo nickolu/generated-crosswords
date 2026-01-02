@@ -24,7 +24,26 @@ class CrosswordArchive {
       default: '⏳', // For 7th place and beyond
     };
 
-    this.loadPuzzleList();
+    this.ensureMigration().then(() => {
+      this.loadPuzzleList();
+    });
+  }
+
+  async ensureMigration() {
+    try {
+      const response = await fetch('migrate', {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-cache',
+      });
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Migration status:', result.status);
+      }
+    } catch (error) {
+      // Migration endpoint may not be available, continue anyway
+      console.warn('Migration check failed (non-critical):', error);
+    }
   }
 
   getUserName() {
@@ -279,7 +298,7 @@ class CrosswordArchive {
     try {
       // Calculate the display date (current date) for leaderboard lookup
       const displayDate = this.calculateDisplayDate(puzzleDate);
-      const dataUrl = `data/${displayDate}.json`;
+      const dataUrl = `leaderboard/${displayDate}`;
 
       const response = await fetch(dataUrl, {
         method: 'GET',
