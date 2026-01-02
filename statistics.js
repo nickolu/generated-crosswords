@@ -229,14 +229,12 @@ class CrosswordStatistics {
     // Process the completions into statistics
     this.processStatistics(userCompletions);
 
-    // Build list of available years (only completed years, not current year)
-    const currentYear = this.today.getFullYear();
+    // Build list of available years (include all years with data, including current year)
     this.availableYears = Object.keys(this.allPlayersStatsByYear)
       .map(year => parseInt(year))
-      .filter(year => year < currentYear)
       .sort((a, b) => b - a); // Sort descending (most recent first)
 
-    // Set default year to most recent completed year, or null for "All Time"
+    // Set default year to most recent year, or null for "All Time"
     this.currentYear = this.availableYears.length > 0 ? this.availableYears[0] : null;
 
     // Update the loading message
@@ -488,6 +486,8 @@ class CrosswordStatistics {
     const sectionContainer = document.getElementById('playerComparisonSection');
     if (!tableContainer || !sectionContainer) return;
 
+    const currentYear = this.today.getFullYear();
+
     // Get stats for current year selection (or all-time)
     const statsToUse =
       this.currentYear === null
@@ -545,7 +545,8 @@ class CrosswordStatistics {
     this.availableYears.forEach(year => {
       const yearClass = this.currentYear === year ? 'active' : '';
       const winner = this.getYearWinner(year);
-      const crownEmoji = winner ? ' 👑' : '';
+      // Only show crown for completed years (years before current year)
+      const crownEmoji = winner && year < currentYear ? ' 👑' : '';
       paginationHTML += `<button class="year-btn ${yearClass}" data-year="${year}">${year}${crownEmoji}</button>`;
     });
 
@@ -589,7 +590,12 @@ class CrosswordStatistics {
     sortedPlayers.forEach(player => {
       const isCurrentUser = player.name === this.userName;
       const rowClass = isCurrentUser ? 'current-user-row' : '';
-      const isYearWinner = yearWinner && player.name === yearWinner;
+      // Only show crown for completed years (years before current year)
+      const isYearWinner =
+        yearWinner &&
+        player.name === yearWinner &&
+        this.currentYear !== null &&
+        this.currentYear < currentYear;
       const playerNameDisplay = isYearWinner ? `${player.name} 👑` : player.name;
 
       tableHTML += `<tr class="${rowClass}">`;
