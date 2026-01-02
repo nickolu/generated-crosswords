@@ -77,6 +77,9 @@ class CrosswordStatistics {
     }
 
     try {
+      // Trigger migration if database doesn't exist
+      await this.ensureMigration();
+
       await this.loadUserStatistics();
       this.renderSolveTimesChart();
       this.updateStatsSummary();
@@ -84,6 +87,23 @@ class CrosswordStatistics {
     } catch (error) {
       console.error('Error loading statistics:', error);
       this.showErrorMessage();
+    }
+  }
+
+  async ensureMigration() {
+    try {
+      const response = await fetch('mini/migrate', {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-cache',
+      });
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Migration status:', result.status);
+      }
+    } catch (error) {
+      // Migration endpoint may not be available, continue anyway
+      console.warn('Migration check failed (non-critical):', error);
     }
   }
 
@@ -113,17 +133,33 @@ class CrosswordStatistics {
     statsContent.innerHTML = '<div class="stats-loading">Analyzing your puzzle history...</div>';
 
     // Get list of available crossword files
-    const response = await fetch('crossword-jsons');
-    if (!response.ok) {
+    const puzzleFilesResponse = await fetch('mini/crossword-jsons');
+    if (!puzzleFilesResponse.ok) {
       throw new Error('Failed to fetch puzzle list');
     }
 
-    const data = await response.json();
-    const puzzleFiles = data.files || [];
+    const puzzleData = await puzzleFilesResponse.json();
+    const puzzleFiles = puzzleData.files || [];
+
+    // Fetch all leaderboard data in one request (optimized)
+    let allLeaderboards = {};
+    try {
+      const leaderboardsResponse = await fetch('mini/statistics/all-leaderboards', {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-cache',
+      });
+      if (leaderboardsResponse.ok) {
+        allLeaderboards = await leaderboardsResponse.json();
+      }
+    } catch (error) {
+      console.warn('Failed to fetch all leaderboards, falling back to individual requests:', error);
+      // Fall back to empty object - will skip processing but won't crash
+    }
 
     const userCompletions = [];
 
-    // Check each puzzle for user completion
+    // Process each puzzle file
     for (const filename of puzzleFiles) {
       try {
         // Extract date from filename (same logic as archive.js)
@@ -144,81 +180,77 @@ class CrosswordStatistics {
 
         const displayDate = this.calculateDisplayDate(puzzleDate);
 
-        // Check leaderboard data for this date
-        const leaderboardResponse = await fetch(`data/${displayDate}.json`, {
-          method: 'GET',
-          mode: 'cors',
-          cache: 'no-cache',
+        // Get leaderboard data from the pre-fetched data
+        const leaderboardData = allLeaderboards[displayDate];
+        if (!leaderboardData) {
+          continue;
+        }
+
+        const userTime = leaderboardData[this.userName];
+
+        // Process all players' data for comparison table (tie-aware ranks)
+        const allTimes = Object.entries(leaderboardData)
+          .map(([name, time]) => ({ name, time: parseInt(time) }))
+          .sort((a, b) => a.time - b.time);
+
+        // Assign tie-aware ranks
+        let previousTime = null;
+        let previousRank = 0;
+        allTimes.forEach((entry, index) => {
+          if (index === 0) {
+            entry.rank = 1;
+          } else if (entry.time === previousTime) {
+            entry.rank = previousRank;
+          } else {
+            entry.rank = index + 1;
+          }
+          previousTime = entry.time;
+          previousRank = entry.rank;
         });
 
-        if (leaderboardResponse.ok) {
-          const leaderboardData = await leaderboardResponse.json();
-          const userTime = leaderboardData[this.userName];
+        // Extract year from displayDate
+        const displayYear = parseInt(displayDate.split('-')[0]);
 
-          // Process all players' data for comparison table (tie-aware ranks)
-          const allTimes = Object.entries(leaderboardData)
-            .map(([name, time]) => ({ name, time: parseInt(time) }))
-            .sort((a, b) => a.time - b.time);
-
-          // Assign tie-aware ranks
-          let previousTime = null;
-          let previousRank = 0;
-          allTimes.forEach((entry, index) => {
-            if (index === 0) {
-              entry.rank = 1;
-            } else if (entry.time === previousTime) {
-              entry.rank = previousRank;
-            } else {
-              entry.rank = index + 1;
-            }
-            previousTime = entry.time;
-            previousRank = entry.rank;
-          });
-
-          // Extract year from displayDate
-          const displayYear = parseInt(displayDate.split('-')[0]);
-
-          // Store rankings for all players using tie-aware ranks (all-time)
-          allTimes.forEach(entry => {
-            const rank = entry.rank;
-            if (!this.allPlayersStats[entry.name]) {
-              this.allPlayersStats[entry.name] = {};
-            }
-            if (!this.allPlayersStats[entry.name][rank]) {
-              this.allPlayersStats[entry.name][rank] = 0;
-            }
-            this.allPlayersStats[entry.name][rank]++;
-          });
-
-          // Store rankings by year
-          allTimes.forEach(entry => {
-            const rank = entry.rank;
-            if (!this.allPlayersStatsByYear[displayYear]) {
-              this.allPlayersStatsByYear[displayYear] = {};
-            }
-            if (!this.allPlayersStatsByYear[displayYear][entry.name]) {
-              this.allPlayersStatsByYear[displayYear][entry.name] = {};
-            }
-            if (!this.allPlayersStatsByYear[displayYear][entry.name][rank]) {
-              this.allPlayersStatsByYear[displayYear][entry.name][rank] = 0;
-            }
-            this.allPlayersStatsByYear[displayYear][entry.name][rank]++;
-          });
-
-          if (userTime) {
-            const userTimeInt = parseInt(userTime);
-            // Find user's tie-aware rank from the computed entries
-            const userEntry = allTimes.find(entry => entry.name === this.userName);
-            const userRank = userEntry
-              ? userEntry.rank
-              : allTimes.findIndex(e => e.time === userTimeInt) + 1;
-
-            userCompletions.push({
-              date: displayDate,
-              time: userTimeInt,
-              rank: userRank,
-            });
+        // Store rankings for all players using tie-aware ranks (all-time)
+        allTimes.forEach(entry => {
+          const rank = entry.rank;
+          if (!this.allPlayersStats[entry.name]) {
+            this.allPlayersStats[entry.name] = {};
           }
+          if (!this.allPlayersStats[entry.name][rank]) {
+            this.allPlayersStats[entry.name][rank] = 0;
+          }
+          this.allPlayersStats[entry.name][rank]++;
+        });
+
+        // Store rankings by year
+        allTimes.forEach(entry => {
+          const rank = entry.rank;
+          if (!this.allPlayersStatsByYear[displayYear]) {
+            this.allPlayersStatsByYear[displayYear] = {};
+          }
+          if (!this.allPlayersStatsByYear[displayYear][entry.name]) {
+            this.allPlayersStatsByYear[displayYear][entry.name] = {};
+          }
+          if (!this.allPlayersStatsByYear[displayYear][entry.name][rank]) {
+            this.allPlayersStatsByYear[displayYear][entry.name][rank] = 0;
+          }
+          this.allPlayersStatsByYear[displayYear][entry.name][rank]++;
+        });
+
+        if (userTime) {
+          const userTimeInt = parseInt(userTime);
+          // Find user's tie-aware rank from the computed entries
+          const userEntry = allTimes.find(entry => entry.name === this.userName);
+          const userRank = userEntry
+            ? userEntry.rank
+            : allTimes.findIndex(e => e.time === userTimeInt) + 1;
+
+          userCompletions.push({
+            date: displayDate,
+            time: userTimeInt,
+            rank: userRank,
+          });
         }
       } catch (error) {
         // Skip this puzzle if there's an error

@@ -12,6 +12,7 @@ class CrosswordArchive {
     // Calendar-specific properties
     this.currentDate = new Date(this.elevenYearsAgo);
     this.availablePuzzles = new Map(); // Map of date strings to puzzle data
+    this.allLeaderboards = {}; // Cache all leaderboard data for performance
 
     // Place emojis matching crossword.js and statistics.js
     this.placeEmojis = {
@@ -24,7 +25,26 @@ class CrosswordArchive {
       default: '⏳', // For 7th place and beyond
     };
 
-    this.loadPuzzleList();
+    this.ensureMigration().then(() => {
+      this.loadPuzzleList();
+    });
+  }
+
+  async ensureMigration() {
+    try {
+      const response = await fetch('mini/migrate', {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-cache',
+      });
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Migration status:', result.status);
+      }
+    } catch (error) {
+      // Migration endpoint may not be available, continue anyway
+      console.warn('Migration check failed (non-critical):', error);
+    }
   }
 
   getUserName() {
@@ -70,7 +90,7 @@ class CrosswordArchive {
 
     try {
       // Fetch the list of available crossword JSON files from the API
-      const response = await fetch('crossword-jsons');
+      const response = await fetch('mini/crossword-jsons');
 
       if (!response.ok) {
         throw new Error(`Failed to fetch puzzle list: ${response.status}`);
@@ -127,6 +147,10 @@ class CrosswordArchive {
 
       // Store puzzle data for calendar rendering
       this.storePuzzleData(knownPuzzles);
+
+      // Pre-fetch all leaderboard data for performance
+      await this.loadAllLeaderboards();
+
       this.initializeCalendar();
     } catch (error) {
       console.error('Error loading puzzle list:', error);
@@ -270,6 +294,24 @@ class CrosswordArchive {
     return html;
   }
 
+  async loadAllLeaderboards() {
+    // Pre-fetch all leaderboard data in one request for performance
+    try {
+      const response = await fetch('mini/statistics/all-leaderboards', {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-cache',
+      });
+      if (response.ok) {
+        this.allLeaderboards = await response.json();
+      }
+    } catch (error) {
+      console.warn('Failed to fetch all leaderboards:', error);
+      // Continue with empty cache - getCompletionData will handle gracefully
+      this.allLeaderboards = {};
+    }
+  }
+
   async getCompletionData(puzzleDate) {
     // Only check completion if we have a username
     if (!this.userName) {
@@ -279,24 +321,14 @@ class CrosswordArchive {
     try {
       // Calculate the display date (current date) for leaderboard lookup
       const displayDate = this.calculateDisplayDate(puzzleDate);
-      const dataUrl = `data/${displayDate}.json`;
 
-      const response = await fetch(dataUrl, {
-        method: 'GET',
-        mode: 'cors',
-        cache: 'no-cache',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          Pragma: 'no-cache',
-          Expires: '0',
-        },
-      });
+      // Use cached leaderboard data instead of making HTTP request
+      const leaderboardData = this.allLeaderboards[displayDate];
 
-      if (!response.ok) {
+      if (!leaderboardData) {
         return null;
       }
 
-      const leaderboardData = await response.json();
       const userTime = leaderboardData[this.userName];
 
       if (!userTime) {

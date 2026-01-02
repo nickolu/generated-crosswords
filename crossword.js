@@ -119,7 +119,7 @@ class CrosswordPuzzle {
 
     try {
       // Try to load leaderboard data for this puzzle date
-      const dataUrl = `data/${this.puzzle.date}.json`;
+      const dataUrl = `mini/leaderboard/${this.puzzle.date}`;
       console.log('Fetching data from:', dataUrl);
       const response = await fetch(dataUrl, {
         method: 'GET',
@@ -1295,7 +1295,7 @@ class CrosswordPuzzle {
     const timeInSeconds = Math.floor(this.elapsedTime / 1000);
 
     // Construct the URL
-    const url = `results?user=${encodeURIComponent(this.userName)}&time=${timeInSeconds}&date=${this.puzzle.date}`;
+    const url = `mini/results?user=${encodeURIComponent(this.userName)}&time=${timeInSeconds}&date=${this.puzzle.date}`;
 
     // Send GET request and return the promise
     return fetch(url, {
@@ -2163,7 +2163,7 @@ class CrosswordPuzzle {
     leaderboardBody.innerHTML = '<div class="loading">Loading today\'s leaderboard...</div>';
 
     try {
-      const dataUrl = `data/${this.puzzle.date}.json`;
+      const dataUrl = `mini/leaderboard/${this.puzzle.date}`;
 
       const response = await fetch(dataUrl, {
         method: 'GET',
