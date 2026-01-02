@@ -544,10 +544,7 @@ class CrosswordStatistics {
     // Add year buttons
     this.availableYears.forEach(year => {
       const yearClass = this.currentYear === year ? 'active' : '';
-      const winner = this.getYearWinner(year);
-      // Only show crown for completed years (years before current year)
-      const crownEmoji = winner && year < currentYear ? ' 👑' : '';
-      paginationHTML += `<button class="year-btn ${yearClass}" data-year="${year}">${year}${crownEmoji}</button>`;
+      paginationHTML += `<button class="year-btn ${yearClass}" data-year="${year}">${year}</button>`;
     });
 
     paginationHTML += '</div>';
