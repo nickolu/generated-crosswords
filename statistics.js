@@ -8,7 +8,10 @@ class CrosswordStatistics {
       averageTime: 0,
       bestTime: null,
     };
-    this.allPlayersStats = {}; // Store stats for all players
+    this.allPlayersStats = {}; // Store stats for all players (all-time)
+    this.allPlayersStatsByYear = {}; // Store stats for all players by year
+    this.currentYear = null; // Currently selected year for pagination
+    this.availableYears = []; // List of years with data
     this.today = new Date();
     this.elevenYearsAgo = new Date(
       this.today.getFullYear() - 11,
@@ -172,7 +175,10 @@ class CrosswordStatistics {
             previousRank = entry.rank;
           });
 
-          // Store rankings for all players using tie-aware ranks
+          // Extract year from displayDate
+          const displayYear = parseInt(displayDate.split('-')[0]);
+
+          // Store rankings for all players using tie-aware ranks (all-time)
           allTimes.forEach(entry => {
             const rank = entry.rank;
             if (!this.allPlayersStats[entry.name]) {
@@ -182,6 +188,21 @@ class CrosswordStatistics {
               this.allPlayersStats[entry.name][rank] = 0;
             }
             this.allPlayersStats[entry.name][rank]++;
+          });
+
+          // Store rankings by year
+          allTimes.forEach(entry => {
+            const rank = entry.rank;
+            if (!this.allPlayersStatsByYear[displayYear]) {
+              this.allPlayersStatsByYear[displayYear] = {};
+            }
+            if (!this.allPlayersStatsByYear[displayYear][entry.name]) {
+              this.allPlayersStatsByYear[displayYear][entry.name] = {};
+            }
+            if (!this.allPlayersStatsByYear[displayYear][entry.name][rank]) {
+              this.allPlayersStatsByYear[displayYear][entry.name][rank] = 0;
+            }
+            this.allPlayersStatsByYear[displayYear][entry.name][rank]++;
           });
 
           if (userTime) {
@@ -207,6 +228,16 @@ class CrosswordStatistics {
 
     // Process the completions into statistics
     this.processStatistics(userCompletions);
+
+    // Build list of available years (only completed years, not current year)
+    const currentYear = this.today.getFullYear();
+    this.availableYears = Object.keys(this.allPlayersStatsByYear)
+      .map(year => parseInt(year))
+      .filter(year => year < currentYear)
+      .sort((a, b) => b - a); // Sort descending (most recent first)
+
+    // Set default year to most recent completed year, or null for "All Time"
+    this.currentYear = this.availableYears.length > 0 ? this.availableYears[0] : null;
 
     // Update the loading message
     if (userCompletions.length === 0) {
@@ -431,6 +462,25 @@ class CrosswordStatistics {
     return score;
   }
 
+  getYearWinner(year) {
+    // Calculate winner(s) for a specific year
+    // Returns the first winner if there's a tie (for display purposes)
+    if (!this.allPlayersStatsByYear[year]) return null;
+
+    let maxScore = -1;
+    let winner = null;
+
+    for (const [name, placeCounts] of Object.entries(this.allPlayersStatsByYear[year])) {
+      const score = this.calculatePlayerScore(placeCounts);
+      if (score > maxScore) {
+        maxScore = score;
+        winner = name;
+      }
+    }
+
+    return winner;
+  }
+
   renderPlayerComparisonTable() {
     if (Object.keys(this.allPlayersStats).length === 0) return;
 
@@ -438,13 +488,28 @@ class CrosswordStatistics {
     const sectionContainer = document.getElementById('playerComparisonSection');
     if (!tableContainer || !sectionContainer) return;
 
+    // Get stats for current year selection (or all-time)
+    const statsToUse =
+      this.currentYear === null
+        ? this.allPlayersStats
+        : this.allPlayersStatsByYear[this.currentYear] || {};
+
+    if (Object.keys(statsToUse).length === 0) {
+      tableContainer.innerHTML = '<p>No data available for the selected year.</p>';
+      sectionContainer.style.display = 'block';
+      return;
+    }
+
+    // Calculate winner for current year (if not "All Time")
+    const yearWinner = this.currentYear !== null ? this.getYearWinner(this.currentYear) : null;
+
     // Calculate max counts for each place for color coding
     const maxCounts = {};
     for (let place = 1; place <= 7; place++) {
       maxCounts[place] = 0;
     }
 
-    for (const playerStats of Object.values(this.allPlayersStats)) {
+    for (const playerStats of Object.values(statsToUse)) {
       for (let place = 1; place <= 6; place++) {
         const count = playerStats[place] || 0;
         maxCounts[place] = Math.max(maxCounts[place], count);
@@ -460,7 +525,7 @@ class CrosswordStatistics {
     }
 
     // Sort players by score
-    const sortedPlayers = Object.entries(this.allPlayersStats)
+    const sortedPlayers = Object.entries(statsToUse)
       .map(([name, placeCounts]) => ({
         name,
         placeCounts,
@@ -468,8 +533,42 @@ class CrosswordStatistics {
       }))
       .sort((a, b) => b.score - a.score);
 
+    // Build year pagination controls
+    let paginationHTML = '<div class="year-pagination">';
+    paginationHTML += '<span class="year-pagination-label">View:</span>';
+
+    // Add "All Time" option
+    const allTimeClass = this.currentYear === null ? 'active' : '';
+    paginationHTML += `<button class="year-btn ${allTimeClass}" data-year="all">All Time</button>`;
+
+    // Add year buttons
+    this.availableYears.forEach(year => {
+      const yearClass = this.currentYear === year ? 'active' : '';
+      const winner = this.getYearWinner(year);
+      const crownEmoji = winner ? ' 👑' : '';
+      paginationHTML += `<button class="year-btn ${yearClass}" data-year="${year}">${year}${crownEmoji}</button>`;
+    });
+
+    paginationHTML += '</div>';
+
+    // Add event listeners for year buttons
+    setTimeout(() => {
+      document.querySelectorAll('.year-btn').forEach(btn => {
+        btn.addEventListener('click', e => {
+          const yearValue = e.target.getAttribute('data-year');
+          if (yearValue === 'all') {
+            this.currentYear = null;
+          } else {
+            this.currentYear = parseInt(yearValue);
+          }
+          this.renderPlayerComparisonTable();
+        });
+      });
+    }, 0);
+
     // Build table HTML
-    let tableHTML = `
+    let tableHTML = paginationHTML;
+    tableHTML += `
       <table class="player-comparison">
         <thead>
           <tr>
@@ -490,9 +589,11 @@ class CrosswordStatistics {
     sortedPlayers.forEach(player => {
       const isCurrentUser = player.name === this.userName;
       const rowClass = isCurrentUser ? 'current-user-row' : '';
+      const isYearWinner = yearWinner && player.name === yearWinner;
+      const playerNameDisplay = isYearWinner ? `${player.name} 👑` : player.name;
 
       tableHTML += `<tr class="${rowClass}">`;
-      tableHTML += `<td class="player-name">${player.name}</td>`;
+      tableHTML += `<td class="player-name">${playerNameDisplay}</td>`;
 
       // Add cells for places 1-6
       for (let place = 1; place <= 6; place++) {
