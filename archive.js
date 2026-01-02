@@ -31,7 +31,7 @@ class CrosswordArchive {
 
   async ensureMigration() {
     try {
-      const response = await fetch('migrate', {
+      const response = await fetch('mini/migrate', {
         method: 'GET',
         mode: 'cors',
         cache: 'no-cache',
@@ -298,7 +298,7 @@ class CrosswordArchive {
     try {
       // Calculate the display date (current date) for leaderboard lookup
       const displayDate = this.calculateDisplayDate(puzzleDate);
-      const dataUrl = `leaderboard/${displayDate}`;
+      const dataUrl = `mini/leaderboard/${displayDate}`;
 
       const response = await fetch(dataUrl, {
         method: 'GET',

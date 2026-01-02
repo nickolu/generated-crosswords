@@ -92,7 +92,7 @@ class CrosswordStatistics {
 
   async ensureMigration() {
     try {
-      const response = await fetch('migrate', {
+      const response = await fetch('mini/migrate', {
         method: 'GET',
         mode: 'cors',
         cache: 'no-cache',
@@ -165,7 +165,7 @@ class CrosswordStatistics {
         const displayDate = this.calculateDisplayDate(puzzleDate);
 
         // Check leaderboard data for this date
-        const leaderboardResponse = await fetch(`leaderboard/${displayDate}`, {
+        const leaderboardResponse = await fetch(`mini/leaderboard/${displayDate}`, {
           method: 'GET',
           mode: 'cors',
           cache: 'no-cache',

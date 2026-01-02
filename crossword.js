@@ -119,7 +119,7 @@ class CrosswordPuzzle {
 
     try {
       // Try to load leaderboard data for this puzzle date
-      const dataUrl = `leaderboard/${this.puzzle.date}`;
+      const dataUrl = `mini/leaderboard/${this.puzzle.date}`;
       console.log('Fetching data from:', dataUrl);
       const response = await fetch(dataUrl, {
         method: 'GET',
@@ -2163,7 +2163,7 @@ class CrosswordPuzzle {
     leaderboardBody.innerHTML = '<div class="loading">Loading today\'s leaderboard...</div>';
 
     try {
-      const dataUrl = `leaderboard/${this.puzzle.date}`;
+      const dataUrl = `mini/leaderboard/${this.puzzle.date}`;
 
       const response = await fetch(dataUrl, {
         method: 'GET',
