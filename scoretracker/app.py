@@ -76,26 +76,16 @@ def store_results():
         # Initialize database if it doesn't exist
         init_database()
         
-        # Log all request args for debugging
-        app.logger.info(f"Received /results request with args: {dict(request.args)}")
-        app.logger.info(f"Request URL: {request.url}")
-        app.logger.info(f"Request path: {request.path}")
-        app.logger.info(f"Query string: {request.query_string.decode()}")
-        
         # Get parameters from query string
         username = request.args.get('user')
         time_score = request.args.get('time')
         date = request.args.get('date')
         
-        app.logger.info(f"Parsed parameters - user: {username}, time: {time_score}, date: {date}")
-        
         # Validate parameters
         if not username:
-            app.logger.warning(f"Missing user parameter. All args: {dict(request.args)}")
             return jsonify({'error': 'Missing required parameter: user'}), 400
         
         if not time_score:
-            app.logger.warning(f"Missing time parameter. All args: {dict(request.args)}")
             return jsonify({'error': 'Missing required parameter: time'}), 400
         
         # Validate time is an integer

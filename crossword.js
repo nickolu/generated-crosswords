@@ -1328,7 +1328,6 @@ class CrosswordPuzzle {
       })
       .catch(error => {
         console.error('Failed to send results to server:', error);
-        console.error('Request URL was:', url);
         // Don't show error to user, just log it
         throw error; // Re-throw so caller can handle
       });

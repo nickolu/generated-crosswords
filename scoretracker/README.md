@@ -149,6 +149,38 @@ sudo systemctl status scoretracker
 sudo journalctl -u scoretracker -f
 ```
 
+## Command-Line Utilities
+
+### Edit Player Time
+
+Use `edit_time.py` to edit a player's time for a specific date:
+
+```bash
+# Using positional arguments
+python edit_time.py <player> <date> <time>
+
+# Using named arguments
+python edit_time.py --player <player> --date <date> --time <time>
+
+# Skip confirmation prompt (useful for scripts)
+python edit_time.py --player alice --date 2024-01-15 --time 300 --confirm
+```
+
+**Examples:**
+```bash
+# Edit alice's time on 2024-01-15 to 300 seconds
+python edit_time.py alice 2024-01-15 300
+
+# Edit bob's time on 2024-01-15 to 250 seconds
+python edit_time.py --player bob --date 2024-01-15 --time 250
+```
+
+The utility will:
+- Show the current time (if it exists) before making changes
+- Prompt for confirmation (unless `--confirm` is used)
+- Create a new record if the player doesn't have a time for that date
+- Update the existing record if one already exists
+
 ## Example Usage
 
 ```bash
