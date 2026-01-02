@@ -25,13 +25,15 @@ CROSSWORDS_DIR = Path(__file__).parent / ".." / "crosswords"
 # Root directory for serving static files
 ROOT_DIR = Path(__file__).parent / ".."
 
-# SQLite database path
-DB_PATH = Path(__file__).parent / "statistics.db"
+# SQLite database path - store in data directory for proper permissions
+DB_PATH = DATA_DIR / "statistics.db"
 
 
 def get_db_connection():
     """Get a connection to the SQLite database."""
-    conn = sqlite3.connect(DB_PATH)
+    # Ensure data directory exists
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -298,7 +300,7 @@ def migrate_json_to_sqlite():
         
         response_data = {
             'status': 'success',
-            'message': f'Migration completed',
+            'message': 'Migration completed',
             'migrated_files': migrated_files,
             'migrated_records': total_records,
             'total_files': len(json_files)
