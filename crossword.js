@@ -1303,9 +1303,19 @@ class CrosswordPuzzle {
       mode: 'cors',
       cache: 'no-cache',
     })
-      .then(response => {
+      .then(async response => {
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          // Try to get error message from response body
+          let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+          try {
+            const errorData = await response.json();
+            if (errorData.error) {
+              errorMessage = `${errorMessage} - ${errorData.error}`;
+            }
+          } catch {
+            // If response isn't JSON, use status text
+          }
+          throw new Error(errorMessage);
         }
         return response.json();
       })
@@ -1318,6 +1328,7 @@ class CrosswordPuzzle {
       })
       .catch(error => {
         console.error('Failed to send results to server:', error);
+        console.error('Request URL was:', url);
         // Don't show error to user, just log it
         throw error; // Re-throw so caller can handle
       });
