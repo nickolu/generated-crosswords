@@ -20,6 +20,7 @@ class CrosswordPuzzle {
     this.isKeyboardVisible = false; // Track keyboard state for scroll prevention
     this.keydownHandler = null; // Store reference to keydown event handler for cleanup
     this.visibilityChangeHandler = null; // Store reference to visibilitychange event handler for cleanup
+    this._incorrectCount = 0; // Track current incorrect letter count for persistent display
 
     // Parse URL flag to allow replaying a completed puzzle without recording stats
     const urlParams = new URLSearchParams(window.location.search);
@@ -651,10 +652,11 @@ class CrosswordPuzzle {
     const seconds = Math.floor((this.elapsedTime % 60000) / 1000);
     const timeDisplay = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
-    // Determine if a temporary timer message should be shown
-    const now = Date.now();
-    const showMessage = this._timerMessageUntil && now < this._timerMessageUntil;
-    const display = showMessage && this._timerMessage ? this._timerMessage : timeDisplay;
+    // Always show incorrect letter count if there are incorrect letters
+    let display = timeDisplay;
+    if (this._incorrectCount > 0 && !this.isCompleted) {
+      display = `${this._incorrectCount} letter${this._incorrectCount === 1 ? '' : 's'} are incorrect!`;
+    }
 
     // Update all timer displays (desktop, mobile menu, and mobile main)
     const desktopTimer = document.getElementById('timer');
@@ -1186,19 +1188,7 @@ class CrosswordPuzzle {
     // Check completion and provide feedback if the cleanup resulted in a valid letter
     if (firstValidChar) {
       const status = this.checkPuzzleCompletion();
-      // Don't set message if puzzle is already completed
-      if (
-        status &&
-        status.allFilled &&
-        !status.allCorrect &&
-        status.incorrectCount > 0 &&
-        !this.isCompleted
-      ) {
-        const message = `${status.incorrectCount} letter${status.incorrectCount === 1 ? '' : 's'} are incorrect!`;
-        this._timerMessage = message;
-        this._timerMessageUntil = Date.now() + 2000;
-        this.updateTimerDisplay();
-      }
+      // The incorrect count is now shown persistently in the timer display via checkPuzzleCompletion()
       if (this.showFeedback) {
         const cell = this.puzzle.cells[cellIndex];
         // Remove any existing autocheck classes
@@ -1240,13 +1230,18 @@ class CrosswordPuzzle {
       }
     });
 
+    // Update the incorrect count for persistent display
+    this._incorrectCount = incorrectCount;
+
     if (allFilled && allCorrect) {
-      // Clear any incorrect letter message immediately when puzzle is completed
-      this._timerMessage = null;
-      this._timerMessageUntil = null;
+      // Clear incorrect count when puzzle is completed
+      this._incorrectCount = 0;
       this.onPuzzleComplete();
       return { allFilled: true, allCorrect: true, incorrectCount: 0 };
     }
+
+    // Update timer display to show current incorrect count
+    this.updateTimerDisplay();
 
     return { allFilled, allCorrect, incorrectCount };
   }
@@ -1261,9 +1256,8 @@ class CrosswordPuzzle {
     this.isPaused = true;
     this.isCompleted = true;
 
-    // Clear any incorrect letter count message and update timer display
-    this._timerMessage = null;
-    this._timerMessageUntil = null;
+    // Clear incorrect count and update timer display
+    this._incorrectCount = 0;
     this.updateTimerDisplay();
 
     document.getElementById('pauseBtn').disabled = true;
@@ -1910,8 +1904,8 @@ class CrosswordPuzzle {
         // Check for puzzle completion
         const status = this.checkPuzzleCompletion();
 
-        // If all cells are filled but some are incorrect, briefly show message in timer
-        // Don't set message if puzzle is already completed
+        // If all cells are filled but some are incorrect, don't auto-advance
+        // The incorrect count is now shown persistently in the timer display
         if (
           status &&
           status.allFilled &&
@@ -1919,10 +1913,6 @@ class CrosswordPuzzle {
           status.incorrectCount > 0 &&
           !this.isCompleted
         ) {
-          const message = `${status.incorrectCount} letter${status.incorrectCount === 1 ? '' : 's'} are incorrect!`;
-          this._timerMessage = message;
-          this._timerMessageUntil = Date.now() + 2000; // show for 2 seconds
-          this.updateTimerDisplay();
           // Do not auto-advance in this case; keep the last entered cell selected
         } else if (this.isRunning) {
           // Only move to next cell if puzzle is not completed and not in the incorrect-filled state
@@ -2070,6 +2060,9 @@ class CrosswordPuzzle {
             // Update empty state for cursor display
             const wrapper = currentCell.closest('.cell-wrapper');
             if (wrapper) this.updateCellEmptyState(wrapper, this.selectedCell);
+
+            // Update incorrect count after deletion
+            this.checkPuzzleCompletion();
           } else {
             // Current cell is empty, move to previous cell and delete its content
             const clue = this.puzzle.clues[this.selectedClue];
@@ -2089,6 +2082,9 @@ class CrosswordPuzzle {
                 // Update empty state for cursor display
                 const wrapper = prevCell.closest('.cell-wrapper');
                 if (wrapper) this.updateCellEmptyState(wrapper, prevCellIndex);
+
+                // Update incorrect count after deletion
+                this.checkPuzzleCompletion();
               }
             }
           }
@@ -2112,6 +2108,9 @@ class CrosswordPuzzle {
             // Update empty state for cursor display
             const wrapper = currentCell.closest('.cell-wrapper');
             if (wrapper) this.updateCellEmptyState(wrapper, this.selectedCell);
+
+            // Update incorrect count after deletion
+            this.checkPuzzleCompletion();
           } else {
             // Current cell is empty, move to next cell and delete its content
             const clue = this.puzzle.clues[this.selectedClue];
@@ -2131,6 +2130,9 @@ class CrosswordPuzzle {
                 // Update empty state for cursor display
                 const wrapper = nextCell.closest('.cell-wrapper');
                 if (wrapper) this.updateCellEmptyState(wrapper, nextCellIndex);
+
+                // Update incorrect count after deletion
+                this.checkPuzzleCompletion();
               }
             }
           }
