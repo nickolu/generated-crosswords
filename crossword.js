@@ -1251,6 +1251,11 @@ class CrosswordPuzzle {
     this.isPaused = true;
     this.isCompleted = true;
 
+    // Clear any incorrect letter count message and update timer display
+    this._timerMessage = null;
+    this._timerMessageUntil = null;
+    this.updateTimerDisplay();
+
     document.getElementById('pauseBtn').disabled = true;
 
     // Enable the persistent share button
