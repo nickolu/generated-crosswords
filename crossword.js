@@ -652,10 +652,10 @@ class CrosswordPuzzle {
     const seconds = Math.floor((this.elapsedTime % 60000) / 1000);
     const timeDisplay = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
-    // Always show incorrect letter count if there are incorrect letters
+    // Show both timer and incorrect letter count if there are incorrect letters
     let display = timeDisplay;
     if (this._incorrectCount > 0 && !this.isCompleted) {
-      display = `${this._incorrectCount} letter${this._incorrectCount === 1 ? '' : 's'} are incorrect!`;
+      display = `${timeDisplay} - ${this._incorrectCount} letter${this._incorrectCount === 1 ? '' : 's'} incorrect`;
     }
 
     // Update all timer displays (desktop, mobile menu, and mobile main)
