@@ -1186,7 +1186,14 @@ class CrosswordPuzzle {
     // Check completion and provide feedback if the cleanup resulted in a valid letter
     if (firstValidChar) {
       const status = this.checkPuzzleCompletion();
-      if (status && status.allFilled && !status.allCorrect && status.incorrectCount > 0) {
+      // Don't set message if puzzle is already completed
+      if (
+        status &&
+        status.allFilled &&
+        !status.allCorrect &&
+        status.incorrectCount > 0 &&
+        !this.isCompleted
+      ) {
         const message = `${status.incorrectCount} letter${status.incorrectCount === 1 ? '' : 's'} are incorrect!`;
         this._timerMessage = message;
         this._timerMessageUntil = Date.now() + 2000;
@@ -1234,6 +1241,9 @@ class CrosswordPuzzle {
     });
 
     if (allFilled && allCorrect) {
+      // Clear any incorrect letter message immediately when puzzle is completed
+      this._timerMessage = null;
+      this._timerMessageUntil = null;
       this.onPuzzleComplete();
       return { allFilled: true, allCorrect: true, incorrectCount: 0 };
     }
@@ -1901,7 +1911,14 @@ class CrosswordPuzzle {
         const status = this.checkPuzzleCompletion();
 
         // If all cells are filled but some are incorrect, briefly show message in timer
-        if (status && status.allFilled && !status.allCorrect && status.incorrectCount > 0) {
+        // Don't set message if puzzle is already completed
+        if (
+          status &&
+          status.allFilled &&
+          !status.allCorrect &&
+          status.incorrectCount > 0 &&
+          !this.isCompleted
+        ) {
           const message = `${status.incorrectCount} letter${status.incorrectCount === 1 ? '' : 's'} are incorrect!`;
           this._timerMessage = message;
           this._timerMessageUntil = Date.now() + 2000; // show for 2 seconds
