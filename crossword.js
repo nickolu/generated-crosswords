@@ -1175,6 +1175,9 @@ class CrosswordPuzzle {
       // Input has invalid characters or multiple characters, clean it
       event.target.value = firstValidChar;
       this.userAnswers[cellIndex] = firstValidChar;
+    } else if (firstValidChar) {
+      // Valid single letter - ensure userAnswers is updated (important for mobile browsers)
+      this.userAnswers[cellIndex] = firstValidChar;
     } else if (!firstValidChar && value) {
       // Input has no valid characters but has content, clear it
       event.target.value = '';
