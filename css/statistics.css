@@ -296,7 +296,7 @@
   font-weight: 600;
   font-family: 'Oswald', sans-serif;
   font-size: 15px;
-  color: var(--primitive-orange-500);
+  color: #f97316; /* Orange color for streak display */
 }
 
 .player-score {
