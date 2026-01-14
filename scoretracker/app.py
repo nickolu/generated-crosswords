@@ -486,14 +486,19 @@ def get_streak(username):
             # Calculate streak
             # A streak counts consecutive days going backwards from today
             # where completion_timestamp date matches the puzzle date
+            # No streaks are counted before January 1, 2026
             pacific = pytz.timezone('America/Los_Angeles')
             utc = pytz.UTC
+            
+            # Minimum date for streak counting
+            min_streak_date = datetime(2026, 1, 1).date()
             
             streak = 0
             # Start from today and work backwards
             current_date = datetime.now(pacific).date()
             
             # Create a set of dates where user completed on the puzzle date
+            # Only include dates on or after January 1, 2026
             valid_dates = set()
             for row in rows:
                 puzzle_date_str = row['date']
@@ -503,6 +508,10 @@ def get_streak(username):
                     # Parse puzzle date
                     puzzle_date = datetime.strptime(puzzle_date_str, '%Y-%m-%d').date()
                     
+                    # Skip dates before January 1, 2026
+                    if puzzle_date < min_streak_date:
+                        continue
+                    
                     # Parse completion timestamp and convert to Pacific time
                     completion_dt = datetime.fromisoformat(completion_timestamp_str.replace('Z', '+00:00'))
                     if completion_dt.tzinfo is None:
@@ -511,7 +520,8 @@ def get_streak(username):
                     completion_date_pacific = completion_dt.astimezone(pacific).date()
                     
                     # Check if completion date matches puzzle date
-                    if completion_date_pacific == puzzle_date:
+                    # Only count if puzzle date is on or after January 1, 2026
+                    if completion_date_pacific == puzzle_date and puzzle_date >= min_streak_date:
                         valid_dates.add(puzzle_date)
                 except (ValueError, AttributeError) as e:
                     # Skip invalid dates/timestamps
@@ -519,8 +529,9 @@ def get_streak(username):
                     continue
             
             # Count consecutive days going backwards from today
+            # Stop if we go before January 1, 2026
             check_date = current_date
-            while check_date in valid_dates:
+            while check_date in valid_dates and check_date >= min_streak_date:
                 streak += 1
                 # Go back one day
                 check_date = check_date - timedelta(days=1)
