@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """
-Command-line utility to edit a player's time for a specific date.
+Command-line utility to edit or delete a player's time for a specific date.
 
 Usage:
     python edit_time.py <player> <date> <time>
     python edit_time.py --player <player> --date <date> --time <time>
+    python edit_time.py --player <player> --date <date> --delete
 
 Examples:
     python edit_time.py alice 2024-01-15 300
     python edit_time.py --player bob --date 2024-01-15 --time 250
+    python edit_time.py --player alice --date 2024-01-15 --delete
 """
 
 import argparse
@@ -125,16 +127,63 @@ def edit_time(player, date, new_time):
         conn.close()
 
 
+def delete_time(player, date):
+    """
+    Delete a player's time for a specific date.
+    
+    Args:
+        player: Username (string)
+        date: Date in YYYY-MM-DD format (string)
+    
+    Returns:
+        tuple: (success: bool, message: str, old_time: int or None)
+    """
+    # Initialize database if it doesn't exist
+    init_database()
+    
+    # Validate date format
+    if not validate_date(date):
+        return False, f"Invalid date format: {date}. Expected YYYY-MM-DD format.", None
+    
+    # Get current time (if exists)
+    old_time = get_current_time(player, date)
+    
+    if old_time is None:
+        return False, f"No record found for {player} on {date}", None
+    
+    # Delete the record
+    conn = get_db_connection()
+    try:
+        cursor = conn.execute(
+            "DELETE FROM results WHERE date = ? AND username = ?",
+            (date, player)
+        )
+        conn.commit()
+        
+        if cursor.rowcount > 0:
+            message = f"Deleted {player}'s time on {date} (was {old_time})"
+            return True, message, old_time
+        else:
+            return False, f"No record found for {player} on {date}", old_time
+    except Exception as e:
+        conn.rollback()
+        return False, f"Database error: {str(e)}", old_time
+    finally:
+        conn.close()
+
+
 def main():
     """Main entry point for the command-line utility."""
     parser = argparse.ArgumentParser(
-        description="Edit a player's time for a specific date",
+        description="Edit or delete a player's time for a specific date",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   %(prog)s alice 2024-01-15 300
   %(prog)s --player bob --date 2024-01-15 --time 250
   %(prog)s --player charlie --date 2024-01-15 --time 180 --confirm
+  %(prog)s --player alice --date 2024-01-15 --delete
+  %(prog)s bob 2024-01-15 --delete
         """
     )
     
@@ -152,7 +201,7 @@ Examples:
         'time',
         nargs='?',
         type=int,
-        help='New time value (integer)'
+        help='New time value (integer, not required when using --delete)'
     )
     
     parser.add_argument(
@@ -169,7 +218,12 @@ Examples:
         '--time',
         dest='time_flag',
         type=int,
-        help='New time value (alternative to positional argument)'
+        help='New time value (alternative to positional argument, not required when using --delete)'
+    )
+    parser.add_argument(
+        '--delete',
+        action='store_true',
+        help='Delete the player\'s time for the selected date'
     )
     parser.add_argument(
         '--confirm',
@@ -189,8 +243,41 @@ Examples:
         parser.error("Player username is required (use --player or positional argument)")
     if not date:
         parser.error("Date is required (use --date or positional argument)")
+    
+    # If --delete is set, handle deletion
+    if args.delete:
+        # Get current time for confirmation
+        old_time = get_current_time(player, date)
+        
+        # Show what will happen
+        if old_time is not None:
+            print(f"Current time for {player} on {date}: {old_time}")
+            print(f"This record will be deleted.")
+        else:
+            print(f"No existing record for {player} on {date}")
+            print("Nothing to delete.")
+            sys.exit(0)
+        
+        # Confirm unless --confirm flag is set
+        if not args.confirm:
+            response = input("\nProceed with deletion? (yes/no): ").strip().lower()
+            if response not in ('yes', 'y'):
+                print("Operation cancelled.")
+                sys.exit(0)
+        
+        # Perform the deletion
+        success, message, _ = delete_time(player, date)
+        
+        if success:
+            print(f"\n✓ {message}")
+            sys.exit(0)
+        else:
+            print(f"\n✗ Error: {message}", file=sys.stderr)
+            sys.exit(1)
+    
+    # Otherwise, handle edit (time is required)
     if time_value is None:
-        parser.error("Time is required (use --time or positional argument)")
+        parser.error("Time is required when not using --delete (use --time or positional argument)")
     
     # Get current time for confirmation
     old_time = get_current_time(player, date)

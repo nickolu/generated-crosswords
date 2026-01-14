@@ -2210,6 +2210,21 @@ class CrosswordPuzzle {
       modal.style.display = 'flex';
       this.loadLeaderboardData();
       this.updateShareButtonVisibility();
+
+      // Fetch and display streak if user is logged in and viewing today's puzzle
+      if (this.userName && this.puzzle.date) {
+        // Check if this is today's puzzle
+        const today = new Date().toISOString().split('T')[0];
+        if (this.puzzle.date === today) {
+          this.loadStreak();
+        } else {
+          // Hide streak for non-today puzzles
+          const streakDisplay = document.getElementById('streakDisplay');
+          if (streakDisplay) {
+            streakDisplay.style.display = 'none';
+          }
+        }
+      }
     }
   }
 
@@ -2309,6 +2324,20 @@ class CrosswordPuzzle {
 
       const data = await response.json();
       this.displayLeaderboardData(data);
+
+      // Fetch and display streak if user is logged in and viewing today's puzzle
+      if (this.userName && this.puzzle.date) {
+        const today = new Date().toISOString().split('T')[0];
+        if (this.puzzle.date === today) {
+          this.loadStreak();
+        } else {
+          // Hide streak for non-today puzzles
+          const streakDisplay = document.getElementById('streakDisplay');
+          if (streakDisplay) {
+            streakDisplay.style.display = 'none';
+          }
+        }
+      }
     } catch (error) {
       console.warn('Failed to load leaderboard data:', error);
       this.displayLeaderboardError();
