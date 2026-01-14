@@ -213,14 +213,21 @@ def get_leaderboard(date):
             # Convert to dictionary format with completion_timestamp if available
             leaderboard_data = {}
             for row in rows:
-                if row['completion_timestamp']:
+                # Ensure time is a valid integer
+                time_value = row['time']
+                if time_value is None:
+                    continue  # Skip invalid entries
+                
+                completion_timestamp = row['completion_timestamp']
+                # Check if completion_timestamp exists and is not empty
+                if completion_timestamp and completion_timestamp.strip():
                     leaderboard_data[row['username']] = {
-                        'time': row['time'],
-                        'completion_timestamp': row['completion_timestamp']
+                        'time': int(time_value),
+                        'completion_timestamp': completion_timestamp
                     }
                 else:
                     # Backward compatibility: return just time if no timestamp
-                    leaderboard_data[row['username']] = row['time']
+                    leaderboard_data[row['username']] = int(time_value)
             
             return jsonify(leaderboard_data), 200
         finally:

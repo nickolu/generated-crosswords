@@ -1430,19 +1430,27 @@ class CrosswordPuzzle {
     const entries = Object.entries(leaderboardData)
       .map(([name, timeData]) => {
         let timeInSeconds;
-        if (typeof timeData === 'object' && timeData !== null) {
+        if (typeof timeData === 'object' && timeData !== null && !Array.isArray(timeData)) {
           // New format with completion_timestamp
-          timeInSeconds = parseInt(timeData.time);
+          timeInSeconds = parseInt(timeData.time, 10);
         } else {
           // Old format: just a number
-          timeInSeconds = parseInt(timeData);
+          timeInSeconds = parseInt(timeData, 10);
         }
+
+        // Validate timeInSeconds is a valid number
+        if (isNaN(timeInSeconds) || timeInSeconds < 0) {
+          console.warn(`Invalid time data for user ${name} in share:`, timeData);
+          return null;
+        }
+
         return {
           name,
           timeInSeconds,
           timeFormatted: this.formatTimeFromSeconds(timeInSeconds),
         };
       })
+      .filter(entry => entry !== null) // Remove invalid entries
       .sort((a, b) => a.timeInSeconds - b.timeInSeconds);
 
     // Assign tie-aware ranks
@@ -2303,15 +2311,22 @@ class CrosswordPuzzle {
     const entries = Object.entries(data)
       .map(([name, timeData]) => {
         let timeInSeconds, completionTimestamp;
-        if (typeof timeData === 'object' && timeData !== null) {
+        if (typeof timeData === 'object' && timeData !== null && !Array.isArray(timeData)) {
           // New format with completion_timestamp
-          timeInSeconds = parseInt(timeData.time);
-          completionTimestamp = timeData.completion_timestamp;
+          timeInSeconds = parseInt(timeData.time, 10);
+          completionTimestamp = timeData.completion_timestamp || null;
         } else {
           // Old format: just a number
-          timeInSeconds = parseInt(timeData);
+          timeInSeconds = parseInt(timeData, 10);
           completionTimestamp = null;
         }
+
+        // Validate timeInSeconds is a valid number
+        if (isNaN(timeInSeconds) || timeInSeconds < 0) {
+          console.warn(`Invalid time data for user ${name}:`, timeData);
+          return null;
+        }
+
         return {
           name,
           timeInSeconds,
@@ -2319,6 +2334,7 @@ class CrosswordPuzzle {
           completionTimestamp,
         };
       })
+      .filter(entry => entry !== null) // Remove invalid entries
       .sort((a, b) => a.timeInSeconds - b.timeInSeconds);
 
     // Assign tie-aware ranks (1,1,3 for times like 33,33,45)
