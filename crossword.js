@@ -1426,12 +1426,23 @@ class CrosswordPuzzle {
     }
 
     // Convert to sorted array
+    // Handle both old format (timeInSeconds is a number) and new format (timeInSeconds is an object with time and completion_timestamp)
     const entries = Object.entries(leaderboardData)
-      .map(([name, timeInSeconds]) => ({
-        name,
-        timeInSeconds: parseInt(timeInSeconds),
-        timeFormatted: this.formatTimeFromSeconds(timeInSeconds),
-      }))
+      .map(([name, timeData]) => {
+        let timeInSeconds;
+        if (typeof timeData === 'object' && timeData !== null) {
+          // New format with completion_timestamp
+          timeInSeconds = parseInt(timeData.time);
+        } else {
+          // Old format: just a number
+          timeInSeconds = parseInt(timeData);
+        }
+        return {
+          name,
+          timeInSeconds,
+          timeFormatted: this.formatTimeFromSeconds(timeInSeconds),
+        };
+      })
       .sort((a, b) => a.timeInSeconds - b.timeInSeconds);
 
     // Assign tie-aware ranks
@@ -2182,12 +2193,52 @@ class CrosswordPuzzle {
       modal.style.display = 'flex';
       this.updateShareButtonVisibility();
 
+      // Fetch and display streak if user is logged in
+      if (this.userName) {
+        this.loadStreak();
+      }
+
       // Reset header after 3 seconds
       setTimeout(() => {
         if (leaderboardHeader) {
           leaderboardHeader.innerHTML = "🏆 Today's Leaderboard";
         }
       }, 3000);
+    }
+  }
+
+  async loadStreak() {
+    if (!this.userName) return;
+
+    try {
+      const response = await fetch(`mini/streak/${encodeURIComponent(this.userName)}`, {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-cache',
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      const streak = data.streak || 0;
+
+      // Display streak
+      const streakDisplay = document.getElementById('streakDisplay');
+      const streakCount = document.getElementById('streakCount');
+
+      if (streakDisplay && streakCount) {
+        streakCount.textContent = streak;
+        streakDisplay.style.display = streak > 0 ? 'block' : 'none';
+      }
+    } catch (error) {
+      console.warn('Failed to load streak:', error);
+      // Don't show error to user, just hide streak display
+      const streakDisplay = document.getElementById('streakDisplay');
+      if (streakDisplay) {
+        streakDisplay.style.display = 'none';
+      }
     }
   }
 
@@ -2248,12 +2299,26 @@ class CrosswordPuzzle {
     }
 
     // Convert object to array and sort by time (ascending)
+    // Handle both old format (timeInSeconds is a number) and new format (timeInSeconds is an object with time and completion_timestamp)
     const entries = Object.entries(data)
-      .map(([name, timeInSeconds]) => ({
-        name,
-        timeInSeconds: parseInt(timeInSeconds),
-        timeFormatted: this.formatTimeFromSeconds(timeInSeconds),
-      }))
+      .map(([name, timeData]) => {
+        let timeInSeconds, completionTimestamp;
+        if (typeof timeData === 'object' && timeData !== null) {
+          // New format with completion_timestamp
+          timeInSeconds = parseInt(timeData.time);
+          completionTimestamp = timeData.completion_timestamp;
+        } else {
+          // Old format: just a number
+          timeInSeconds = parseInt(timeData);
+          completionTimestamp = null;
+        }
+        return {
+          name,
+          timeInSeconds,
+          timeFormatted: this.formatTimeFromSeconds(timeInSeconds),
+          completionTimestamp,
+        };
+      })
       .sort((a, b) => a.timeInSeconds - b.timeInSeconds);
 
     // Assign tie-aware ranks (1,1,3 for times like 33,33,45)
@@ -2284,10 +2349,15 @@ class CrosswordPuzzle {
       if (isTopThree) itemClasses.push('top-3');
       if (isCurrentUser) itemClasses.push('user-entry');
 
+      // Add tooltip if completion timestamp is available
+      const tooltipAttr = entry.completionTimestamp
+        ? `title="${this.formatCompletionTime(entry.completionTimestamp)}"`
+        : '';
+
       html += `
                 <li class="leaderboard-item ${itemClasses.join(' ')}">
                     <span class="leaderboard-rank">${rankDisplay}</span>
-                    <span class="leaderboard-name">${this.escapeHtml(entry.name)}</span>
+                    <span class="leaderboard-name" ${tooltipAttr}>${this.escapeHtml(entry.name)}</span>
                     <span class="leaderboard-time">${entry.timeFormatted}</span>
                 </li>
             `;
@@ -2320,6 +2390,25 @@ class CrosswordPuzzle {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  }
+
+  formatCompletionTime(isoTimestamp) {
+    try {
+      // Parse ISO timestamp (e.g., "2024-01-15T20:33:00+00:00" or "2024-01-15T20:33:00.123456+00:00")
+      const date = new Date(isoTimestamp);
+
+      // Format as "Completed 3:33PM" in local time
+      const hours = date.getHours();
+      const minutes = date.getMinutes();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const displayHours = hours % 12 || 12; // Convert to 12-hour format
+      const displayMinutes = minutes.toString().padStart(2, '0');
+
+      return `Completed ${displayHours}:${displayMinutes}${ampm}`;
+    } catch (e) {
+      // If parsing fails, return empty string (no tooltip)
+      return '';
+    }
   }
 
   escapeHtml(text) {
