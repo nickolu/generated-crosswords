@@ -616,7 +616,7 @@ class CrosswordPuzzle {
     let lastSeconds = -1;
 
     const animate = () => {
-      if (!this.isPaused && this.isRunning) {
+      if (!this.isPaused && this.isRunning && this.startTime !== null) {
         this.elapsedTime = Date.now() - this.startTime;
 
         // Only update display when seconds change to avoid unnecessary DOM updates
@@ -648,8 +648,12 @@ class CrosswordPuzzle {
   }
 
   updateTimerDisplay() {
-    const minutes = Math.floor(this.elapsedTime / 60000);
-    const seconds = Math.floor((this.elapsedTime % 60000) / 1000);
+    // Ensure elapsedTime is a valid number
+    const elapsedTime =
+      this.elapsedTime && !isNaN(this.elapsedTime) && this.elapsedTime >= 0 ? this.elapsedTime : 0;
+
+    const minutes = Math.floor(elapsedTime / 60000);
+    const seconds = Math.floor((elapsedTime % 60000) / 1000);
     const timeDisplay = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
     // Show both timer and incorrect letter count if there are incorrect letters
