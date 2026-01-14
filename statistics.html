@@ -16,6 +16,37 @@
         <button class="nav-btn" onclick="window.location.href='mini-archive'">📚 Archive</button>
       </div>
 
+      <div class="stats-summary" id="statsSummary" style="display: none">
+        <div class="summary-column">
+          <div class="summary-item">
+            <span class="summary-label">Total Puzzles Completed:</span>
+            <span class="summary-value" id="totalCompleted">0</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Average Solve Time:</span>
+            <span class="summary-value" id="averageTime">--:--</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Current Streak:</span>
+            <span class="summary-value" id="currentStreak">0 days</span>
+          </div>
+        </div>
+        <div class="summary-column">
+          <div class="summary-item">
+            <span class="summary-label">Best Time:</span>
+            <span class="summary-value" id="bestTime">--:--</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Most Common Position:</span>
+            <span class="summary-value" id="mostCommonPosition">-</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Longest Streak:</span>
+            <span class="summary-value" id="longestStreak">0 days</span>
+          </div>
+        </div>
+      </div>
+
       <div class="stats-content" id="statsContent">
         <div class="stats-loading">Loading your statistics...</div>
       </div>
@@ -37,25 +68,6 @@
         </div>
         <div id="playerComparisonTable">
           <!-- Table will be populated by JavaScript -->
-        </div>
-      </div>
-
-      <div class="stats-summary" id="statsSummary" style="display: none">
-        <div class="summary-item">
-          <span class="summary-label">Total Puzzles Completed:</span>
-          <span class="summary-value" id="totalCompleted">0</span>
-        </div>
-        <div class="summary-item">
-          <span class="summary-label">Average Solve Time:</span>
-          <span class="summary-value" id="averageTime">--:--</span>
-        </div>
-        <div class="summary-item">
-          <span class="summary-label">Best Time:</span>
-          <span class="summary-value" id="bestTime">--:--</span>
-        </div>
-        <div class="summary-item">
-          <span class="summary-label">Most Common Position:</span>
-          <span class="summary-value" id="mostCommonPosition">-</span>
         </div>
       </div>
     </div>

@@ -1492,38 +1492,45 @@ class CrosswordPuzzle {
       previousRank = entry.rank;
     });
 
-    // Fetch streaks for all players in a single request
-    const usernames = entries.map(entry => entry.name);
+    // Only fetch streaks if this is today's puzzle
+    const today = new Date().toISOString().split('T')[0];
+    const isToday = this.puzzle.date === today;
+
     let streakMap = new Map();
 
-    try {
-      const response = await fetch('mini/streaks', {
-        method: 'POST',
-        mode: 'cors',
-        cache: 'no-cache',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ usernames }),
+    if (isToday) {
+      // Fetch streaks for all players in a single request
+      const usernames = entries.map(entry => entry.name);
+
+      try {
+        const response = await fetch('mini/streaks', {
+          method: 'POST',
+          mode: 'cors',
+          cache: 'no-cache',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ usernames }),
+        });
+
+        if (response.ok) {
+          const streaks = await response.json();
+          // Convert object to Map
+          streakMap = new Map(Object.entries(streaks));
+        } else {
+          console.warn('Failed to fetch streaks:', response.status);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch streaks:', error);
+      }
+
+      // Default to 0 for any players not in the response
+      entries.forEach(entry => {
+        if (!streakMap.has(entry.name)) {
+          streakMap.set(entry.name, 0);
+        }
       });
-
-      if (response.ok) {
-        const streaks = await response.json();
-        // Convert object to Map
-        streakMap = new Map(Object.entries(streaks));
-      } else {
-        console.warn('Failed to fetch streaks:', response.status);
-      }
-    } catch (error) {
-      console.warn('Failed to fetch streaks:', error);
     }
-
-    // Default to 0 for any players not in the response
-    entries.forEach(entry => {
-      if (!streakMap.has(entry.name)) {
-        streakMap.set(entry.name, 0);
-      }
-    });
 
     // Build the share text
     let shareText = `🏆 ${puzzleTitle} Leaderboard\n\n`;
@@ -1531,10 +1538,14 @@ class CrosswordPuzzle {
     entries.forEach(entry => {
       const rank = entry.rank;
       const rankEmoji = this.getRankEmoji(rank);
-      const streak = streakMap.get(entry.name) || 0;
 
-      // Add streak if it's longer than 1 game
-      const streakText = streak > 1 ? ` (🔥 ${streak} day streak)` : '';
+      // Only add streak if it's today's puzzle and streak is longer than 1 game
+      let streakText = '';
+      if (isToday) {
+        const streak = streakMap.get(entry.name) || 0;
+        streakText = streak > 1 ? ` (🔥 ${streak} day streak)` : '';
+      }
+
       shareText += `${rankEmoji} ${entry.name} - ${entry.timeFormatted}${streakText}\n`;
     });
 

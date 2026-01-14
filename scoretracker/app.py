@@ -560,6 +560,106 @@ def get_streaks():
         return jsonify({'error': 'Internal server error'}), 500
 
 
+@app.route('/streak/longest/<username>', methods=['GET'])
+def get_longest_streak(username):
+    """
+    Get the longest solve streak for a user (all-time, not just current).
+    A streak is the number of consecutive days where the user completed a puzzle 
+    on the puzzle's date itself.
+    No streaks are counted before January 1, 2026.
+    
+    Returns JSON with longest streak count.
+    """
+    try:
+        # Initialize database if it doesn't exist
+        init_database()
+        
+        conn = get_db_connection()
+        try:
+            # Get all completions for this user with completion_timestamp
+            rows = conn.execute(
+                "SELECT date, completion_timestamp FROM results WHERE username = ? AND completion_timestamp IS NOT NULL ORDER BY date DESC",
+                (username,)
+            ).fetchall()
+            
+            if not rows:
+                return jsonify({'longest_streak': 0}), 200
+            
+            # Calculate all streaks and find the longest
+            pacific = pytz.timezone('America/Los_Angeles')
+            utc = pytz.UTC
+            min_streak_date = datetime(2026, 1, 1).date()
+            
+            # Create a set of dates where user completed on the puzzle date
+            # Only include dates on or after January 1, 2026
+            valid_dates = set()
+            for row in rows:
+                puzzle_date_str = row['date']
+                completion_timestamp_str = row['completion_timestamp']
+                
+                try:
+                    # Parse puzzle date
+                    puzzle_date = datetime.strptime(puzzle_date_str, '%Y-%m-%d').date()
+                    
+                    # Skip dates before January 1, 2026
+                    if puzzle_date < min_streak_date:
+                        continue
+                    
+                    # Parse completion timestamp and convert to Pacific time
+                    completion_dt = datetime.fromisoformat(completion_timestamp_str.replace('Z', '+00:00'))
+                    if completion_dt.tzinfo is None:
+                        # If no timezone info, assume UTC
+                        completion_dt = utc.localize(completion_dt)
+                    completion_date_pacific = completion_dt.astimezone(pacific).date()
+                    
+                    # Check if completion date matches puzzle date
+                    # Only count if puzzle date is on or after January 1, 2026
+                    if completion_date_pacific == puzzle_date and puzzle_date >= min_streak_date:
+                        valid_dates.add(puzzle_date)
+                except (ValueError, AttributeError) as e:
+                    # Skip invalid dates/timestamps
+                    app.logger.warning(f"Invalid date/timestamp for user {username}: {e}")
+                    continue
+            
+            if not valid_dates:
+                return jsonify({'longest_streak': 0}), 200
+            
+            # Find all streaks by checking consecutive days
+            # Sort dates to process chronologically
+            sorted_dates = sorted(valid_dates)
+            longest_streak = 0
+            current_streak = 0
+            previous_date = None
+            
+            for date in sorted_dates:
+                if previous_date is None:
+                    # Start of a new streak
+                    current_streak = 1
+                else:
+                    # Check if this date is consecutive to the previous date
+                    days_diff = (date - previous_date).days
+                    if days_diff == 1:
+                        # Consecutive day, continue streak
+                        current_streak += 1
+                    else:
+                        # Gap found, streak broken
+                        longest_streak = max(longest_streak, current_streak)
+                        current_streak = 1
+                
+                previous_date = date
+            
+            # Check the last streak
+            longest_streak = max(longest_streak, current_streak)
+            
+            return jsonify({'longest_streak': longest_streak}), 200
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        app.logger.error(f"Error calculating longest streak for {username}: {str(e)}")
+        return jsonify({'error': 'Internal server error', 'longest_streak': 0}), 500
+
+
 @app.route('/streak/<username>', methods=['GET'])
 def get_streak(username):
     """

@@ -446,7 +446,7 @@ class CrosswordStatistics {
     }
   }
 
-  updateStatsSummary() {
+  async updateStatsSummary() {
     if (this.userStats.totalCompleted === 0) return;
 
     // Show the summary section
@@ -480,6 +480,51 @@ class CrosswordStatistics {
     const mostCommonEmoji = this.getRankEmoji(mostCommonPlace);
     document.getElementById('mostCommonPosition').textContent =
       `${mostCommonEmoji} ${mostCommonPlace}${this.getOrdinalSuffix(mostCommonPlace)} place`;
+
+    // Fetch and display streaks
+    if (this.userName) {
+      try {
+        // Fetch current streak
+        const currentStreakResponse = await fetch(
+          `mini/streak/${encodeURIComponent(this.userName)}`,
+          {
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-cache',
+          }
+        );
+        if (currentStreakResponse.ok) {
+          const currentStreakData = await currentStreakResponse.json();
+          const currentStreak = currentStreakData.streak || 0;
+          document.getElementById('currentStreak').textContent =
+            `${currentStreak} day${currentStreak !== 1 ? 's' : ''}`;
+        } else {
+          document.getElementById('currentStreak').textContent = '0 days';
+        }
+
+        // Fetch longest streak
+        const longestStreakResponse = await fetch(
+          `mini/streak/longest/${encodeURIComponent(this.userName)}`,
+          {
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-cache',
+          }
+        );
+        if (longestStreakResponse.ok) {
+          const longestStreakData = await longestStreakResponse.json();
+          const longestStreak = longestStreakData.longest_streak || 0;
+          document.getElementById('longestStreak').textContent =
+            `${longestStreak} day${longestStreak !== 1 ? 's' : ''}`;
+        } else {
+          document.getElementById('longestStreak').textContent = '0 days';
+        }
+      } catch (error) {
+        console.warn('Failed to fetch streaks:', error);
+        document.getElementById('currentStreak').textContent = '0 days';
+        document.getElementById('longestStreak').textContent = '0 days';
+      }
+    }
   }
 
   calculatePlayerScore(placeCounts) {
