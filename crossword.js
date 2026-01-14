@@ -2496,9 +2496,9 @@ class CrosswordPuzzle {
         : '';
 
       html += `
-                <li class="leaderboard-item ${itemClasses.join(' ')}">
+                <li class="leaderboard-item ${itemClasses.join(' ')}" ${tooltipAttr}>
                     <span class="leaderboard-rank">${rankDisplay}</span>
-                    <span class="leaderboard-name" ${tooltipAttr}>${this.escapeHtml(entry.name)}</span>
+                    <span class="leaderboard-name">${this.escapeHtml(entry.name)}</span>
                     <span class="leaderboard-time">${entry.timeFormatted}</span>
                 </li>
             `;

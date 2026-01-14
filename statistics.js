@@ -279,11 +279,8 @@ class CrosswordStatistics {
                 </div>
             `;
     } else {
-      statsContent.innerHTML = `
-                <div class="stats-summary-text">
-                    Found ${userCompletions.length} completed puzzle${userCompletions.length !== 1 ? 's' : ''} for analysis
-                </div>
-            `;
+      // Clear the content - stats summary will be shown instead
+      statsContent.innerHTML = '';
     }
   }
 
