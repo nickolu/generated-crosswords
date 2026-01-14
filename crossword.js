@@ -143,13 +143,33 @@ class CrosswordPuzzle {
       console.log('Leaderboard data:', leaderboardData);
 
       // Check if current user has a completion time
-      const userCompletionTime = leaderboardData[this.userName];
-      console.log('User completion time:', userCompletionTime);
-      if (userCompletionTime) {
-        console.log(
-          `User ${this.userName} already completed this puzzle in ${userCompletionTime} seconds`
-        );
-        await this.restoreCompletedPuzzle(userCompletionTime);
+      const userCompletionData = leaderboardData[this.userName];
+      console.log('User completion data:', userCompletionData);
+      if (userCompletionData) {
+        // Handle both old format (number) and new format (object with time and completion_timestamp)
+        let userCompletionTime;
+        if (
+          typeof userCompletionData === 'object' &&
+          userCompletionData !== null &&
+          !Array.isArray(userCompletionData)
+        ) {
+          // New format with completion_timestamp
+          userCompletionTime = userCompletionData.time;
+        } else {
+          // Old format: just a number
+          userCompletionTime = userCompletionData;
+        }
+
+        // Validate it's a valid number
+        userCompletionTime = parseInt(userCompletionTime, 10);
+        if (!isNaN(userCompletionTime) && userCompletionTime > 0) {
+          console.log(
+            `User ${this.userName} already completed this puzzle in ${userCompletionTime} seconds`
+          );
+          await this.restoreCompletedPuzzle(userCompletionTime);
+        } else {
+          console.log('Invalid completion time data:', userCompletionData);
+        }
       } else {
         console.log('User not found in leaderboard');
       }
@@ -616,7 +636,7 @@ class CrosswordPuzzle {
     let lastSeconds = -1;
 
     const animate = () => {
-      if (!this.isPaused && this.isRunning) {
+      if (!this.isPaused && this.isRunning && this.startTime !== null) {
         this.elapsedTime = Date.now() - this.startTime;
 
         // Only update display when seconds change to avoid unnecessary DOM updates
@@ -648,8 +668,12 @@ class CrosswordPuzzle {
   }
 
   updateTimerDisplay() {
-    const minutes = Math.floor(this.elapsedTime / 60000);
-    const seconds = Math.floor((this.elapsedTime % 60000) / 1000);
+    // Ensure elapsedTime is a valid number
+    const elapsedTime =
+      this.elapsedTime && !isNaN(this.elapsedTime) && this.elapsedTime >= 0 ? this.elapsedTime : 0;
+
+    const minutes = Math.floor(elapsedTime / 60000);
+    const seconds = Math.floor((elapsedTime % 60000) / 1000);
     const timeDisplay = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
     // Show both timer and incorrect letter count if there are incorrect letters
@@ -1345,7 +1369,7 @@ class CrosswordPuzzle {
       });
   }
 
-  shareScore() {
+  async shareScore() {
     const puzzleTitle = document.querySelector('.title').textContent;
     const completionTime = this.formatTime(this.elapsedTime);
 
@@ -1355,8 +1379,33 @@ class CrosswordPuzzle {
       return;
     }
 
+    // Only fetch streak if this is today's puzzle
+    const today = new Date().toISOString().split('T')[0];
+    const isToday = this.puzzle.date === today;
+    let streakText = '';
+
+    if (isToday && this.userName) {
+      try {
+        const response = await fetch(`mini/streak/${encodeURIComponent(this.userName)}`, {
+          method: 'GET',
+          mode: 'cors',
+          cache: 'no-cache',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const streak = data.streak || 0;
+          // Show streak if it's >= 1
+          if (streak >= 1) {
+            streakText = `🔥 Current Streak: ${streak} day${streak !== 1 ? 's' : ''}\n`;
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to fetch streak for share:', error);
+      }
+    }
+
     const userNameText = this.userName ? `👤 ${this.userName}\n` : '';
-    const shareText = `🧩 ${puzzleTitle} completed!\n${userNameText}⏱️ Time: ${completionTime}\n\n🔗 Play today's crossword: https://manchat.men/mini`;
+    const shareText = `🧩 ${puzzleTitle} completed!\n${userNameText}⏱️ Time: ${completionTime}\n${streakText}🔗 Play today's crossword: https://manchat.men/mini`;
 
     // Try to use the modern Clipboard API
     if (navigator.clipboard && window.isSecureContext) {
@@ -1415,7 +1464,7 @@ class CrosswordPuzzle {
     }, 2000);
   }
 
-  shareLeaderboard() {
+  async shareLeaderboard() {
     const puzzleTitle = document.querySelector('.title').textContent;
 
     // Get current leaderboard data
@@ -1426,12 +1475,31 @@ class CrosswordPuzzle {
     }
 
     // Convert to sorted array
+    // Handle both old format (timeInSeconds is a number) and new format (timeInSeconds is an object with time and completion_timestamp)
     const entries = Object.entries(leaderboardData)
-      .map(([name, timeInSeconds]) => ({
-        name,
-        timeInSeconds: parseInt(timeInSeconds),
-        timeFormatted: this.formatTimeFromSeconds(timeInSeconds),
-      }))
+      .map(([name, timeData]) => {
+        let timeInSeconds;
+        if (typeof timeData === 'object' && timeData !== null && !Array.isArray(timeData)) {
+          // New format with completion_timestamp
+          timeInSeconds = parseInt(timeData.time, 10);
+        } else {
+          // Old format: just a number
+          timeInSeconds = parseInt(timeData, 10);
+        }
+
+        // Validate timeInSeconds is a valid number
+        if (isNaN(timeInSeconds) || timeInSeconds < 0) {
+          console.warn(`Invalid time data for user ${name} in share:`, timeData);
+          return null;
+        }
+
+        return {
+          name,
+          timeInSeconds,
+          timeFormatted: this.formatTimeFromSeconds(timeInSeconds),
+        };
+      })
+      .filter(entry => entry !== null) // Remove invalid entries
       .sort((a, b) => a.timeInSeconds - b.timeInSeconds);
 
     // Assign tie-aware ranks
@@ -1449,6 +1517,46 @@ class CrosswordPuzzle {
       previousRank = entry.rank;
     });
 
+    // Only fetch streaks if this is today's puzzle
+    const today = new Date().toISOString().split('T')[0];
+    const isToday = this.puzzle.date === today;
+
+    let streakMap = new Map();
+
+    if (isToday) {
+      // Fetch streaks for all players in a single request
+      const usernames = entries.map(entry => entry.name);
+
+      try {
+        const response = await fetch('mini/streaks', {
+          method: 'POST',
+          mode: 'cors',
+          cache: 'no-cache',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ usernames }),
+        });
+
+        if (response.ok) {
+          const streaks = await response.json();
+          // Convert object to Map
+          streakMap = new Map(Object.entries(streaks));
+        } else {
+          console.warn('Failed to fetch streaks:', response.status);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch streaks:', error);
+      }
+
+      // Default to 0 for any players not in the response
+      entries.forEach(entry => {
+        if (!streakMap.has(entry.name)) {
+          streakMap.set(entry.name, 0);
+        }
+      });
+    }
+
     // Build the share text
     let shareText = `🏆 ${puzzleTitle} Leaderboard\n\n`;
 
@@ -1456,7 +1564,14 @@ class CrosswordPuzzle {
       const rank = entry.rank;
       const rankEmoji = this.getRankEmoji(rank);
 
-      shareText += `${rankEmoji} ${entry.name} - ${entry.timeFormatted}\n`;
+      // Only add streak if it's today's puzzle and streak is longer than 1 game
+      let streakText = '';
+      if (isToday) {
+        const streak = streakMap.get(entry.name) || 0;
+        streakText = streak > 1 ? ` (🔥 ${streak} day streak)` : '';
+      }
+
+      shareText += `${rankEmoji} ${entry.name} - ${entry.timeFormatted}${streakText}\n`;
     });
 
     shareText += `\n🔗 Play today's crossword: https://manchat.men/mini`;
@@ -2167,6 +2282,21 @@ class CrosswordPuzzle {
       modal.style.display = 'flex';
       this.loadLeaderboardData();
       this.updateShareButtonVisibility();
+
+      // Fetch and display streak if user is logged in and viewing today's puzzle
+      if (this.userName && this.puzzle.date) {
+        // Check if this is today's puzzle
+        const today = new Date().toISOString().split('T')[0];
+        if (this.puzzle.date === today) {
+          this.loadStreak();
+        } else {
+          // Hide streak for non-today puzzles
+          const streakDisplay = document.getElementById('streakDisplay');
+          if (streakDisplay) {
+            streakDisplay.style.display = 'none';
+          }
+        }
+      }
     }
   }
 
@@ -2182,12 +2312,52 @@ class CrosswordPuzzle {
       modal.style.display = 'flex';
       this.updateShareButtonVisibility();
 
+      // Fetch and display streak if user is logged in
+      if (this.userName) {
+        this.loadStreak();
+      }
+
       // Reset header after 3 seconds
       setTimeout(() => {
         if (leaderboardHeader) {
           leaderboardHeader.innerHTML = "🏆 Today's Leaderboard";
         }
       }, 3000);
+    }
+  }
+
+  async loadStreak() {
+    if (!this.userName) return;
+
+    try {
+      const response = await fetch(`mini/streak/${encodeURIComponent(this.userName)}`, {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-cache',
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      const streak = data.streak || 0;
+
+      // Display streak
+      const streakDisplay = document.getElementById('streakDisplay');
+      const streakCount = document.getElementById('streakCount');
+
+      if (streakDisplay && streakCount) {
+        streakCount.textContent = streak;
+        streakDisplay.style.display = streak > 0 ? 'block' : 'none';
+      }
+    } catch (error) {
+      console.warn('Failed to load streak:', error);
+      // Don't show error to user, just hide streak display
+      const streakDisplay = document.getElementById('streakDisplay');
+      if (streakDisplay) {
+        streakDisplay.style.display = 'none';
+      }
     }
   }
 
@@ -2226,6 +2396,20 @@ class CrosswordPuzzle {
 
       const data = await response.json();
       this.displayLeaderboardData(data);
+
+      // Fetch and display streak if user is logged in and viewing today's puzzle
+      if (this.userName && this.puzzle.date) {
+        const today = new Date().toISOString().split('T')[0];
+        if (this.puzzle.date === today) {
+          this.loadStreak();
+        } else {
+          // Hide streak for non-today puzzles
+          const streakDisplay = document.getElementById('streakDisplay');
+          if (streakDisplay) {
+            streakDisplay.style.display = 'none';
+          }
+        }
+      }
     } catch (error) {
       console.warn('Failed to load leaderboard data:', error);
       this.displayLeaderboardError();
@@ -2248,12 +2432,34 @@ class CrosswordPuzzle {
     }
 
     // Convert object to array and sort by time (ascending)
+    // Handle both old format (timeInSeconds is a number) and new format (timeInSeconds is an object with time and completion_timestamp)
     const entries = Object.entries(data)
-      .map(([name, timeInSeconds]) => ({
-        name,
-        timeInSeconds: parseInt(timeInSeconds),
-        timeFormatted: this.formatTimeFromSeconds(timeInSeconds),
-      }))
+      .map(([name, timeData]) => {
+        let timeInSeconds, completionTimestamp;
+        if (typeof timeData === 'object' && timeData !== null && !Array.isArray(timeData)) {
+          // New format with completion_timestamp
+          timeInSeconds = parseInt(timeData.time, 10);
+          completionTimestamp = timeData.completion_timestamp || null;
+        } else {
+          // Old format: just a number
+          timeInSeconds = parseInt(timeData, 10);
+          completionTimestamp = null;
+        }
+
+        // Validate timeInSeconds is a valid number
+        if (isNaN(timeInSeconds) || timeInSeconds < 0) {
+          console.warn(`Invalid time data for user ${name}:`, timeData);
+          return null;
+        }
+
+        return {
+          name,
+          timeInSeconds,
+          timeFormatted: this.formatTimeFromSeconds(timeInSeconds),
+          completionTimestamp,
+        };
+      })
+      .filter(entry => entry !== null) // Remove invalid entries
       .sort((a, b) => a.timeInSeconds - b.timeInSeconds);
 
     // Assign tie-aware ranks (1,1,3 for times like 33,33,45)
@@ -2284,8 +2490,13 @@ class CrosswordPuzzle {
       if (isTopThree) itemClasses.push('top-3');
       if (isCurrentUser) itemClasses.push('user-entry');
 
+      // Add tooltip if completion timestamp is available
+      const tooltipAttr = entry.completionTimestamp
+        ? `title="${this.formatCompletionTime(entry.completionTimestamp)}"`
+        : '';
+
       html += `
-                <li class="leaderboard-item ${itemClasses.join(' ')}">
+                <li class="leaderboard-item ${itemClasses.join(' ')}" ${tooltipAttr}>
                     <span class="leaderboard-rank">${rankDisplay}</span>
                     <span class="leaderboard-name">${this.escapeHtml(entry.name)}</span>
                     <span class="leaderboard-time">${entry.timeFormatted}</span>
@@ -2320,6 +2531,25 @@ class CrosswordPuzzle {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  }
+
+  formatCompletionTime(isoTimestamp) {
+    try {
+      // Parse ISO timestamp (e.g., "2024-01-15T20:33:00+00:00" or "2024-01-15T20:33:00.123456+00:00")
+      const date = new Date(isoTimestamp);
+
+      // Format as "Completed 3:33PM" in local time
+      const hours = date.getHours();
+      const minutes = date.getMinutes();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const displayHours = hours % 12 || 12; // Convert to 12-hour format
+      const displayMinutes = minutes.toString().padStart(2, '0');
+
+      return `Completed ${displayHours}:${displayMinutes}${ampm}`;
+    } catch (e) {
+      // If parsing fails, return empty string (no tooltip)
+      return '';
+    }
   }
 
   escapeHtml(text) {
