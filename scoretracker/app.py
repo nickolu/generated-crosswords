@@ -459,6 +459,107 @@ def crossword_files(filename):
     return send_from_directory(CROSSWORDS_DIR, filename)
 
 
+@app.route('/streaks', methods=['POST'])
+def get_streaks():
+    """
+    Get solve streaks for multiple users at once.
+    
+    Expects JSON body with 'usernames' array: {"usernames": ["user1", "user2", ...]}
+    Returns JSON with streaks: {"user1": 5, "user2": 3, ...}
+    """
+    try:
+        # Initialize database if it doesn't exist
+        init_database()
+        
+        # Get usernames from request body
+        if not request.is_json:
+            return jsonify({'error': 'Request must be JSON'}), 400
+        
+        data = request.get_json()
+        usernames = data.get('usernames', [])
+        
+        if not isinstance(usernames, list):
+            return jsonify({'error': 'usernames must be an array'}), 400
+        
+        if not usernames:
+            return jsonify({}), 200
+        
+        # Limit to prevent abuse
+        if len(usernames) > 100:
+            return jsonify({'error': 'Maximum 100 usernames per request'}), 400
+        
+        conn = get_db_connection()
+        try:
+            # Calculate streaks for all users
+            pacific = pytz.timezone('America/Los_Angeles')
+            utc = pytz.UTC
+            min_streak_date = datetime(2026, 1, 1).date()
+            current_date = datetime.now(pacific).date()
+            
+            streaks = {}
+            
+            for username in usernames:
+                # Get all completions for this user with completion_timestamp
+                rows = conn.execute(
+                    "SELECT date, completion_timestamp FROM results WHERE username = ? AND completion_timestamp IS NOT NULL ORDER BY date DESC",
+                    (username,)
+                ).fetchall()
+                
+                if not rows:
+                    streaks[username] = 0
+                    continue
+                
+                # Create a set of dates where user completed on the puzzle date
+                # Only include dates on or after January 1, 2026
+                valid_dates = set()
+                for row in rows:
+                    puzzle_date_str = row['date']
+                    completion_timestamp_str = row['completion_timestamp']
+                    
+                    try:
+                        # Parse puzzle date
+                        puzzle_date = datetime.strptime(puzzle_date_str, '%Y-%m-%d').date()
+                        
+                        # Skip dates before January 1, 2026
+                        if puzzle_date < min_streak_date:
+                            continue
+                        
+                        # Parse completion timestamp and convert to Pacific time
+                        completion_dt = datetime.fromisoformat(completion_timestamp_str.replace('Z', '+00:00'))
+                        if completion_dt.tzinfo is None:
+                            # If no timezone info, assume UTC
+                            completion_dt = utc.localize(completion_dt)
+                        completion_date_pacific = completion_dt.astimezone(pacific).date()
+                        
+                        # Check if completion date matches puzzle date
+                        # Only count if puzzle date is on or after January 1, 2026
+                        if completion_date_pacific == puzzle_date and puzzle_date >= min_streak_date:
+                            valid_dates.add(puzzle_date)
+                    except (ValueError, AttributeError) as e:
+                        # Skip invalid dates/timestamps
+                        app.logger.warning(f"Invalid date/timestamp for user {username}: {e}")
+                        continue
+                
+                # Count consecutive days going backwards from today
+                # Stop if we go before January 1, 2026
+                streak = 0
+                check_date = current_date
+                while check_date in valid_dates and check_date >= min_streak_date:
+                    streak += 1
+                    # Go back one day
+                    check_date = check_date - timedelta(days=1)
+                
+                streaks[username] = streak
+            
+            return jsonify(streaks), 200
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        app.logger.error(f"Error calculating streaks: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+
 @app.route('/streak/<username>', methods=['GET'])
 def get_streak(username):
     """

@@ -1439,7 +1439,7 @@ class CrosswordPuzzle {
     }, 2000);
   }
 
-  shareLeaderboard() {
+  async shareLeaderboard() {
     const puzzleTitle = document.querySelector('.title').textContent;
 
     // Get current leaderboard data
@@ -1492,14 +1492,50 @@ class CrosswordPuzzle {
       previousRank = entry.rank;
     });
 
+    // Fetch streaks for all players in a single request
+    const usernames = entries.map(entry => entry.name);
+    let streakMap = new Map();
+
+    try {
+      const response = await fetch('mini/streaks', {
+        method: 'POST',
+        mode: 'cors',
+        cache: 'no-cache',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ usernames }),
+      });
+
+      if (response.ok) {
+        const streaks = await response.json();
+        // Convert object to Map
+        streakMap = new Map(Object.entries(streaks));
+      } else {
+        console.warn('Failed to fetch streaks:', response.status);
+      }
+    } catch (error) {
+      console.warn('Failed to fetch streaks:', error);
+    }
+
+    // Default to 0 for any players not in the response
+    entries.forEach(entry => {
+      if (!streakMap.has(entry.name)) {
+        streakMap.set(entry.name, 0);
+      }
+    });
+
     // Build the share text
     let shareText = `🏆 ${puzzleTitle} Leaderboard\n\n`;
 
     entries.forEach(entry => {
       const rank = entry.rank;
       const rankEmoji = this.getRankEmoji(rank);
+      const streak = streakMap.get(entry.name) || 0;
 
-      shareText += `${rankEmoji} ${entry.name} - ${entry.timeFormatted}\n`;
+      // Add streak if it's longer than 1 game
+      const streakText = streak > 1 ? ` (🔥 ${streak} day streak)` : '';
+      shareText += `${rankEmoji} ${entry.name} - ${entry.timeFormatted}${streakText}\n`;
     });
 
     shareText += `\n🔗 Play today's crossword: https://manchat.men/mini`;
