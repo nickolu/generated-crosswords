@@ -83,7 +83,7 @@ class CrosswordStatistics {
       await this.loadUserStatistics();
       this.renderSolveTimesChart();
       this.updateStatsSummary();
-      this.renderPlayerComparisonTable();
+      await this.renderPlayerComparisonTable();
     } catch (error) {
       console.error('Error loading statistics:', error);
       this.showErrorMessage();
@@ -553,7 +553,7 @@ class CrosswordStatistics {
     return winner;
   }
 
-  renderPlayerComparisonTable() {
+  async renderPlayerComparisonTable() {
     if (Object.keys(this.allPlayersStats).length === 0) return;
 
     const tableContainer = document.getElementById('playerComparisonTable');
@@ -607,6 +607,40 @@ class CrosswordStatistics {
       }))
       .sort((a, b) => b.score - a.score);
 
+    // Fetch max streaks for all players
+    const usernames = sortedPlayers.map(p => p.name);
+    let maxStreaks = {};
+
+    try {
+      const requestBody = { usernames };
+      if (this.currentYear !== null) {
+        requestBody.year = this.currentYear;
+      }
+
+      const response = await fetch('mini/streaks/max', {
+        method: 'POST',
+        mode: 'cors',
+        cache: 'no-cache',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (response.ok) {
+        maxStreaks = await response.json();
+      } else {
+        console.warn('Failed to fetch max streaks:', response.status);
+      }
+    } catch (error) {
+      console.warn('Failed to fetch max streaks:', error);
+    }
+
+    // Add max streak to each player object
+    sortedPlayers.forEach(player => {
+      player.maxStreak = maxStreaks[player.name] || 0;
+    });
+
     // Build year pagination controls
     let paginationHTML = '<div class="year-pagination">';
     paginationHTML += '<span class="year-pagination-label">View:</span>';
@@ -633,7 +667,9 @@ class CrosswordStatistics {
           } else {
             this.currentYear = parseInt(yearValue);
           }
-          this.renderPlayerComparisonTable();
+          this.renderPlayerComparisonTable().catch(err => {
+            console.error('Error rendering player comparison table:', err);
+          });
         });
       });
     }, 0);
@@ -652,6 +688,7 @@ class CrosswordStatistics {
             <th class="place-header">${this.getRankEmoji(5)}</th>
             <th class="place-header">${this.getRankEmoji(6)}</th>
             <th class="place-header">${this.getRankEmoji(7)}</th>
+            <th class="max-streak-header">Max Streak</th>
             <th class="score-header">Score</th>
           </tr>
         </thead>
@@ -702,6 +739,9 @@ class CrosswordStatistics {
           ${sevenPlusCount > 0 ? sevenPlusCount : ''}
         </td>
       `;
+
+      // Add max streak cell
+      tableHTML += `<td class="player-max-streak">${player.maxStreak}</td>`;
 
       // Add score cell
       tableHTML += `<td class="player-score">${player.score}</td>`;

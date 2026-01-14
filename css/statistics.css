@@ -233,6 +233,10 @@
   font-size: 18px;
 }
 
+.max-streak-header {
+  min-width: 90px;
+}
+
 .score-header {
   min-width: 70px;
 }
@@ -286,6 +290,13 @@
 
 .place-count.no-value {
   color: #95a5a6;
+}
+
+.player-max-streak {
+  font-weight: 600;
+  font-family: 'Oswald', sans-serif;
+  font-size: 15px;
+  color: var(--primitive-orange-500);
 }
 
 .player-score {
@@ -464,6 +475,10 @@
   .place-header {
     min-width: 40px;
     font-size: 14px;
+  }
+
+  .player-max-streak {
+    font-size: 13px;
   }
 
   .player-score {

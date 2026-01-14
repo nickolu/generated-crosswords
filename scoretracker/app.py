@@ -660,6 +660,145 @@ def get_longest_streak(username):
         return jsonify({'error': 'Internal server error', 'longest_streak': 0}), 500
 
 
+@app.route('/streaks/max', methods=['POST'])
+def get_max_streaks():
+    """
+    Get maximum solve streaks for multiple users.
+    
+    Expects JSON body with 'usernames' array and optional 'year' parameter:
+    {"usernames": ["user1", "user2", ...], "year": 2026} (optional year)
+    Returns JSON with max streaks: {"user1": 10, "user2": 5, ...}
+    
+    If year is provided, returns max streak for that year only.
+    If year is not provided, returns all-time max streak (only counting streaks from 2026 onwards).
+    """
+    try:
+        # Initialize database if it doesn't exist
+        init_database()
+        
+        # Get usernames from request body
+        if not request.is_json:
+            return jsonify({'error': 'Request must be JSON'}), 400
+        
+        data = request.get_json()
+        usernames = data.get('usernames', [])
+        year = data.get('year')  # Optional year filter
+        
+        if not isinstance(usernames, list):
+            return jsonify({'error': 'usernames must be an array'}), 400
+        
+        if not usernames:
+            return jsonify({}), 200
+        
+        # Limit to prevent abuse
+        if len(usernames) > 100:
+            return jsonify({'error': 'Maximum 100 usernames per request'}), 400
+        
+        conn = get_db_connection()
+        try:
+            pacific = pytz.timezone('America/Los_Angeles')
+            utc = pytz.UTC
+            min_streak_date = datetime(2026, 1, 1).date()
+            
+            # Set date range based on year filter
+            if year:
+                # Filter to specific year
+                year_start = datetime(int(year), 1, 1).date()
+                year_end = datetime(int(year), 12, 31).date()
+                # Ensure we don't count before 2026
+                if year_start < min_streak_date:
+                    year_start = min_streak_date
+            else:
+                # All-time, but only from 2026 onwards
+                year_start = min_streak_date
+                year_end = datetime.now(pacific).date()
+            
+            max_streaks = {}
+            
+            for username in usernames:
+                # Get all completions for this user with completion_timestamp
+                rows = conn.execute(
+                    "SELECT date, completion_timestamp FROM results WHERE username = ? AND completion_timestamp IS NOT NULL ORDER BY date ASC",
+                    (username,)
+                ).fetchall()
+                
+                if not rows:
+                    max_streaks[username] = 0
+                    continue
+                
+                # Create a set of dates where user completed on the puzzle date
+                valid_dates = set()
+                for row in rows:
+                    puzzle_date_str = row['date']
+                    completion_timestamp_str = row['completion_timestamp']
+                    
+                    try:
+                        # Parse puzzle date
+                        puzzle_date = datetime.strptime(puzzle_date_str, '%Y-%m-%d').date()
+                        
+                        # Skip dates outside our range
+                        if puzzle_date < year_start or puzzle_date > year_end:
+                            continue
+                        
+                        # Skip dates before January 1, 2026
+                        if puzzle_date < min_streak_date:
+                            continue
+                        
+                        # Parse completion timestamp and convert to Pacific time
+                        completion_dt = datetime.fromisoformat(completion_timestamp_str.replace('Z', '+00:00'))
+                        if completion_dt.tzinfo is None:
+                            # If no timezone info, assume UTC
+                            completion_dt = utc.localize(completion_dt)
+                        completion_date_pacific = completion_dt.astimezone(pacific).date()
+                        
+                        # Check if completion date matches puzzle date
+                        if completion_date_pacific == puzzle_date and puzzle_date >= min_streak_date:
+                            valid_dates.add(puzzle_date)
+                    except (ValueError, AttributeError) as e:
+                        # Skip invalid dates/timestamps
+                        app.logger.warning(f"Invalid date/timestamp for user {username}: {e}")
+                        continue
+                
+                if not valid_dates:
+                    max_streaks[username] = 0
+                    continue
+                
+                # Find all streaks by checking consecutive days
+                sorted_dates = sorted(valid_dates)
+                max_streak = 0
+                current_streak = 0
+                previous_date = None
+                
+                for date in sorted_dates:
+                    if previous_date is None:
+                        # Start of a new streak
+                        current_streak = 1
+                    else:
+                        # Check if this date is consecutive to the previous date
+                        days_diff = (date - previous_date).days
+                        if days_diff == 1:
+                            # Consecutive day, continue streak
+                            current_streak += 1
+                        else:
+                            # Gap found, streak broken
+                            max_streak = max(max_streak, current_streak)
+                            current_streak = 1
+                    
+                    previous_date = date
+                
+                # Check the last streak
+                max_streak = max(max_streak, current_streak)
+                max_streaks[username] = max_streak
+            
+            return jsonify(max_streaks), 200
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        app.logger.error(f"Error calculating max streaks: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+
 @app.route('/streak/<username>', methods=['GET'])
 def get_streak(username):
     """
