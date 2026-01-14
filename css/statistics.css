@@ -91,8 +91,8 @@
 }
 
 .stats-summary {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
   grid-auto-flow: row;
   gap: 30px;
   margin-top: 20px;
@@ -114,6 +114,8 @@
   flex-direction: column;
   gap: 20px;
   min-width: 0; /* Prevents flex items from overflowing */
+  width: 100%;
+  grid-column: auto; /* Ensure it respects grid columns */
 }
 
 .summary-item {
@@ -360,14 +362,6 @@
   box-shadow: 0 2px 8px var(--color-shadow-ocean-light);
 }
 
-/* Ensure two-column layout on desktop */
-@media (min-width: 769px) {
-  .stats-summary {
-    grid-template-columns: repeat(2, 1fr) !important;
-    display: grid !important;
-  }
-}
-
 /* Mobile Responsive */
 @media (max-width: 768px) {
   /* Override the restrictive mobile rules from base.css for statistics page */
@@ -426,7 +420,7 @@
   }
 
   .stats-summary {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
     gap: 15px;
     padding: 20px;
     margin-top: 20px;
