@@ -143,13 +143,33 @@ class CrosswordPuzzle {
       console.log('Leaderboard data:', leaderboardData);
 
       // Check if current user has a completion time
-      const userCompletionTime = leaderboardData[this.userName];
-      console.log('User completion time:', userCompletionTime);
-      if (userCompletionTime) {
-        console.log(
-          `User ${this.userName} already completed this puzzle in ${userCompletionTime} seconds`
-        );
-        await this.restoreCompletedPuzzle(userCompletionTime);
+      const userCompletionData = leaderboardData[this.userName];
+      console.log('User completion data:', userCompletionData);
+      if (userCompletionData) {
+        // Handle both old format (number) and new format (object with time and completion_timestamp)
+        let userCompletionTime;
+        if (
+          typeof userCompletionData === 'object' &&
+          userCompletionData !== null &&
+          !Array.isArray(userCompletionData)
+        ) {
+          // New format with completion_timestamp
+          userCompletionTime = userCompletionData.time;
+        } else {
+          // Old format: just a number
+          userCompletionTime = userCompletionData;
+        }
+
+        // Validate it's a valid number
+        userCompletionTime = parseInt(userCompletionTime, 10);
+        if (!isNaN(userCompletionTime) && userCompletionTime > 0) {
+          console.log(
+            `User ${this.userName} already completed this puzzle in ${userCompletionTime} seconds`
+          );
+          await this.restoreCompletedPuzzle(userCompletionTime);
+        } else {
+          console.log('Invalid completion time data:', userCompletionData);
+        }
       } else {
         console.log('User not found in leaderboard');
       }
