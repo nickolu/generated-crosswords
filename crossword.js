@@ -1369,7 +1369,7 @@ class CrosswordPuzzle {
       });
   }
 
-  shareScore() {
+  async shareScore() {
     const puzzleTitle = document.querySelector('.title').textContent;
     const completionTime = this.formatTime(this.elapsedTime);
 
@@ -1379,8 +1379,33 @@ class CrosswordPuzzle {
       return;
     }
 
+    // Only fetch streak if this is today's puzzle
+    const today = new Date().toISOString().split('T')[0];
+    const isToday = this.puzzle.date === today;
+    let streakText = '';
+
+    if (isToday && this.userName) {
+      try {
+        const response = await fetch(`mini/streak/${encodeURIComponent(this.userName)}`, {
+          method: 'GET',
+          mode: 'cors',
+          cache: 'no-cache',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const streak = data.streak || 0;
+          // Show streak if it's >= 1
+          if (streak >= 1) {
+            streakText = `🔥 Current Streak: ${streak} day${streak !== 1 ? 's' : ''}\n`;
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to fetch streak for share:', error);
+      }
+    }
+
     const userNameText = this.userName ? `👤 ${this.userName}\n` : '';
-    const shareText = `🧩 ${puzzleTitle} completed!\n${userNameText}⏱️ Time: ${completionTime}\n\n🔗 Play today's crossword: https://manchat.men/mini`;
+    const shareText = `🧩 ${puzzleTitle} completed!\n${userNameText}⏱️ Time: ${completionTime}\n${streakText}🔗 Play today's crossword: https://manchat.men/mini`;
 
     // Try to use the modern Clipboard API
     if (navigator.clipboard && window.isSecureContext) {
