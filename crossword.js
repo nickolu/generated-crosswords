@@ -2627,8 +2627,12 @@ class CrosswordPuzzle {
           this.userAverageTime = medianTime;
         }
 
-        if (medianTime !== null) {
-          const difference = this.elapsedTime - medianTime;
+        if (medianTime !== null && medianTime > 0) {
+          // Convert elapsedTime from milliseconds to seconds for comparison
+          // (medianTime from database is already in seconds)
+          const elapsedTimeInSeconds = Math.floor(this.elapsedTime / 1000);
+
+          const difference = elapsedTimeInSeconds - medianTime;
           let comparisonText = '';
 
           if (difference === 0) {
