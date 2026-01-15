@@ -274,6 +274,52 @@ def get_all_leaderboards():
         return jsonify({'error': 'Internal server error'}), 500
 
 
+@app.route('/statistics/average-time/<username>', methods=['GET'])
+def get_average_time(username):
+    """
+    Get the median completion time for a user across all puzzles.
+    
+    Returns JSON with average_time in seconds (using median calculation), or null if user has no completions.
+    """
+    try:
+        # Initialize database if it doesn't exist
+        init_database()
+        
+        conn = get_db_connection()
+        try:
+            # Fetch all times for this user
+            rows = conn.execute(
+                "SELECT time FROM results WHERE username = ? AND time IS NOT NULL",
+                (username,)
+            ).fetchall()
+            
+            if not rows:
+                return jsonify({'average_time': None}), 200
+            
+            # Calculate median
+            times = [int(row['time']) for row in rows if row['time'] is not None]
+            if not times:
+                return jsonify({'average_time': None}), 200
+            
+            # Sort times to find median
+            times_sorted = sorted(times)
+            n = len(times_sorted)
+            if n % 2 == 0:
+                # Even number of times: average of two middle values
+                median_time = round((times_sorted[n // 2 - 1] + times_sorted[n // 2]) / 2)
+            else:
+                # Odd number of times: middle value
+                median_time = times_sorted[n // 2]
+            
+            return jsonify({'average_time': median_time}), 200
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        app.logger.error(f"Error calculating median time for {username}: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+
 @app.route('/migrate', methods=['GET'])
 def migrate_json_to_sqlite():
     """

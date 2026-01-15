@@ -14,6 +14,7 @@ class CrosswordPuzzle {
     this.gameStarted = false; // Track if game has been started
     this.userName = this.getCookie('crossword_user_name') || null;
     this.currentLeaderboardData = null; // Store current leaderboard data for sharing
+    this.userAverageTime = null; // Cache user's median completion time
     this.initialViewportHeight = window.innerHeight; // Store initial viewport height for keyboard detection
     this.keyboardAdjustmentTimeout = null; // For debouncing keyboard adjustments
     this.resizeTimeout = null; // For debouncing window resize events
@@ -59,6 +60,17 @@ class CrosswordPuzzle {
     this.updateMobileNavigationVisibility();
     this.setupMobileDynamicSizing();
     this.blurClues();
+
+    // Fetch user's median time early (if username exists) to avoid delay in leaderboard
+    if (this.userName) {
+      this.calculateUserAverageTime()
+        .then(averageTime => {
+          this.userAverageTime = averageTime;
+        })
+        .catch(error => {
+          console.warn('Failed to pre-fetch user median time:', error);
+        });
+    }
 
     // If reset mode is enabled, skip completion restore and start fresh
     if (this.isResetPlaythrough) {
@@ -1214,7 +1226,7 @@ class CrosswordPuzzle {
 
     // Check completion and provide feedback if the cleanup resulted in a valid letter
     if (firstValidChar) {
-      const status = this.checkPuzzleCompletion();
+      this.checkPuzzleCompletion();
       // The incorrect count is now shown persistently in the timer display via checkPuzzleCompletion()
       if (this.showFeedback) {
         const cell = this.puzzle.cells[cellIndex];
@@ -2558,7 +2570,35 @@ class CrosswordPuzzle {
     return div.innerHTML;
   }
 
-  updateShareButtonVisibility() {
+  async calculateUserAverageTime() {
+    if (!this.userName) {
+      return null;
+    }
+
+    try {
+      // Fetch median time from backend (endpoint name kept as average-time for compatibility)
+      const response = await fetch(
+        `mini/statistics/average-time/${encodeURIComponent(this.userName)}`,
+        {
+          method: 'GET',
+          mode: 'cors',
+          cache: 'no-cache',
+        }
+      );
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const data = await response.json();
+      return data.average_time || null; // Field name kept as average_time for compatibility
+    } catch (error) {
+      console.warn('Failed to fetch user median time:', error);
+      return null;
+    }
+  }
+
+  async updateShareButtonVisibility() {
     const shareSection = document.getElementById('leaderboardShareSection');
     if (shareSection) {
       // Show share section if there's at least 1 time on the leaderboard
@@ -2577,7 +2617,33 @@ class CrosswordPuzzle {
       // Update the completion time display in the modal
       const completionTimeElement = document.getElementById('leaderboardCompletionTime');
       if (completionTimeElement) {
-        completionTimeElement.textContent = this.formatTime(this.elapsedTime);
+        const timeText = this.formatTime(this.elapsedTime);
+
+        // Use cached median time if available, otherwise try to fetch it
+        let medianTime = this.userAverageTime;
+        if (medianTime === null && this.userName) {
+          // Fallback: fetch if not already cached (shouldn't happen, but just in case)
+          medianTime = await this.calculateUserAverageTime();
+          this.userAverageTime = medianTime;
+        }
+
+        if (medianTime !== null) {
+          const difference = this.elapsedTime - medianTime;
+          let comparisonText = '';
+
+          if (difference === 0) {
+            comparisonText = ' (equal to your median)';
+          } else if (difference > 0) {
+            comparisonText = ` (${difference} second${difference !== 1 ? 's' : ''} slower than your median)`;
+          } else {
+            const absDifference = Math.abs(difference);
+            comparisonText = ` (${absDifference} second${absDifference !== 1 ? 's' : ''} faster than your median)`;
+          }
+
+          completionTimeElement.textContent = timeText + comparisonText;
+        } else {
+          completionTimeElement.textContent = timeText;
+        }
       }
     }
   }
