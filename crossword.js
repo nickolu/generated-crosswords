@@ -2558,7 +2558,7 @@ class CrosswordPuzzle {
       const displayMinutes = minutes.toString().padStart(2, '0');
 
       return `Completed ${displayHours}:${displayMinutes}${ampm}`;
-    } catch (e) {
+    } catch {
       // If parsing fails, return empty string (no tooltip)
       return '';
     }
@@ -2616,8 +2616,10 @@ class CrosswordPuzzle {
     if (this.isCompleted) {
       // Update the completion time display in the modal
       const completionTimeElement = document.getElementById('leaderboardCompletionTime');
+      const completionTimeComparison = document.getElementById('completionTimeComparison');
       if (completionTimeElement) {
         const timeText = this.formatTime(this.elapsedTime);
+        completionTimeElement.textContent = timeText;
 
         // Use cached median time if available, otherwise try to fetch it
         let medianTime = this.userAverageTime;
@@ -2644,9 +2646,9 @@ class CrosswordPuzzle {
             comparisonText = ` (${absDifference} second${absDifference !== 1 ? 's' : ''} faster than average)`;
           }
 
-          completionTimeElement.textContent = timeText + comparisonText;
+          completionTimeComparison.textContent = comparisonText;
         } else {
-          completionTimeElement.textContent = timeText;
+          completionTimeComparison.textContent = '';
         }
       }
     }

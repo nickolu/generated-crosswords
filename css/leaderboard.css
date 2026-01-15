@@ -162,6 +162,13 @@
   letter-spacing: 1px;
 }
 
+.completion-time-comparison {
+  font-size: 16px;
+  font-weight: 600;
+  font-family: 'Oswald', sans-serif;
+  letter-spacing: 1px;
+}
+
 /* Leaderboard Share Section */
 .leaderboard-share-section {
   margin-top: 20px;
