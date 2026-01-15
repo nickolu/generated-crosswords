@@ -2636,12 +2636,12 @@ class CrosswordPuzzle {
           let comparisonText = '';
 
           if (difference === 0) {
-            comparisonText = ' (equal to your median)';
+            comparisonText = ' (equal to average)';
           } else if (difference > 0) {
-            comparisonText = ` (${difference} second${difference !== 1 ? 's' : ''} slower than your median)`;
+            comparisonText = ` (${difference} second${difference !== 1 ? 's' : ''} slower than average)`;
           } else {
             const absDifference = Math.abs(difference);
-            comparisonText = ` (${absDifference} second${absDifference !== 1 ? 's' : ''} faster than your median)`;
+            comparisonText = ` (${absDifference} second${absDifference !== 1 ? 's' : ''} faster than average)`;
           }
 
           completionTimeElement.textContent = timeText + comparisonText;
