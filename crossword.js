@@ -22,6 +22,7 @@ class CrosswordPuzzle {
     this.keydownHandler = null; // Store reference to keydown event handler for cleanup
     this.visibilityChangeHandler = null; // Store reference to visibilitychange event handler for cleanup
     this._incorrectCount = 0; // Track current incorrect letter count for persistent display
+    this.lastSelectedClueNumber = null; // Track last selected clue number for cycling through across/down
 
     // Parse URL flag to allow replaying a completed puzzle without recording stats
     const urlParams = new URLSearchParams(window.location.search);
@@ -982,6 +983,72 @@ class CrosswordPuzzle {
     return null;
   }
 
+  // Check if puzzle answers contain any numbers
+  hasNumbersInAnswers() {
+    for (const cell of this.puzzle.cells) {
+      if (cell && cell.answer && /\d/.test(cell.answer)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Find clues by number (returns array of clue indices: [acrossClueIndex, downClueIndex] or [clueIndex] if only one exists)
+  findCluesByNumber(number) {
+    const acrossClueList = this.puzzle.clueLists.find(list => list.name.toLowerCase() === 'across');
+    const downClueList = this.puzzle.clueLists.find(list => list.name.toLowerCase() === 'down');
+
+    const acrossClue = acrossClueList?.clues.find(clueIndex => {
+      const clue = this.puzzle.clues[clueIndex];
+      return clue && clue.label === String(number);
+    });
+
+    const downClue = downClueList?.clues.find(clueIndex => {
+      const clue = this.puzzle.clues[clueIndex];
+      return clue && clue.label === String(number);
+    });
+
+    const clues = [];
+    if (acrossClue !== undefined) clues.push(acrossClue);
+    if (downClue !== undefined) clues.push(downClue);
+
+    return clues;
+  }
+
+  // Select clue by number, cycling through across and down if both exist
+  selectClueByNumber(number) {
+    const clues = this.findCluesByNumber(number);
+
+    if (clues.length === 0) {
+      return false; // No clue with this number
+    }
+
+    if (clues.length === 1) {
+      // Only one clue with this number, select it
+      this.selectClue(clues[0]);
+      this.lastSelectedClueNumber = number;
+      return true;
+    }
+
+    // Both across and down exist - cycle through them
+    if (this.lastSelectedClueNumber === number && this.selectedClue !== null) {
+      // We're on the same number, cycle to the other direction
+      const currentIndex = clues.indexOf(this.selectedClue);
+      if (currentIndex !== -1) {
+        const nextIndex = (currentIndex + 1) % clues.length;
+        this.selectClue(clues[nextIndex]);
+        this.lastSelectedClueNumber = number;
+        return true;
+      }
+    }
+
+    // First time selecting this number, or not currently on this number
+    // Start with across (first in array)
+    this.selectClue(clues[0]);
+    this.lastSelectedClueNumber = number;
+    return true;
+  }
+
   selectCell(index, forceToggle = false) {
     const wrappers = document.querySelectorAll('.cell-wrapper');
     const clueItems = document.querySelectorAll('.clue-item');
@@ -1126,6 +1193,15 @@ class CrosswordPuzzle {
 
     this.selectedClue = clueIndex;
 
+    // Track the clue number for cycling
+    const clue = this.puzzle.clues[clueIndex];
+    if (clue && clue.label) {
+      const clueNumber = parseInt(clue.label, 10);
+      if (!isNaN(clueNumber)) {
+        this.lastSelectedClueNumber = clueNumber;
+      }
+    }
+
     const clueItem = document.querySelector(`[data-clue-index="${clueIndex}"]`);
     if (clueItem) {
       clueItem.classList.add('selected');
@@ -1134,7 +1210,6 @@ class CrosswordPuzzle {
     this.highlightWord(clueIndex);
 
     // Focus on first unfilled cell of the word, or first cell if all filled
-    const clue = this.puzzle.clues[clueIndex];
     let targetCellIndex = clue.cells[0]; // default to first cell
 
     // Find first unfilled cell
@@ -1989,6 +2064,23 @@ class CrosswordPuzzle {
           event.preventDefault();
           return;
         }
+      }
+    }
+
+    // Handle number keys for clue navigation (only if puzzle has no numbers in answers)
+    // Allow this even when no cell is selected for better UX
+    if (
+      event.key >= '0' &&
+      event.key <= '9' &&
+      !this.hasNumbersInAnswers() &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.altKey
+    ) {
+      const number = parseInt(event.key, 10);
+      if (this.selectClueByNumber(number)) {
+        event.preventDefault();
+        return;
       }
     }
 
