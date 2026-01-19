@@ -2488,13 +2488,13 @@ class CrosswordPuzzle {
       const data = await response.json();
       const streak = data.streak || 0;
 
-      // Display streak
+      // Display streak (only if at least 2 days)
       const streakDisplay = document.getElementById('streakDisplay');
       const streakCount = document.getElementById('streakCount');
 
       if (streakDisplay && streakCount) {
         streakCount.textContent = streak;
-        streakDisplay.style.display = streak > 0 ? 'block' : 'none';
+        streakDisplay.style.display = streak >= 2 ? 'block' : 'none';
       }
     } catch (error) {
       console.warn('Failed to load streak:', error);
