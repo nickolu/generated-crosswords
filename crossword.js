@@ -573,11 +573,53 @@ class CrosswordPuzzle {
     }
 
     if (leaderboardShareBtn) {
-      leaderboardShareBtn.addEventListener('click', () => this.shareScore());
+      // Add both click and touchstart for better mobile support
+      let lastTouchTime = 0;
+      const handleShareScore = e => {
+        const now = Date.now();
+        // Prevent double-firing: if touchstart fired recently, ignore click
+        if (e.type === 'touchstart') {
+          lastTouchTime = now;
+          e.preventDefault();
+          e.stopPropagation();
+          this.shareScore();
+        } else if (e.type === 'click') {
+          // Only handle click if touchstart didn't fire recently (desktop)
+          if (now - lastTouchTime > 300) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.shareScore();
+          }
+        }
+      };
+      leaderboardShareBtn.addEventListener('click', handleShareScore);
+      leaderboardShareBtn.addEventListener('touchstart', handleShareScore, { passive: false });
     }
 
     if (shareLeaderboardBtn) {
-      shareLeaderboardBtn.addEventListener('click', () => this.shareLeaderboard());
+      // Add both click and touchstart for better mobile support
+      let lastTouchTime = 0;
+      const handleShareLeaderboard = e => {
+        const now = Date.now();
+        // Prevent double-firing: if touchstart fired recently, ignore click
+        if (e.type === 'touchstart') {
+          lastTouchTime = now;
+          e.preventDefault();
+          e.stopPropagation();
+          this.shareLeaderboard();
+        } else if (e.type === 'click') {
+          // Only handle click if touchstart didn't fire recently (desktop)
+          if (now - lastTouchTime > 300) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.shareLeaderboard();
+          }
+        }
+      };
+      shareLeaderboardBtn.addEventListener('click', handleShareLeaderboard);
+      shareLeaderboardBtn.addEventListener('touchstart', handleShareLeaderboard, {
+        passive: false,
+      });
     }
 
     // Auto-pause when browser tab loses focus (but not if puzzle is completed)
