@@ -573,53 +573,11 @@ class CrosswordPuzzle {
     }
 
     if (leaderboardShareBtn) {
-      // Add both click and touchstart for better mobile support
-      let lastTouchTime = 0;
-      const handleShareScore = e => {
-        const now = Date.now();
-        // Prevent double-firing: if touchstart fired recently, ignore click
-        if (e.type === 'touchstart') {
-          lastTouchTime = now;
-          e.preventDefault();
-          e.stopPropagation();
-          this.shareScore();
-        } else if (e.type === 'click') {
-          // Only handle click if touchstart didn't fire recently (desktop)
-          if (now - lastTouchTime > 300) {
-            e.preventDefault();
-            e.stopPropagation();
-            this.shareScore();
-          }
-        }
-      };
-      leaderboardShareBtn.addEventListener('click', handleShareScore);
-      leaderboardShareBtn.addEventListener('touchstart', handleShareScore, { passive: false });
+      leaderboardShareBtn.addEventListener('click', () => this.shareScore());
     }
 
     if (shareLeaderboardBtn) {
-      // Add both click and touchstart for better mobile support
-      let lastTouchTime = 0;
-      const handleShareLeaderboard = e => {
-        const now = Date.now();
-        // Prevent double-firing: if touchstart fired recently, ignore click
-        if (e.type === 'touchstart') {
-          lastTouchTime = now;
-          e.preventDefault();
-          e.stopPropagation();
-          this.shareLeaderboard();
-        } else if (e.type === 'click') {
-          // Only handle click if touchstart didn't fire recently (desktop)
-          if (now - lastTouchTime > 300) {
-            e.preventDefault();
-            e.stopPropagation();
-            this.shareLeaderboard();
-          }
-        }
-      };
-      shareLeaderboardBtn.addEventListener('click', handleShareLeaderboard);
-      shareLeaderboardBtn.addEventListener('touchstart', handleShareLeaderboard, {
-        passive: false,
-      });
+      shareLeaderboardBtn.addEventListener('click', () => this.shareLeaderboard());
     }
 
     // Auto-pause when browser tab loses focus (but not if puzzle is completed)
@@ -1508,10 +1466,17 @@ class CrosswordPuzzle {
       return;
     }
 
-    // Only fetch streak if this is today's puzzle
+    // Build base share text synchronously (without streak) to copy immediately
+    // This preserves user gesture context on mobile
+    const userNameText = this.userName ? `👤 ${this.userName}\n` : '';
+    let shareText = `🧩 ${puzzleTitle} completed!\n${userNameText}⏱️ Time: ${completionTime}\n🔗 Play today's crossword: https://manchat.men/mini`;
+
+    // Copy immediately to preserve user gesture context (critical for mobile)
+    const copyPromise = this.copyToClipboard(shareText, false);
+
+    // Only fetch streak if this is today's puzzle (async, after copy)
     const today = new Date().toISOString().split('T')[0];
     const isToday = this.puzzle.date === today;
-    let streakText = '';
 
     if (isToday && this.userName) {
       try {
@@ -1525,7 +1490,11 @@ class CrosswordPuzzle {
           const streak = data.streak || 0;
           // Show streak if it's >= 1
           if (streak >= 1) {
-            streakText = `🔥 Current Streak: ${streak} day${streak !== 1 ? 's' : ''}\n`;
+            const streakText = `🔥 Current Streak: ${streak} day${streak !== 1 ? 's' : ''}\n`;
+            // Update share text with streak and copy again (optional enhancement)
+            const enhancedShareText = `🧩 ${puzzleTitle} completed!\n${userNameText}⏱️ Time: ${completionTime}\n${streakText}🔗 Play today's crossword: https://manchat.men/mini`;
+            // Try to copy enhanced version, but don't show error if it fails (already copied base version)
+            this.copyToClipboard(enhancedShareText, false).catch(() => {});
           }
         }
       } catch (error) {
@@ -1533,22 +1502,29 @@ class CrosswordPuzzle {
       }
     }
 
-    const userNameText = this.userName ? `👤 ${this.userName}\n` : '';
-    const shareText = `🧩 ${puzzleTitle} completed!\n${userNameText}⏱️ Time: ${completionTime}\n${streakText}🔗 Play today's crossword: https://manchat.men/mini`;
+    // Wait for initial copy to complete
+    await copyPromise;
+  }
 
-    // Try to use the modern Clipboard API
+  copyToClipboard(text, isLeaderboard = false) {
+    // Try to use the modern Clipboard API first (preserves user gesture context)
     if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard
-        .writeText(shareText)
+      return navigator.clipboard
+        .writeText(text)
         .then(() => {
-          this.showPersistentShareFeedback('Score copied to clipboard!');
+          if (isLeaderboard) {
+            this.showShareLeaderboardFeedback('Leaderboard copied to clipboard!');
+          } else {
+            this.showPersistentShareFeedback('Score copied to clipboard!');
+          }
         })
         .catch(() => {
-          this.fallbackCopyToClipboard(shareText);
+          // Fallback if clipboard API fails
+          return this.fallbackCopyToClipboard(text, isLeaderboard);
         });
     } else {
       // Fallback for older browsers or non-HTTPS contexts
-      this.fallbackCopyToClipboard(shareText);
+      return Promise.resolve(this.fallbackCopyToClipboard(text, isLeaderboard));
     }
   }
 
@@ -1556,29 +1532,59 @@ class CrosswordPuzzle {
     // Create a temporary textarea element
     const textArea = document.createElement('textarea');
     textArea.value = text;
+    // Use absolute positioning that works better on mobile
     textArea.style.position = 'fixed';
-    textArea.style.left = '-999999px';
-    textArea.style.top = '-999999px';
+    textArea.style.left = '0';
+    textArea.style.top = '0';
+    textArea.style.width = '2em';
+    textArea.style.height = '2em';
+    textArea.style.padding = '0';
+    textArea.style.border = 'none';
+    textArea.style.outline = 'none';
+    textArea.style.boxShadow = 'none';
+    textArea.style.background = 'transparent';
+    textArea.style.opacity = '0';
+    textArea.setAttribute('readonly', '');
+    textArea.setAttribute('aria-hidden', 'true');
     document.body.appendChild(textArea);
-    textArea.focus();
-    textArea.select();
+
+    // Select text - use both focus/select and setSelectionRange for better mobile support
+    if (navigator.userAgent.match(/ipad|iphone/i)) {
+      // iOS specific handling
+      const range = document.createRange();
+      range.selectNodeContents(textArea);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      textArea.setSelectionRange(0, 999999);
+    } else {
+      textArea.focus();
+      textArea.select();
+    }
 
     try {
-      document.execCommand('copy');
-      if (isLeaderboard) {
-        this.showShareLeaderboardFeedback('Leaderboard copied to clipboard!');
+      const successful = document.execCommand('copy');
+      if (successful) {
+        if (isLeaderboard) {
+          this.showShareLeaderboardFeedback('Leaderboard copied to clipboard!');
+        } else {
+          this.showPersistentShareFeedback('Score copied to clipboard!');
+        }
       } else {
-        this.showPersistentShareFeedback('Score copied to clipboard!');
+        throw new Error('execCommand copy failed');
       }
-    } catch {
+    } catch (err) {
       if (isLeaderboard) {
         this.showShareLeaderboardFeedback('Unable to copy to clipboard');
       } else {
         this.showPersistentShareFeedback('Unable to copy to clipboard');
       }
+    } finally {
+      // Clean up
+      if (document.body.contains(textArea)) {
+        document.body.removeChild(textArea);
+      }
     }
-
-    document.body.removeChild(textArea);
   }
 
   showCopyFeedback(message) {
@@ -1646,11 +1652,22 @@ class CrosswordPuzzle {
       previousRank = entry.rank;
     });
 
-    // Only fetch streaks if this is today's puzzle
+    // Build base share text synchronously (without streaks) to copy immediately
+    // This preserves user gesture context on mobile
+    let shareText = `🏆 ${puzzleTitle} Leaderboard\n\n`;
+    entries.forEach(entry => {
+      const rank = entry.rank;
+      const rankEmoji = this.getRankEmoji(rank);
+      shareText += `${rankEmoji} ${entry.name} - ${entry.timeFormatted}\n`;
+    });
+    shareText += `\n🔗 Play today's crossword: https://manchat.men/mini`;
+
+    // Copy immediately to preserve user gesture context (critical for mobile)
+    const copyPromise = this.copyToClipboard(shareText, true);
+
+    // Only fetch streaks if this is today's puzzle (async, after copy)
     const today = new Date().toISOString().split('T')[0];
     const isToday = this.puzzle.date === today;
-
-    let streakMap = new Map();
 
     if (isToday) {
       // Fetch streaks for all players in a single request
@@ -1670,54 +1687,36 @@ class CrosswordPuzzle {
         if (response.ok) {
           const streaks = await response.json();
           // Convert object to Map
-          streakMap = new Map(Object.entries(streaks));
-        } else {
-          console.warn('Failed to fetch streaks:', response.status);
+          const streakMap = new Map(Object.entries(streaks));
+
+          // Default to 0 for any players not in the response
+          entries.forEach(entry => {
+            if (!streakMap.has(entry.name)) {
+              streakMap.set(entry.name, 0);
+            }
+          });
+
+          // Build enhanced share text with streaks
+          let enhancedShareText = `🏆 ${puzzleTitle} Leaderboard\n\n`;
+          entries.forEach(entry => {
+            const rank = entry.rank;
+            const rankEmoji = this.getRankEmoji(rank);
+            const streak = streakMap.get(entry.name) || 0;
+            const streakText = streak > 1 ? ` (🔥 ${streak} day streak)` : '';
+            enhancedShareText += `${rankEmoji} ${entry.name} - ${entry.timeFormatted}${streakText}\n`;
+          });
+          enhancedShareText += `\n🔗 Play today's crossword: https://manchat.men/mini`;
+
+          // Try to copy enhanced version, but don't show error if it fails (already copied base version)
+          this.copyToClipboard(enhancedShareText, true).catch(() => {});
         }
       } catch (error) {
         console.warn('Failed to fetch streaks:', error);
       }
-
-      // Default to 0 for any players not in the response
-      entries.forEach(entry => {
-        if (!streakMap.has(entry.name)) {
-          streakMap.set(entry.name, 0);
-        }
-      });
     }
 
-    // Build the share text
-    let shareText = `🏆 ${puzzleTitle} Leaderboard\n\n`;
-
-    entries.forEach(entry => {
-      const rank = entry.rank;
-      const rankEmoji = this.getRankEmoji(rank);
-
-      // Only add streak if it's today's puzzle and streak is longer than 1 game
-      let streakText = '';
-      if (isToday) {
-        const streak = streakMap.get(entry.name) || 0;
-        streakText = streak > 1 ? ` (🔥 ${streak} day streak)` : '';
-      }
-
-      shareText += `${rankEmoji} ${entry.name} - ${entry.timeFormatted}${streakText}\n`;
-    });
-
-    shareText += `\n🔗 Play today's crossword: https://manchat.men/mini`;
-
-    // Copy to clipboard
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard
-        .writeText(shareText)
-        .then(() => {
-          this.showShareLeaderboardFeedback('Leaderboard copied to clipboard!');
-        })
-        .catch(() => {
-          this.fallbackCopyToClipboard(shareText, true);
-        });
-    } else {
-      this.fallbackCopyToClipboard(shareText, true);
-    }
+    // Wait for initial copy to complete
+    await copyPromise;
   }
 
   showPersistentShareFeedback(message) {

@@ -217,16 +217,6 @@
   gap: 10px;
   justify-content: center;
   flex-wrap: wrap;
-  position: relative;
-  z-index: 1;
-}
-
-.share-button {
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  user-select: none;
-  position: relative;
-  z-index: 2;
 }
 
 .share-button.secondary {
