@@ -22,6 +22,7 @@ class CrosswordPuzzle {
     this.keydownHandler = null; // Store reference to keydown event handler for cleanup
     this.visibilityChangeHandler = null; // Store reference to visibilitychange event handler for cleanup
     this._incorrectCount = 0; // Track current incorrect letter count for persistent display
+    this._isPuzzleFullyFilled = false; // Track if puzzle is fully filled to determine when to show incorrect count
     this.lastSelectedClueNumber = null; // Track last selected clue number for cycling through across/down
 
     // Parse URL flag to allow replaying a completed puzzle without recording stats
@@ -689,20 +690,25 @@ class CrosswordPuzzle {
     const seconds = Math.floor((elapsedTime % 60000) / 1000);
     const timeDisplay = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
-    // Show both timer and incorrect letter count if there are incorrect letters
-    let display = timeDisplay;
-    if (this._incorrectCount > 0 && !this.isCompleted) {
-      display = `${timeDisplay} - ${this._incorrectCount} letter${this._incorrectCount === 1 ? '' : 's'} incorrect`;
+    // Create desktop and mobile displays
+    let desktopDisplay = timeDisplay;
+    let mobileDisplay = timeDisplay;
+    
+    if (this._incorrectCount > 0 && !this.isCompleted && this._isPuzzleFullyFilled) {
+      // Desktop: Full text format
+      desktopDisplay = `${timeDisplay} - ${this._incorrectCount} letter${this._incorrectCount === 1 ? '' : 's'} incorrect`;
+      // Mobile: Compact format with emoji
+      mobileDisplay = `${timeDisplay} - ${this._incorrectCount} ❌`;
     }
 
-    // Update all timer displays (desktop, mobile menu, and mobile main)
+    // Update timer displays with appropriate format
     const desktopTimer = document.getElementById('timer');
     const mobileTimer = document.getElementById('mobileTimer');
     const mobileTimerMain = document.getElementById('mobileTimerMain');
 
-    if (desktopTimer) desktopTimer.textContent = display;
-    if (mobileTimer) mobileTimer.textContent = display;
-    if (mobileTimerMain) mobileTimerMain.textContent = display;
+    if (desktopTimer) desktopTimer.textContent = desktopDisplay;
+    if (mobileTimer) mobileTimer.textContent = mobileDisplay;
+    if (mobileTimerMain) mobileTimerMain.textContent = mobileDisplay;
   }
 
   formatTime(milliseconds) {
@@ -1344,8 +1350,15 @@ class CrosswordPuzzle {
       }
     });
 
-    // Update the incorrect count for persistent display
-    this._incorrectCount = incorrectCount;
+    // Track if puzzle is fully filled for display purposes
+    this._isPuzzleFullyFilled = allFilled;
+    
+    // Update the incorrect count only when puzzle is fully filled
+    if (allFilled) {
+      this._incorrectCount = incorrectCount;
+    } else {
+      this._incorrectCount = 0; // Don't show count until puzzle is fully filled
+    }
 
     if (allFilled && allCorrect) {
       // Clear incorrect count when puzzle is completed
@@ -1354,7 +1367,7 @@ class CrosswordPuzzle {
       return { allFilled: true, allCorrect: true, incorrectCount: 0 };
     }
 
-    // Update timer display to show current incorrect count
+    // Update timer display to show current incorrect count (only if fully filled)
     this.updateTimerDisplay();
 
     return { allFilled, allCorrect, incorrectCount };
