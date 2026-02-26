@@ -217,6 +217,13 @@ body {
     top: 0;
     left: 0;
     box-sizing: border-box;
+    /* Disable text selection and copy/paste popup on mobile */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
   }
   .page-container {
     position: fixed; /* Prevent any scrolling on iOS */
@@ -234,6 +241,13 @@ body {
     -webkit-overflow-scrolling: auto; /* Disable momentum scrolling */
     touch-action: manipulation; /* Only allow tap and pinch */
     background: var(--color-background-primary);
+    /* Disable text selection and copy/paste popup */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
   }
 }
 
@@ -380,6 +394,27 @@ button:disabled {
     height: 100%;
     overflow: hidden;
     touch-action: manipulation;
+  }
+
+  /* Disable text selection and copy/paste popup for all elements on mobile */
+  * {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Re-enable selection for input fields (crossword cells) */
+  input[type="text"], 
+  input[type="search"],
+  textarea {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
   }
 
   /* Prevent automatic scrolling to focused inputs on mobile */

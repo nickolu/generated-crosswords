@@ -14,6 +14,7 @@ class CrosswordPuzzle {
     this.gameStarted = false; // Track if game has been started
     this.userName = this.getCookie('crossword_user_name') || null;
     this.currentLeaderboardData = null; // Store current leaderboard data for sharing
+    this.userAverageTime = null; // Cache user's median completion time
     this.initialViewportHeight = window.innerHeight; // Store initial viewport height for keyboard detection
     this.keyboardAdjustmentTimeout = null; // For debouncing keyboard adjustments
     this.resizeTimeout = null; // For debouncing window resize events
@@ -21,6 +22,8 @@ class CrosswordPuzzle {
     this.keydownHandler = null; // Store reference to keydown event handler for cleanup
     this.visibilityChangeHandler = null; // Store reference to visibilitychange event handler for cleanup
     this._incorrectCount = 0; // Track current incorrect letter count for persistent display
+    this._isPuzzleFullyFilled = false; // Track if puzzle is fully filled to determine when to show incorrect count
+    this.lastSelectedClueNumber = null; // Track last selected clue number for cycling through across/down
 
     // Parse URL flag to allow replaying a completed puzzle without recording stats
     const urlParams = new URLSearchParams(window.location.search);
@@ -59,6 +62,17 @@ class CrosswordPuzzle {
     this.updateMobileNavigationVisibility();
     this.setupMobileDynamicSizing();
     this.blurClues();
+
+    // Fetch user's median time early (if username exists) to avoid delay in leaderboard
+    if (this.userName) {
+      this.calculateUserAverageTime()
+        .then(averageTime => {
+          this.userAverageTime = averageTime;
+        })
+        .catch(error => {
+          console.warn('Failed to pre-fetch user median time:', error);
+        });
+    }
 
     // If reset mode is enabled, skip completion restore and start fresh
     if (this.isResetPlaythrough) {
@@ -676,20 +690,25 @@ class CrosswordPuzzle {
     const seconds = Math.floor((elapsedTime % 60000) / 1000);
     const timeDisplay = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
-    // Show both timer and incorrect letter count if there are incorrect letters
-    let display = timeDisplay;
-    if (this._incorrectCount > 0 && !this.isCompleted) {
-      display = `${timeDisplay} - ${this._incorrectCount} letter${this._incorrectCount === 1 ? '' : 's'} incorrect`;
+    // Create desktop and mobile displays
+    let desktopDisplay = timeDisplay;
+    let mobileDisplay = timeDisplay;
+    
+    if (this._incorrectCount > 0 && !this.isCompleted && this._isPuzzleFullyFilled) {
+      // Desktop: Full text format
+      desktopDisplay = `${timeDisplay} - ${this._incorrectCount} letter${this._incorrectCount === 1 ? '' : 's'} incorrect`;
+      // Mobile: Compact format with emoji
+      mobileDisplay = `${timeDisplay} - ${this._incorrectCount} ❌`;
     }
 
-    // Update all timer displays (desktop, mobile menu, and mobile main)
+    // Update timer displays with appropriate format
     const desktopTimer = document.getElementById('timer');
     const mobileTimer = document.getElementById('mobileTimer');
     const mobileTimerMain = document.getElementById('mobileTimerMain');
 
-    if (desktopTimer) desktopTimer.textContent = display;
-    if (mobileTimer) mobileTimer.textContent = display;
-    if (mobileTimerMain) mobileTimerMain.textContent = display;
+    if (desktopTimer) desktopTimer.textContent = desktopDisplay;
+    if (mobileTimer) mobileTimer.textContent = mobileDisplay;
+    if (mobileTimerMain) mobileTimerMain.textContent = mobileDisplay;
   }
 
   formatTime(milliseconds) {
@@ -970,6 +989,72 @@ class CrosswordPuzzle {
     return null;
   }
 
+  // Check if puzzle answers contain any numbers
+  hasNumbersInAnswers() {
+    for (const cell of this.puzzle.cells) {
+      if (cell && cell.answer && /\d/.test(cell.answer)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Find clues by number (returns array of clue indices: [acrossClueIndex, downClueIndex] or [clueIndex] if only one exists)
+  findCluesByNumber(number) {
+    const acrossClueList = this.puzzle.clueLists.find(list => list.name.toLowerCase() === 'across');
+    const downClueList = this.puzzle.clueLists.find(list => list.name.toLowerCase() === 'down');
+
+    const acrossClue = acrossClueList?.clues.find(clueIndex => {
+      const clue = this.puzzle.clues[clueIndex];
+      return clue && clue.label === String(number);
+    });
+
+    const downClue = downClueList?.clues.find(clueIndex => {
+      const clue = this.puzzle.clues[clueIndex];
+      return clue && clue.label === String(number);
+    });
+
+    const clues = [];
+    if (acrossClue !== undefined) clues.push(acrossClue);
+    if (downClue !== undefined) clues.push(downClue);
+
+    return clues;
+  }
+
+  // Select clue by number, cycling through across and down if both exist
+  selectClueByNumber(number) {
+    const clues = this.findCluesByNumber(number);
+
+    if (clues.length === 0) {
+      return false; // No clue with this number
+    }
+
+    if (clues.length === 1) {
+      // Only one clue with this number, select it
+      this.selectClue(clues[0]);
+      this.lastSelectedClueNumber = number;
+      return true;
+    }
+
+    // Both across and down exist - cycle through them
+    if (this.lastSelectedClueNumber === number && this.selectedClue !== null) {
+      // We're on the same number, cycle to the other direction
+      const currentIndex = clues.indexOf(this.selectedClue);
+      if (currentIndex !== -1) {
+        const nextIndex = (currentIndex + 1) % clues.length;
+        this.selectClue(clues[nextIndex]);
+        this.lastSelectedClueNumber = number;
+        return true;
+      }
+    }
+
+    // First time selecting this number, or not currently on this number
+    // Start with across (first in array)
+    this.selectClue(clues[0]);
+    this.lastSelectedClueNumber = number;
+    return true;
+  }
+
   selectCell(index, forceToggle = false) {
     const wrappers = document.querySelectorAll('.cell-wrapper');
     const clueItems = document.querySelectorAll('.clue-item');
@@ -1114,6 +1199,15 @@ class CrosswordPuzzle {
 
     this.selectedClue = clueIndex;
 
+    // Track the clue number for cycling
+    const clue = this.puzzle.clues[clueIndex];
+    if (clue && clue.label) {
+      const clueNumber = parseInt(clue.label, 10);
+      if (!isNaN(clueNumber)) {
+        this.lastSelectedClueNumber = clueNumber;
+      }
+    }
+
     const clueItem = document.querySelector(`[data-clue-index="${clueIndex}"]`);
     if (clueItem) {
       clueItem.classList.add('selected');
@@ -1122,7 +1216,6 @@ class CrosswordPuzzle {
     this.highlightWord(clueIndex);
 
     // Focus on first unfilled cell of the word, or first cell if all filled
-    const clue = this.puzzle.clues[clueIndex];
     let targetCellIndex = clue.cells[0]; // default to first cell
 
     // Find first unfilled cell
@@ -1214,7 +1307,7 @@ class CrosswordPuzzle {
 
     // Check completion and provide feedback if the cleanup resulted in a valid letter
     if (firstValidChar) {
-      const status = this.checkPuzzleCompletion();
+      this.checkPuzzleCompletion();
       // The incorrect count is now shown persistently in the timer display via checkPuzzleCompletion()
       if (this.showFeedback) {
         const cell = this.puzzle.cells[cellIndex];
@@ -1257,8 +1350,15 @@ class CrosswordPuzzle {
       }
     });
 
-    // Update the incorrect count for persistent display
-    this._incorrectCount = incorrectCount;
+    // Track if puzzle is fully filled for display purposes
+    this._isPuzzleFullyFilled = allFilled;
+    
+    // Update the incorrect count only when puzzle is fully filled
+    if (allFilled) {
+      this._incorrectCount = incorrectCount;
+    } else {
+      this._incorrectCount = 0; // Don't show count until puzzle is fully filled
+    }
 
     if (allFilled && allCorrect) {
       // Clear incorrect count when puzzle is completed
@@ -1267,7 +1367,7 @@ class CrosswordPuzzle {
       return { allFilled: true, allCorrect: true, incorrectCount: 0 };
     }
 
-    // Update timer display to show current incorrect count
+    // Update timer display to show current incorrect count (only if fully filled)
     this.updateTimerDisplay();
 
     return { allFilled, allCorrect, incorrectCount };
@@ -1379,10 +1479,17 @@ class CrosswordPuzzle {
       return;
     }
 
-    // Only fetch streak if this is today's puzzle
+    // Build base share text synchronously (without streak) to copy immediately
+    // This preserves user gesture context on mobile
+    const userNameText = this.userName ? `👤 ${this.userName}\n` : '';
+    let shareText = `🧩 ${puzzleTitle} completed!\n${userNameText}⏱️ Time: ${completionTime}\n🔗 Play today's crossword: https://manchat.men/mini`;
+
+    // Copy immediately to preserve user gesture context (critical for mobile)
+    const copyPromise = this.copyToClipboard(shareText, false);
+
+    // Only fetch streak if this is today's puzzle (async, after copy)
     const today = new Date().toISOString().split('T')[0];
     const isToday = this.puzzle.date === today;
-    let streakText = '';
 
     if (isToday && this.userName) {
       try {
@@ -1396,7 +1503,11 @@ class CrosswordPuzzle {
           const streak = data.streak || 0;
           // Show streak if it's >= 1
           if (streak >= 1) {
-            streakText = `🔥 Current Streak: ${streak} day${streak !== 1 ? 's' : ''}\n`;
+            const streakText = `🔥 Current Streak: ${streak} day${streak !== 1 ? 's' : ''}\n`;
+            // Update share text with streak and copy again (optional enhancement)
+            const enhancedShareText = `🧩 ${puzzleTitle} completed!\n${userNameText}⏱️ Time: ${completionTime}\n${streakText}🔗 Play today's crossword: https://manchat.men/mini`;
+            // Try to copy enhanced version, but don't show error if it fails (already copied base version)
+            this.copyToClipboard(enhancedShareText, false).catch(() => {});
           }
         }
       } catch (error) {
@@ -1404,22 +1515,29 @@ class CrosswordPuzzle {
       }
     }
 
-    const userNameText = this.userName ? `👤 ${this.userName}\n` : '';
-    const shareText = `🧩 ${puzzleTitle} completed!\n${userNameText}⏱️ Time: ${completionTime}\n${streakText}🔗 Play today's crossword: https://manchat.men/mini`;
+    // Wait for initial copy to complete
+    await copyPromise;
+  }
 
-    // Try to use the modern Clipboard API
+  copyToClipboard(text, isLeaderboard = false) {
+    // Try to use the modern Clipboard API first (preserves user gesture context)
     if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard
-        .writeText(shareText)
+      return navigator.clipboard
+        .writeText(text)
         .then(() => {
-          this.showPersistentShareFeedback('Score copied to clipboard!');
+          if (isLeaderboard) {
+            this.showShareLeaderboardFeedback('Leaderboard copied to clipboard!');
+          } else {
+            this.showPersistentShareFeedback('Score copied to clipboard!');
+          }
         })
         .catch(() => {
-          this.fallbackCopyToClipboard(shareText);
+          // Fallback if clipboard API fails
+          return this.fallbackCopyToClipboard(text, isLeaderboard);
         });
     } else {
       // Fallback for older browsers or non-HTTPS contexts
-      this.fallbackCopyToClipboard(shareText);
+      return Promise.resolve(this.fallbackCopyToClipboard(text, isLeaderboard));
     }
   }
 
@@ -1427,29 +1545,59 @@ class CrosswordPuzzle {
     // Create a temporary textarea element
     const textArea = document.createElement('textarea');
     textArea.value = text;
+    // Use absolute positioning that works better on mobile
     textArea.style.position = 'fixed';
-    textArea.style.left = '-999999px';
-    textArea.style.top = '-999999px';
+    textArea.style.left = '0';
+    textArea.style.top = '0';
+    textArea.style.width = '2em';
+    textArea.style.height = '2em';
+    textArea.style.padding = '0';
+    textArea.style.border = 'none';
+    textArea.style.outline = 'none';
+    textArea.style.boxShadow = 'none';
+    textArea.style.background = 'transparent';
+    textArea.style.opacity = '0';
+    textArea.setAttribute('readonly', '');
+    textArea.setAttribute('aria-hidden', 'true');
     document.body.appendChild(textArea);
-    textArea.focus();
-    textArea.select();
+
+    // Select text - use both focus/select and setSelectionRange for better mobile support
+    if (navigator.userAgent.match(/ipad|iphone/i)) {
+      // iOS specific handling
+      const range = document.createRange();
+      range.selectNodeContents(textArea);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      textArea.setSelectionRange(0, 999999);
+    } else {
+      textArea.focus();
+      textArea.select();
+    }
 
     try {
-      document.execCommand('copy');
-      if (isLeaderboard) {
-        this.showShareLeaderboardFeedback('Leaderboard copied to clipboard!');
+      const successful = document.execCommand('copy');
+      if (successful) {
+        if (isLeaderboard) {
+          this.showShareLeaderboardFeedback('Leaderboard copied to clipboard!');
+        } else {
+          this.showPersistentShareFeedback('Score copied to clipboard!');
+        }
       } else {
-        this.showPersistentShareFeedback('Score copied to clipboard!');
+        throw new Error('execCommand copy failed');
       }
-    } catch {
+    } catch (err) {
       if (isLeaderboard) {
         this.showShareLeaderboardFeedback('Unable to copy to clipboard');
       } else {
         this.showPersistentShareFeedback('Unable to copy to clipboard');
       }
+    } finally {
+      // Clean up
+      if (document.body.contains(textArea)) {
+        document.body.removeChild(textArea);
+      }
     }
-
-    document.body.removeChild(textArea);
   }
 
   showCopyFeedback(message) {
@@ -1517,11 +1665,22 @@ class CrosswordPuzzle {
       previousRank = entry.rank;
     });
 
-    // Only fetch streaks if this is today's puzzle
+    // Build base share text synchronously (without streaks) to copy immediately
+    // This preserves user gesture context on mobile
+    let shareText = `🏆 ${puzzleTitle} Leaderboard\n\n`;
+    entries.forEach(entry => {
+      const rank = entry.rank;
+      const rankEmoji = this.getRankEmoji(rank);
+      shareText += `${rankEmoji} ${entry.name} - ${entry.timeFormatted}\n`;
+    });
+    shareText += `\n🔗 Play today's crossword: https://manchat.men/mini`;
+
+    // Copy immediately to preserve user gesture context (critical for mobile)
+    const copyPromise = this.copyToClipboard(shareText, true);
+
+    // Only fetch streaks if this is today's puzzle (async, after copy)
     const today = new Date().toISOString().split('T')[0];
     const isToday = this.puzzle.date === today;
-
-    let streakMap = new Map();
 
     if (isToday) {
       // Fetch streaks for all players in a single request
@@ -1541,54 +1700,36 @@ class CrosswordPuzzle {
         if (response.ok) {
           const streaks = await response.json();
           // Convert object to Map
-          streakMap = new Map(Object.entries(streaks));
-        } else {
-          console.warn('Failed to fetch streaks:', response.status);
+          const streakMap = new Map(Object.entries(streaks));
+
+          // Default to 0 for any players not in the response
+          entries.forEach(entry => {
+            if (!streakMap.has(entry.name)) {
+              streakMap.set(entry.name, 0);
+            }
+          });
+
+          // Build enhanced share text with streaks
+          let enhancedShareText = `🏆 ${puzzleTitle} Leaderboard\n\n`;
+          entries.forEach(entry => {
+            const rank = entry.rank;
+            const rankEmoji = this.getRankEmoji(rank);
+            const streak = streakMap.get(entry.name) || 0;
+            const streakText = streak > 1 ? ` (🔥 ${streak} day streak)` : '';
+            enhancedShareText += `${rankEmoji} ${entry.name} - ${entry.timeFormatted}${streakText}\n`;
+          });
+          enhancedShareText += `\n🔗 Play today's crossword: https://manchat.men/mini`;
+
+          // Try to copy enhanced version, but don't show error if it fails (already copied base version)
+          this.copyToClipboard(enhancedShareText, true).catch(() => {});
         }
       } catch (error) {
         console.warn('Failed to fetch streaks:', error);
       }
-
-      // Default to 0 for any players not in the response
-      entries.forEach(entry => {
-        if (!streakMap.has(entry.name)) {
-          streakMap.set(entry.name, 0);
-        }
-      });
     }
 
-    // Build the share text
-    let shareText = `🏆 ${puzzleTitle} Leaderboard\n\n`;
-
-    entries.forEach(entry => {
-      const rank = entry.rank;
-      const rankEmoji = this.getRankEmoji(rank);
-
-      // Only add streak if it's today's puzzle and streak is longer than 1 game
-      let streakText = '';
-      if (isToday) {
-        const streak = streakMap.get(entry.name) || 0;
-        streakText = streak > 1 ? ` (🔥 ${streak} day streak)` : '';
-      }
-
-      shareText += `${rankEmoji} ${entry.name} - ${entry.timeFormatted}${streakText}\n`;
-    });
-
-    shareText += `\n🔗 Play today's crossword: https://manchat.men/mini`;
-
-    // Copy to clipboard
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard
-        .writeText(shareText)
-        .then(() => {
-          this.showShareLeaderboardFeedback('Leaderboard copied to clipboard!');
-        })
-        .catch(() => {
-          this.fallbackCopyToClipboard(shareText, true);
-        });
-    } else {
-      this.fallbackCopyToClipboard(shareText, true);
-    }
+    // Wait for initial copy to complete
+    await copyPromise;
   }
 
   showPersistentShareFeedback(message) {
@@ -1980,6 +2121,23 @@ class CrosswordPuzzle {
       }
     }
 
+    // Handle number keys for clue navigation (only if puzzle has no numbers in answers)
+    // Allow this even when no cell is selected for better UX
+    if (
+      event.key >= '0' &&
+      event.key <= '9' &&
+      !this.hasNumbersInAnswers() &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.altKey
+    ) {
+      const number = parseInt(event.key, 10);
+      if (this.selectClueByNumber(number)) {
+        event.preventDefault();
+        return;
+      }
+    }
+
     if (this.selectedCell === null) return;
 
     const { width, height } = this.puzzle.dimensions;
@@ -2343,13 +2501,13 @@ class CrosswordPuzzle {
       const data = await response.json();
       const streak = data.streak || 0;
 
-      // Display streak
+      // Display streak (only if at least 2 days)
       const streakDisplay = document.getElementById('streakDisplay');
       const streakCount = document.getElementById('streakCount');
 
       if (streakDisplay && streakCount) {
         streakCount.textContent = streak;
-        streakDisplay.style.display = streak > 0 ? 'block' : 'none';
+        streakDisplay.style.display = streak >= 2 ? 'block' : 'none';
       }
     } catch (error) {
       console.warn('Failed to load streak:', error);
@@ -2546,7 +2704,7 @@ class CrosswordPuzzle {
       const displayMinutes = minutes.toString().padStart(2, '0');
 
       return `Completed ${displayHours}:${displayMinutes}${ampm}`;
-    } catch (e) {
+    } catch {
       // If parsing fails, return empty string (no tooltip)
       return '';
     }
@@ -2558,7 +2716,35 @@ class CrosswordPuzzle {
     return div.innerHTML;
   }
 
-  updateShareButtonVisibility() {
+  async calculateUserAverageTime() {
+    if (!this.userName) {
+      return null;
+    }
+
+    try {
+      // Fetch median time from backend (endpoint name kept as average-time for compatibility)
+      const response = await fetch(
+        `mini/statistics/average-time/${encodeURIComponent(this.userName)}`,
+        {
+          method: 'GET',
+          mode: 'cors',
+          cache: 'no-cache',
+        }
+      );
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const data = await response.json();
+      return data.average_time || null; // Field name kept as average_time for compatibility
+    } catch (error) {
+      console.warn('Failed to fetch user median time:', error);
+      return null;
+    }
+  }
+
+  async updateShareButtonVisibility() {
     const shareSection = document.getElementById('leaderboardShareSection');
     if (shareSection) {
       // Show share section if there's at least 1 time on the leaderboard
@@ -2576,8 +2762,40 @@ class CrosswordPuzzle {
     if (this.isCompleted) {
       // Update the completion time display in the modal
       const completionTimeElement = document.getElementById('leaderboardCompletionTime');
+      const completionTimeComparison = document.getElementById('completionTimeComparison');
       if (completionTimeElement) {
-        completionTimeElement.textContent = this.formatTime(this.elapsedTime);
+        const timeText = this.formatTime(this.elapsedTime);
+        completionTimeElement.textContent = timeText;
+
+        // Use cached median time if available, otherwise try to fetch it
+        let medianTime = this.userAverageTime;
+        if (medianTime === null && this.userName) {
+          // Fallback: fetch if not already cached (shouldn't happen, but just in case)
+          medianTime = await this.calculateUserAverageTime();
+          this.userAverageTime = medianTime;
+        }
+
+        if (medianTime !== null && medianTime > 0) {
+          // Convert elapsedTime from milliseconds to seconds for comparison
+          // (medianTime from database is already in seconds)
+          const elapsedTimeInSeconds = Math.floor(this.elapsedTime / 1000);
+
+          const difference = elapsedTimeInSeconds - medianTime;
+          let comparisonText = '';
+
+          if (difference === 0) {
+            comparisonText = ' (equal to average)';
+          } else if (difference > 0) {
+            comparisonText = ` (${difference} second${difference !== 1 ? 's' : ''} slower than average)`;
+          } else {
+            const absDifference = Math.abs(difference);
+            comparisonText = ` (${absDifference} second${absDifference !== 1 ? 's' : ''} faster than average)`;
+          }
+
+          completionTimeComparison.textContent = comparisonText;
+        } else {
+          completionTimeComparison.textContent = '';
+        }
       }
     }
   }
