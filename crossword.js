@@ -1479,12 +1479,25 @@ class CrosswordPuzzle {
       return;
     }
 
-    // Build base share text synchronously (without streak) to copy immediately
-    // This preserves user gesture context on mobile
     const userNameText = this.userName ? `👤 ${this.userName}\n` : '';
-    let shareText = `🧩 ${puzzleTitle} completed!\n${userNameText}⏱️ Time: ${completionTime}\n🔗 Play today's crossword: https://manchat.men/mini`;
+    const shareText = `🧩 ${puzzleTitle} completed!\n${userNameText}⏱️ Time: ${completionTime}\n🔗 Play today's crossword: https://manchat.men/mini`;
 
-    // Copy immediately to preserve user gesture context (critical for mobile)
+    // Use Web Share API when available (required for iOS - clipboard API is unreliable there)
+    if (navigator.share && typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: puzzleTitle, text: shareText });
+        this.showPersistentShareFeedback('Shared!');
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          this.showPersistentShareFeedback('Unable to share');
+        }
+      }
+      return;
+    }
+
+    // Desktop path: copy to clipboard, then try to enhance with streak data
+    // Build base share text synchronously to copy immediately
+    // This preserves user gesture context on mobile
     const copyPromise = this.copyToClipboard(shareText, false);
 
     // Only fetch streak if this is today's puzzle (async, after copy)
@@ -1665,8 +1678,7 @@ class CrosswordPuzzle {
       previousRank = entry.rank;
     });
 
-    // Build base share text synchronously (without streaks) to copy immediately
-    // This preserves user gesture context on mobile
+    // Build base share text
     let shareText = `🏆 ${puzzleTitle} Leaderboard\n\n`;
     entries.forEach(entry => {
       const rank = entry.rank;
@@ -1675,6 +1687,20 @@ class CrosswordPuzzle {
     });
     shareText += `\n🔗 Play today's crossword: https://manchat.men/mini`;
 
+    // Use Web Share API when available (required for iOS - clipboard API is unreliable there)
+    if (navigator.share && typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: `${puzzleTitle} Leaderboard`, text: shareText });
+        this.showShareLeaderboardFeedback('Shared!');
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          this.showShareLeaderboardFeedback('Unable to share');
+        }
+      }
+      return;
+    }
+
+    // Desktop path: copy to clipboard, then try to enhance with streak data
     // Copy immediately to preserve user gesture context (critical for mobile)
     const copyPromise = this.copyToClipboard(shareText, true);
 
