@@ -1482,8 +1482,8 @@ class CrosswordPuzzle {
     const userNameText = this.userName ? `👤 ${this.userName}\n` : '';
     const shareText = `🧩 ${puzzleTitle} completed!\n${userNameText}⏱️ Time: ${completionTime}\n🔗 Play today's crossword: https://manchat.men/mini`;
 
-    // Use Web Share API when available (required for iOS - clipboard API is unreliable there)
-    if (navigator.share && typeof navigator.share === 'function') {
+    // Use Web Share API only on iOS where clipboard API is unreliable
+    if (this.isIOSDevice() && navigator.share && typeof navigator.share === 'function') {
       try {
         await navigator.share({ title: puzzleTitle, text: shareText });
         this.showPersistentShareFeedback('Shared!');
@@ -1495,7 +1495,7 @@ class CrosswordPuzzle {
       return;
     }
 
-    // Desktop path: copy to clipboard, then try to enhance with streak data
+    // Desktop/non-iOS path: copy to clipboard, then try to enhance with streak data
     // Build base share text synchronously to copy immediately
     // This preserves user gesture context on mobile
     const copyPromise = this.copyToClipboard(shareText, false);
@@ -1530,6 +1530,10 @@ class CrosswordPuzzle {
 
     // Wait for initial copy to complete
     await copyPromise;
+  }
+
+  isIOSDevice() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   }
 
   copyToClipboard(text, isLeaderboard = false) {
@@ -1687,8 +1691,8 @@ class CrosswordPuzzle {
     });
     shareText += `\n🔗 Play today's crossword: https://manchat.men/mini`;
 
-    // Use Web Share API when available (required for iOS - clipboard API is unreliable there)
-    if (navigator.share && typeof navigator.share === 'function') {
+    // Use Web Share API only on iOS where clipboard API is unreliable
+    if (this.isIOSDevice() && navigator.share && typeof navigator.share === 'function') {
       try {
         await navigator.share({ title: `${puzzleTitle} Leaderboard`, text: shareText });
         this.showShareLeaderboardFeedback('Shared!');
@@ -1700,7 +1704,7 @@ class CrosswordPuzzle {
       return;
     }
 
-    // Desktop path: copy to clipboard, then try to enhance with streak data
+    // Desktop/non-iOS path: copy to clipboard, then try to enhance with streak data
     // Copy immediately to preserve user gesture context (critical for mobile)
     const copyPromise = this.copyToClipboard(shareText, true);
 
