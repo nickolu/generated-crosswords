@@ -353,7 +353,13 @@ class CrosswordStatistics {
     return completions.filter(c => new Date(c.date + 'T00:00:00') >= cutoff);
   }
 
-  computeMovingAverage(completions, windowDays = 14) {
+  medianOf(values) {
+    const sorted = [...values].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+  }
+
+  computeMovingMedian(completions, windowDays = 14) {
     const sorted = [...completions].sort((a, b) => a.date.localeCompare(b.date));
 
     return sorted.map(point => {
@@ -368,8 +374,7 @@ class CrosswordStatistics {
         })
         .map(c => c.time);
 
-      const avg = timesInWindow.reduce((sum, t) => sum + t, 0) / timesInWindow.length;
-      return { date: point.date, avgTime: avg };
+      return { date: point.date, medianTime: this.medianOf(timesInWindow) };
     });
   }
 
@@ -403,9 +408,9 @@ class CrosswordStatistics {
       this.userStats.completions,
       this.timeSeriesRange
     );
-    const movingAvg = this.computeMovingAverage(filtered, 14);
+    const movingMedian = this.computeMovingMedian(filtered, 14);
     const ctx = canvas.getContext('2d');
-    this.drawTimeSeriesChart(ctx, canvas, filtered, movingAvg);
+    this.drawTimeSeriesChart(ctx, canvas, filtered, movingMedian);
   }
 
   parseChartDate(dateStr) {
@@ -420,7 +425,7 @@ class CrosswordStatistics {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
-  drawTimeSeriesChart(ctx, canvas, completions, movingAvg) {
+  drawTimeSeriesChart(ctx, canvas, completions, movingMedian) {
     const width = canvas.width;
     const height = canvas.height;
     const padding = { top: 30, right: 30, bottom: 60, left: 70 };
@@ -496,14 +501,14 @@ class CrosswordStatistics {
     ctx.lineTo(width - padding.right, height - padding.bottom);
     ctx.stroke();
 
-    // 14-day moving average line
-    if (movingAvg.length > 1) {
+    // 14-day moving median line
+    if (movingMedian.length > 1) {
       ctx.strokeStyle = '#e67e22';
       ctx.lineWidth = 2.5;
       ctx.beginPath();
-      movingAvg.forEach((point, index) => {
+      movingMedian.forEach((point, index) => {
         const x = xScale(this.parseChartDate(point.date));
-        const y = yScale(point.avgTime);
+        const y = yScale(point.medianTime);
         if (index === 0) {
           ctx.moveTo(x, y);
         } else {
@@ -544,7 +549,7 @@ class CrosswordStatistics {
     ctx.lineTo(padding.left + 140, legendY);
     ctx.stroke();
     ctx.fillStyle = '#333';
-    ctx.fillText('14-day avg', padding.left + 146, legendY + 4);
+    ctx.fillText('14-day median', padding.left + 146, legendY + 4);
   }
 
   getOrdinalSuffix(num) {
