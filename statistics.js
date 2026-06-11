@@ -4,10 +4,13 @@ class CrosswordStatistics {
     this.userStats = {
       solveTimes: [],
       places: [],
+      completions: [],
       totalCompleted: 0,
       averageTime: 0,
       bestTime: null,
     };
+    this.timeSeriesRange = 'all';
+    this.timeSeriesFiltersInitialized = false;
     this.allPlayersStats = {}; // Store stats for all players (all-time)
     this.allPlayersStatsByYear = {}; // Store stats for all players by year
     this.currentYear = null; // Currently selected year for pagination
@@ -82,6 +85,7 @@ class CrosswordStatistics {
 
       await this.loadUserStatistics();
       this.renderSolveTimesChart();
+      this.renderTimeSeriesChart();
       this.updateStatsSummary();
       await this.renderPlayerComparisonTable();
     } catch (error) {
@@ -286,6 +290,7 @@ class CrosswordStatistics {
 
   processStatistics(completions) {
     this.userStats.totalCompleted = completions.length;
+    this.userStats.completions = [...completions].sort((a, b) => a.date.localeCompare(b.date));
     this.userStats.solveTimes = completions.map(c => c.time);
     this.userStats.places = completions.map(c => c.rank);
 
@@ -332,6 +337,214 @@ class CrosswordStatistics {
     });
 
     this.drawBarChart(ctx, canvas, bins, binLabels, 'Solve Times', '#4a90e2');
+  }
+
+  filterCompletionsByRange(completions, range) {
+    if (range === 'all') return completions;
+
+    const cutoff = new Date();
+    cutoff.setHours(0, 0, 0, 0);
+    if (range === 'month') {
+      cutoff.setDate(cutoff.getDate() - 30);
+    } else if (range === 'year') {
+      cutoff.setDate(cutoff.getDate() - 365);
+    }
+
+    return completions.filter(c => new Date(c.date + 'T00:00:00') >= cutoff);
+  }
+
+  computeMovingAverage(completions, windowDays = 14) {
+    const sorted = [...completions].sort((a, b) => a.date.localeCompare(b.date));
+
+    return sorted.map(point => {
+      const pointDate = new Date(point.date + 'T00:00:00');
+      const windowStart = new Date(pointDate);
+      windowStart.setDate(windowStart.getDate() - (windowDays - 1));
+
+      const timesInWindow = sorted
+        .filter(c => {
+          const d = new Date(c.date + 'T00:00:00');
+          return d >= windowStart && d <= pointDate;
+        })
+        .map(c => c.time);
+
+      const avg = timesInWindow.reduce((sum, t) => sum + t, 0) / timesInWindow.length;
+      return { date: point.date, avgTime: avg };
+    });
+  }
+
+  setupTimeSeriesFilters() {
+    if (this.timeSeriesFiltersInitialized) return;
+
+    const filters = document.getElementById('timeSeriesFilters');
+    if (!filters) return;
+
+    filters.querySelectorAll('[data-range]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        this.timeSeriesRange = e.target.getAttribute('data-range');
+        filters.querySelectorAll('[data-range]').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        this.renderTimeSeriesChart();
+      });
+    });
+
+    this.timeSeriesFiltersInitialized = true;
+  }
+
+  renderTimeSeriesChart() {
+    if (this.userStats.totalCompleted === 0) return;
+
+    const canvas = document.getElementById('timeSeriesChart');
+    if (!canvas) return;
+
+    this.setupTimeSeriesFilters();
+
+    const filtered = this.filterCompletionsByRange(
+      this.userStats.completions,
+      this.timeSeriesRange
+    );
+    const movingAvg = this.computeMovingAverage(filtered, 14);
+    const ctx = canvas.getContext('2d');
+    this.drawTimeSeriesChart(ctx, canvas, filtered, movingAvg);
+  }
+
+  parseChartDate(dateStr) {
+    return new Date(dateStr + 'T00:00:00').getTime();
+  }
+
+  formatAxisDate(dateStr, spanDays) {
+    const d = new Date(dateStr + 'T00:00:00');
+    if (spanDays > 365) {
+      return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    }
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  drawTimeSeriesChart(ctx, canvas, completions, movingAvg) {
+    const width = canvas.width;
+    const height = canvas.height;
+    const padding = { top: 30, right: 30, bottom: 60, left: 70 };
+    const chartWidth = width - padding.left - padding.right;
+    const chartHeight = height - padding.top - padding.bottom;
+
+    ctx.clearRect(0, 0, width, height);
+
+    if (completions.length === 0) {
+      ctx.fillStyle = '#666';
+      ctx.font = '24px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('No data for selected range', width / 2, height / 2);
+      return;
+    }
+
+    const dates = completions.map(c => this.parseChartDate(c.date));
+    const times = completions.map(c => c.time);
+    const minDate = Math.min(...dates);
+    const maxDate = Math.max(...dates);
+    const spanDays = (maxDate - minDate) / (1000 * 60 * 60 * 24);
+    const dateRange = maxDate - minDate || 1;
+
+    const minTime = Math.min(...times);
+    const maxTime = Math.max(...times);
+    const timePadding = Math.max(10, Math.round((maxTime - minTime) * 0.1));
+    const yMin = Math.max(0, minTime - timePadding);
+    const yMax = maxTime + timePadding;
+    const timeRange = yMax - yMin || 1;
+
+    const xScale = date => padding.left + ((date - minDate) / dateRange) * chartWidth;
+    const yScale = time => padding.top + chartHeight - ((time - yMin) / timeRange) * chartHeight;
+
+    // Grid lines and Y-axis labels
+    ctx.strokeStyle = '#e0e0e0';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = '#333';
+    ctx.font = '13px Arial';
+    ctx.textAlign = 'right';
+
+    const yTickCount = 5;
+    for (let i = 0; i <= yTickCount; i++) {
+      const time = yMin + (timeRange * i) / yTickCount;
+      const y = yScale(time);
+      ctx.beginPath();
+      ctx.moveTo(padding.left, y);
+      ctx.lineTo(width - padding.right, y);
+      ctx.stroke();
+      ctx.fillText(this.formatTimeFromSeconds(Math.round(time)), padding.left - 8, y + 4);
+    }
+
+    // X-axis date labels
+    ctx.textAlign = 'center';
+    const xTickCount = Math.min(6, completions.length);
+    for (let i = 0; i <= xTickCount; i++) {
+      const date = minDate + (dateRange * i) / xTickCount;
+      const x = xScale(date);
+      const d = new Date(date);
+      const labelDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      ctx.save();
+      ctx.translate(x, height - padding.bottom + 18);
+      ctx.rotate(-Math.PI / 6);
+      ctx.fillText(this.formatAxisDate(labelDate, spanDays), 0, 0);
+      ctx.restore();
+    }
+
+    // Axes
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padding.left, padding.top);
+    ctx.lineTo(padding.left, height - padding.bottom);
+    ctx.lineTo(width - padding.right, height - padding.bottom);
+    ctx.stroke();
+
+    // 14-day moving average line
+    if (movingAvg.length > 1) {
+      ctx.strokeStyle = '#e67e22';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      movingAvg.forEach((point, index) => {
+        const x = xScale(this.parseChartDate(point.date));
+        const y = yScale(point.avgTime);
+        if (index === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+      ctx.stroke();
+    }
+
+    // Individual puzzle times as dots
+    completions.forEach(point => {
+      const x = xScale(this.parseChartDate(point.date));
+      const y = yScale(point.time);
+      ctx.fillStyle = '#4a90e2';
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#2c5aa0';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    });
+
+    // Legend
+    ctx.font = '13px Arial';
+    ctx.textAlign = 'left';
+    const legendY = padding.top - 8;
+    ctx.fillStyle = '#4a90e2';
+    ctx.beginPath();
+    ctx.arc(padding.left + 6, legendY, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#333';
+    ctx.fillText('Puzzle time', padding.left + 16, legendY + 4);
+
+    ctx.strokeStyle = '#e67e22';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(padding.left + 110, legendY);
+    ctx.lineTo(padding.left + 140, legendY);
+    ctx.stroke();
+    ctx.fillStyle = '#333';
+    ctx.fillText('14-day avg', padding.left + 146, legendY + 4);
   }
 
   getOrdinalSuffix(num) {
