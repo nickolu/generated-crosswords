@@ -425,6 +425,63 @@ class CrosswordStatistics {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
+  catmullRomInterpolate(v0, v1, v2, v3, t) {
+    const t2 = t * t;
+    const t3 = t2 * t;
+    return (
+      0.5 *
+      (2 * v1 +
+        (-v0 + v2) * t +
+        (2 * v0 - 5 * v1 + 4 * v2 - v3) * t2 +
+        (-v0 + 3 * v1 - 3 * v2 + v3) * t3)
+    );
+  }
+
+  getSmoothMedianCoords(movingMedian, xScale, yScale, segmentsPerSpan = 6) {
+    const pts = movingMedian.map(p => ({
+      t: this.parseChartDate(p.date),
+      v: p.medianTime,
+    }));
+
+    if (pts.length < 2) {
+      return pts.map(p => ({ x: xScale(p.t), y: yScale(p.v) }));
+    }
+
+    const smooth = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[Math.max(0, i - 1)];
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      const p3 = pts[Math.min(pts.length - 1, i + 2)];
+      const startStep = i === 0 ? 0 : 1;
+
+      for (let s = startStep; s <= segmentsPerSpan; s++) {
+        const u = s / segmentsPerSpan;
+        const t = p1.t + u * (p2.t - p1.t);
+        const v = this.catmullRomInterpolate(p0.v, p1.v, p2.v, p3.v, u);
+        smooth.push({ x: xScale(t), y: yScale(v) });
+      }
+    }
+
+    return smooth;
+  }
+
+  strokeMedianLine(ctx, coords) {
+    if (coords.length < 2) return;
+
+    ctx.beginPath();
+    ctx.moveTo(coords[0].x, coords[0].y);
+    for (let i = 1; i < coords.length; i++) {
+      ctx.lineTo(coords[i].x, coords[i].y);
+    }
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 5.5;
+    ctx.stroke();
+    ctx.strokeStyle = '#e67e22';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+  }
+
   drawTimeSeriesChart(ctx, canvas, completions, movingMedian) {
     const width = canvas.width;
     const height = canvas.height;
@@ -514,26 +571,12 @@ class CrosswordStatistics {
       ctx.stroke();
     });
 
-    // 14-day moving median line (on top of dots)
+    // 14-day moving median line (on top of dots, Catmull-Rom smoothed)
     if (movingMedian.length > 1) {
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
-      ctx.beginPath();
-      movingMedian.forEach((point, index) => {
-        const x = xScale(this.parseChartDate(point.date));
-        const y = yScale(point.medianTime);
-        if (index === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
-      });
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 5.5;
-      ctx.stroke();
-      ctx.strokeStyle = '#e67e22';
-      ctx.lineWidth = 4;
-      ctx.stroke();
+      const smoothCoords = this.getSmoothMedianCoords(movingMedian, xScale, yScale);
+      this.strokeMedianLine(ctx, smoothCoords);
     }
 
     // Legend
