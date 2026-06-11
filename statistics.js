@@ -870,9 +870,9 @@ class CrosswordStatistics {
 
     paginationHTML += '</div>';
 
-    // Add event listeners for year buttons
+    // Add event listeners for year buttons (scoped to player comparison only)
     setTimeout(() => {
-      document.querySelectorAll('.year-btn').forEach(btn => {
+      tableContainer.querySelectorAll('.year-btn').forEach(btn => {
         btn.addEventListener('click', e => {
           const yearValue = e.target.getAttribute('data-year');
           if (yearValue === 'all') {
