@@ -501,24 +501,7 @@ class CrosswordStatistics {
     ctx.lineTo(width - padding.right, height - padding.bottom);
     ctx.stroke();
 
-    // 14-day moving median line
-    if (movingMedian.length > 1) {
-      ctx.strokeStyle = '#e67e22';
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      movingMedian.forEach((point, index) => {
-        const x = xScale(this.parseChartDate(point.date));
-        const y = yScale(point.medianTime);
-        if (index === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
-      });
-      ctx.stroke();
-    }
-
-    // Individual puzzle times as dots
+    // Individual puzzle times as dots (drawn beneath the median line)
     completions.forEach(point => {
       const x = xScale(this.parseChartDate(point.date));
       const y = yScale(point.time);
@@ -531,6 +514,28 @@ class CrosswordStatistics {
       ctx.stroke();
     });
 
+    // 14-day moving median line (on top of dots)
+    if (movingMedian.length > 1) {
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      movingMedian.forEach((point, index) => {
+        const x = xScale(this.parseChartDate(point.date));
+        const y = yScale(point.medianTime);
+        if (index === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 5.5;
+      ctx.stroke();
+      ctx.strokeStyle = '#e67e22';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+    }
+
     // Legend
     ctx.font = '13px Arial';
     ctx.textAlign = 'left';
@@ -542,11 +547,15 @@ class CrosswordStatistics {
     ctx.fillStyle = '#333';
     ctx.fillText('Puzzle time', padding.left + 16, legendY + 4);
 
-    ctx.strokeStyle = '#e67e22';
-    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(padding.left + 110, legendY);
     ctx.lineTo(padding.left + 140, legendY);
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 5.5;
+    ctx.stroke();
+    ctx.strokeStyle = '#e67e22';
+    ctx.lineWidth = 4;
     ctx.stroke();
     ctx.fillStyle = '#333';
     ctx.fillText('14-day median', padding.left + 146, legendY + 4);
