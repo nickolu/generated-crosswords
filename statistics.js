@@ -13,6 +13,8 @@ class CrosswordStatistics {
     this.timeSeriesFiltersInitialized = false;
     this.allPlayersStats = {}; // Store stats for all players (all-time)
     this.allPlayersStatsByYear = {}; // Store stats for all players by year
+    this.totalPuzzlesAllTime = 0;
+    this.totalPuzzlesByYear = {};
     this.currentYear = null; // Currently selected year for pagination
     this.availableYears = []; // List of years with data
     this.today = new Date();
@@ -214,6 +216,12 @@ class CrosswordStatistics {
 
         // Extract year from displayDate
         const displayYear = parseInt(displayDate.split('-')[0]);
+
+        this.totalPuzzlesAllTime++;
+        if (!this.totalPuzzlesByYear[displayYear]) {
+          this.totalPuzzlesByYear[displayYear] = 0;
+        }
+        this.totalPuzzlesByYear[displayYear]++;
 
         // Store rankings for all players using tie-aware ranks (all-time)
         allTimes.forEach(entry => {
@@ -804,6 +812,10 @@ class CrosswordStatistics {
     return score;
   }
 
+  getPlayerGamesPlayed(placeCounts) {
+    return Object.values(placeCounts).reduce((sum, count) => sum + count, 0);
+  }
+
   getYearWinner(year) {
     // Calculate winner(s) for a specific year
     // Returns the first winner if there's a tie (for display purposes)
@@ -906,9 +918,16 @@ class CrosswordStatistics {
       console.warn('Failed to fetch max streaks:', error);
     }
 
-    // Add max streak to each player object
+    // Add max streak and unplayed count to each player object
+    const totalPuzzles =
+      this.currentYear === null
+        ? this.totalPuzzlesAllTime
+        : this.totalPuzzlesByYear[this.currentYear] || 0;
+
     sortedPlayers.forEach(player => {
       player.maxStreak = maxStreaks[player.name] || 0;
+      const gamesPlayed = this.getPlayerGamesPlayed(player.placeCounts);
+      player.unplayed = Math.max(0, totalPuzzles - gamesPlayed);
     });
 
     // Build year pagination controls
@@ -958,6 +977,7 @@ class CrosswordStatistics {
             <th class="place-header">${this.getRankEmoji(5)}</th>
             <th class="place-header">${this.getRankEmoji(6)}</th>
             <th class="place-header">${this.getRankEmoji(7)}</th>
+            <th class="unplayed-header">❌</th>
             <th class="max-streak-header">Max Streak</th>
             <th class="score-header">Score</th>
           </tr>
@@ -1009,6 +1029,9 @@ class CrosswordStatistics {
           ${sevenPlusCount > 0 ? sevenPlusCount : ''}
         </td>
       `;
+
+      // Add unplayed games cell
+      tableHTML += `<td class="player-unplayed">${player.unplayed > 0 ? player.unplayed : ''}</td>`;
 
       // Add max streak cell
       tableHTML += `<td class="player-max-streak">${player.maxStreak}</td>`;

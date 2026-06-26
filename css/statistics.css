@@ -298,6 +298,12 @@
   min-width: 90px;
 }
 
+.unplayed-header {
+  min-width: 50px;
+  font-size: 18px;
+  text-transform: none;
+}
+
 .score-header {
   min-width: 70px;
 }
@@ -358,6 +364,13 @@
   font-family: 'Oswald', sans-serif;
   font-size: 15px;
   color: #f97316; /* Orange color for streak display */
+}
+
+.player-unplayed {
+  font-weight: 600;
+  font-family: 'Oswald', sans-serif;
+  font-size: 15px;
+  color: #e74c3c;
 }
 
 .player-score {
@@ -539,6 +552,10 @@
   }
 
   .player-max-streak {
+    font-size: 13px;
+  }
+
+  .player-unplayed {
     font-size: 13px;
   }
 
