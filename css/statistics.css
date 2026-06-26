@@ -45,6 +45,67 @@
 
 .chart-container {
   margin: 40px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.time-range-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  padding: 15px;
+  background: linear-gradient(
+    145deg,
+    var(--color-background-surface),
+    var(--color-background-surface-secondary)
+  );
+  border: 1px solid var(--color-border-primary);
+  border-radius: 6px;
+}
+
+.time-range-btn {
+  padding: 8px 16px;
+  background: linear-gradient(
+    145deg,
+    var(--color-background-surface),
+    var(--color-background-surface-secondary)
+  );
+  border: 1px solid var(--color-border-primary);
+  border-radius: 4px;
+  color: var(--color-text-primary);
+  font-weight: 600;
+  font-family: 'Oswald', sans-serif;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.time-range-btn:hover {
+  background: linear-gradient(
+    145deg,
+    var(--color-background-surface-hover),
+    var(--color-background-surface-hover-secondary)
+  );
+  border-color: var(--color-border-secondary);
+  box-shadow: 0 2px 8px var(--color-shadow-tertiary);
+  transform: translateY(-1px);
+}
+
+.time-range-btn.active {
+  background: linear-gradient(
+    145deg,
+    var(--color-selected-background),
+    var(--color-selected-background-secondary)
+  );
+  border-color: var(--color-selected-border);
+  color: var(--color-text-on-accent);
+  box-shadow: 0 2px 8px var(--color-shadow-ocean-light);
 }
 
 .chart-section {
@@ -496,7 +557,8 @@
     margin-bottom: 5px;
   }
 
-  .year-btn {
+  .year-btn,
+  .time-range-btn {
     padding: 6px 12px;
     font-size: 12px;
   }

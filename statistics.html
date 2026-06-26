@@ -53,6 +53,20 @@
 
       <div class="chart-container">
         <div class="chart-section">
+          <h2 class="chart-title">Solve Times Over Time</h2>
+          <div class="chart-subtitle">Individual puzzle times with 14-day moving median</div>
+          <div class="time-range-pagination" id="timeSeriesFilters">
+            <span class="year-pagination-label">Range:</span>
+            <button class="time-range-btn" data-range="month">Past Month</button>
+            <button class="time-range-btn" data-range="year">Past Year</button>
+            <button class="time-range-btn active" data-range="all">All Time</button>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="timeSeriesChart" width="800" height="350"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-section">
           <h2 class="chart-title">Solve Times Distribution</h2>
           <div class="chart-subtitle">Time in 20-second intervals (up to 4 minutes)</div>
           <div class="chart-wrapper">
