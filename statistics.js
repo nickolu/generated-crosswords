@@ -11,8 +11,13 @@ class CrosswordStatistics {
     };
     this.timeSeriesRange = 'all';
     this.timeSeriesFiltersInitialized = false;
+    this.timeSeriesHoverInitialized = false;
+    this.timeSeriesHover = null;
+    this.timeSeriesChartData = null;
     this.allPlayersStats = {}; // Store stats for all players (all-time)
     this.allPlayersStatsByYear = {}; // Store stats for all players by year
+    this.totalPuzzlesAllTime = 0;
+    this.totalPuzzlesByYear = {};
     this.currentYear = null; // Currently selected year for pagination
     this.availableYears = []; // List of years with data
     this.today = new Date();
@@ -215,6 +220,12 @@ class CrosswordStatistics {
         // Extract year from displayDate
         const displayYear = parseInt(displayDate.split('-')[0]);
 
+        this.totalPuzzlesAllTime++;
+        if (!this.totalPuzzlesByYear[displayYear]) {
+          this.totalPuzzlesByYear[displayYear] = 0;
+        }
+        this.totalPuzzlesByYear[displayYear]++;
+
         // Store rankings for all players using tie-aware ranks (all-time)
         allTimes.forEach(entry => {
           const rank = entry.rank;
@@ -359,7 +370,7 @@ class CrosswordStatistics {
     return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
   }
 
-  computeMovingMedian(completions, windowDays = 14) {
+  computeMovingMedian(completions, windowDays = 30) {
     const sorted = [...completions].sort((a, b) => a.date.localeCompare(b.date));
 
     return sorted.map(point => {
@@ -408,9 +419,128 @@ class CrosswordStatistics {
       this.userStats.completions,
       this.timeSeriesRange
     );
-    const movingMedian = this.computeMovingMedian(filtered, 14);
+    const movingMedian = this.computeMovingMedian(filtered, 30);
     const ctx = canvas.getContext('2d');
+    this.timeSeriesChartData = { completions: filtered, movingMedian };
+    this.timeSeriesHover = null;
+    const tooltip = document.getElementById('timeSeriesTooltip');
+    if (tooltip) tooltip.hidden = true;
     this.drawTimeSeriesChart(ctx, canvas, filtered, movingMedian);
+    this.setupTimeSeriesHover(canvas);
+  }
+
+  setupTimeSeriesHover(canvas) {
+    if (this.timeSeriesHoverInitialized) return;
+
+    const tooltip = document.getElementById('timeSeriesTooltip');
+    if (!tooltip) return;
+
+    canvas.addEventListener('mousemove', e => {
+      if (!this.timeSeriesChartState) return;
+
+      const { x, y } = this.getCanvasPointer(canvas, e);
+      const { padding, width, height, smoothCoords } = this.timeSeriesChartState;
+
+      const inPlotArea =
+        x >= padding.left &&
+        x <= width - padding.right &&
+        y >= padding.top &&
+        y <= height - padding.bottom;
+
+      if (!inPlotArea || !smoothCoords || smoothCoords.length < 2) {
+        if (this.timeSeriesHover !== null) {
+          this.timeSeriesHover = null;
+          this.redrawTimeSeriesChart(canvas);
+          this.updateTimeSeriesTooltip(null, canvas, tooltip);
+        }
+        canvas.style.cursor = 'default';
+        return;
+      }
+
+      const hoverPoint = this.interpolateSmoothAtX(smoothCoords, x);
+      if (!hoverPoint) return;
+
+      this.timeSeriesHover = hoverPoint;
+      canvas.style.cursor = 'crosshair';
+      this.redrawTimeSeriesChart(canvas);
+      this.updateTimeSeriesTooltip(hoverPoint, canvas, tooltip);
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      this.timeSeriesHover = null;
+      canvas.style.cursor = 'default';
+      this.redrawTimeSeriesChart(canvas);
+      this.updateTimeSeriesTooltip(null, canvas, tooltip);
+    });
+
+    this.timeSeriesHoverInitialized = true;
+  }
+
+  getCanvasPointer(canvas, event) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return {
+      x: (event.clientX - rect.left) * scaleX,
+      y: (event.clientY - rect.top) * scaleY,
+    };
+  }
+
+  interpolateSmoothAtX(coords, x) {
+    if (!coords.length) return null;
+
+    if (x <= coords[0].x) {
+      return { ...coords[0], x };
+    }
+    if (x >= coords[coords.length - 1].x) {
+      return { ...coords[coords.length - 1], x };
+    }
+
+    for (let i = 0; i < coords.length - 1; i++) {
+      const a = coords[i];
+      const b = coords[i + 1];
+      if (x >= a.x && x <= b.x) {
+        const span = b.x - a.x || 1;
+        const u = (x - a.x) / span;
+        return {
+          x,
+          y: a.y + u * (b.y - a.y),
+          t: a.t + u * (b.t - a.t),
+          v: a.v + u * (b.v - a.v),
+        };
+      }
+    }
+
+    return null;
+  }
+
+  formatTooltipDate(timestamp) {
+    const d = new Date(timestamp);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  updateTimeSeriesTooltip(hover, canvas, tooltip) {
+    if (!hover) {
+      tooltip.hidden = true;
+      return;
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    const displayX = (hover.x / canvas.width) * rect.width;
+    const displayY = (hover.y / canvas.height) * rect.height;
+
+    tooltip.hidden = false;
+    tooltip.textContent = `${this.formatTooltipDate(hover.t)} · ${this.formatTimeFromSeconds(Math.round(hover.v))}`;
+    tooltip.style.left = `${displayX}px`;
+    tooltip.style.top = `${displayY}px`;
+    tooltip.style.transform = 'translate(-50%, calc(-100% - 10px))';
+  }
+
+  redrawTimeSeriesChart(canvas) {
+    if (!this.timeSeriesChartData) return;
+    const { completions, movingMedian } = this.timeSeriesChartData;
+    const ctx = canvas.getContext('2d');
+    this.drawTimeSeriesChart(ctx, canvas, completions, movingMedian, this.timeSeriesHover);
   }
 
   parseChartDate(dateStr) {
@@ -444,7 +574,7 @@ class CrosswordStatistics {
     }));
 
     if (pts.length < 2) {
-      return pts.map(p => ({ x: xScale(p.t), y: yScale(p.v) }));
+      return pts.map(p => ({ x: xScale(p.t), y: yScale(p.v), t: p.t, v: p.v }));
     }
 
     const smooth = [];
@@ -459,7 +589,7 @@ class CrosswordStatistics {
         const u = s / segmentsPerSpan;
         const t = p1.t + u * (p2.t - p1.t);
         const v = this.catmullRomInterpolate(p0.v, p1.v, p2.v, p3.v, u);
-        smooth.push({ x: xScale(t), y: yScale(v) });
+        smooth.push({ x: xScale(t), y: yScale(v), t, v });
       }
     }
 
@@ -482,7 +612,28 @@ class CrosswordStatistics {
     ctx.stroke();
   }
 
-  drawTimeSeriesChart(ctx, canvas, completions, movingMedian) {
+  drawTimeSeriesHoverOverlay(ctx, hover, padding, height) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(230, 126, 34, 0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.moveTo(hover.x, padding.top);
+    ctx.lineTo(hover.x, height - padding.bottom);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = '#e67e22';
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(hover.x, hover.y, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  drawTimeSeriesChart(ctx, canvas, completions, movingMedian, hover = null) {
     const width = canvas.width;
     const height = canvas.height;
     const padding = { top: 30, right: 30, bottom: 60, left: 70 };
@@ -492,6 +643,7 @@ class CrosswordStatistics {
     ctx.clearRect(0, 0, width, height);
 
     if (completions.length === 0) {
+      this.timeSeriesChartState = null;
       ctx.fillStyle = '#666';
       ctx.font = '24px Arial';
       ctx.textAlign = 'center';
@@ -571,12 +723,24 @@ class CrosswordStatistics {
       ctx.stroke();
     });
 
-    // 14-day moving median line (on top of dots, Catmull-Rom smoothed)
+    // 30-day moving median line (on top of dots, Catmull-Rom smoothed)
+    let smoothCoords = null;
     if (movingMedian.length > 1) {
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
-      const smoothCoords = this.getSmoothMedianCoords(movingMedian, xScale, yScale);
+      smoothCoords = this.getSmoothMedianCoords(movingMedian, xScale, yScale);
       this.strokeMedianLine(ctx, smoothCoords);
+    }
+
+    this.timeSeriesChartState = {
+      padding,
+      width,
+      height,
+      smoothCoords,
+    };
+
+    if (hover && smoothCoords) {
+      this.drawTimeSeriesHoverOverlay(ctx, hover, padding, height);
     }
 
     // Legend
@@ -601,7 +765,7 @@ class CrosswordStatistics {
     ctx.lineWidth = 4;
     ctx.stroke();
     ctx.fillStyle = '#333';
-    ctx.fillText('14-day median', padding.left + 146, legendY + 4);
+    ctx.fillText('30-day median', padding.left + 146, legendY + 4);
   }
 
   getOrdinalSuffix(num) {
@@ -804,6 +968,10 @@ class CrosswordStatistics {
     return score;
   }
 
+  getPlayerGamesPlayed(placeCounts) {
+    return Object.values(placeCounts).reduce((sum, count) => sum + count, 0);
+  }
+
   getYearWinner(year) {
     // Calculate winner(s) for a specific year
     // Returns the first winner if there's a tie (for display purposes)
@@ -906,9 +1074,16 @@ class CrosswordStatistics {
       console.warn('Failed to fetch max streaks:', error);
     }
 
-    // Add max streak to each player object
+    // Add max streak and unplayed count to each player object
+    const totalPuzzles =
+      this.currentYear === null
+        ? this.totalPuzzlesAllTime
+        : this.totalPuzzlesByYear[this.currentYear] || 0;
+
     sortedPlayers.forEach(player => {
       player.maxStreak = maxStreaks[player.name] || 0;
+      const gamesPlayed = this.getPlayerGamesPlayed(player.placeCounts);
+      player.unplayed = Math.max(0, totalPuzzles - gamesPlayed);
     });
 
     // Build year pagination controls
@@ -958,6 +1133,7 @@ class CrosswordStatistics {
             <th class="place-header">${this.getRankEmoji(5)}</th>
             <th class="place-header">${this.getRankEmoji(6)}</th>
             <th class="place-header">${this.getRankEmoji(7)}</th>
+            <th class="unplayed-header">❌</th>
             <th class="max-streak-header">Max Streak</th>
             <th class="score-header">Score</th>
           </tr>
@@ -1009,6 +1185,9 @@ class CrosswordStatistics {
           ${sevenPlusCount > 0 ? sevenPlusCount : ''}
         </td>
       `;
+
+      // Add unplayed games cell
+      tableHTML += `<td class="player-unplayed">${player.unplayed > 0 ? player.unplayed : ''}</td>`;
 
       // Add max streak cell
       tableHTML += `<td class="player-max-streak">${player.maxStreak}</td>`;

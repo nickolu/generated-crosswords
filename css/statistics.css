@@ -143,6 +143,29 @@
   align-items: center;
 }
 
+.time-series-chart-wrapper {
+  position: relative;
+}
+
+.time-series-tooltip {
+  position: absolute;
+  pointer-events: none;
+  padding: 6px 10px;
+  background: rgba(44, 62, 80, 0.95);
+  color: #fff;
+  font-family: 'Roboto Condensed', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 4px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+}
+
+.time-series-tooltip[hidden] {
+  display: none;
+}
+
 .chart-wrapper canvas {
   max-width: 100%;
   height: auto;
@@ -298,6 +321,12 @@
   min-width: 90px;
 }
 
+.unplayed-header {
+  min-width: 50px;
+  font-size: 18px;
+  text-transform: none;
+}
+
 .score-header {
   min-width: 70px;
 }
@@ -358,6 +387,13 @@
   font-family: 'Oswald', sans-serif;
   font-size: 15px;
   color: #f97316; /* Orange color for streak display */
+}
+
+.player-unplayed {
+  font-weight: 600;
+  font-family: 'Oswald', sans-serif;
+  font-size: 15px;
+  color: #e74c3c;
 }
 
 .player-score {
@@ -539,6 +575,10 @@
   }
 
   .player-max-streak {
+    font-size: 13px;
+  }
+
+  .player-unplayed {
     font-size: 13px;
   }
 
