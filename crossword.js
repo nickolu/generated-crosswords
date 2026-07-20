@@ -24,6 +24,7 @@ class CrosswordPuzzle {
     this._incorrectCount = 0; // Track current incorrect letter count for persistent display
     this._isPuzzleFullyFilled = false; // Track if puzzle is fully filled to determine when to show incorrect count
     this.lastSelectedClueNumber = null; // Track last selected clue number for cycling through across/down
+    this.allowsNumbers = this.hasNumbersInAnswers(); // Digits in answers: allow entry, disable number-key clue shortcuts
 
     // Parse URL flag to allow replaying a completed puzzle without recording stats
     const urlParams = new URLSearchParams(window.location.search);
@@ -693,7 +694,7 @@ class CrosswordPuzzle {
     // Create desktop and mobile displays
     let desktopDisplay = timeDisplay;
     let mobileDisplay = timeDisplay;
-    
+
     if (this._incorrectCount > 0 && !this.isCompleted && this._isPuzzleFullyFilled) {
       // Desktop: Full text format
       desktopDisplay = `${timeDisplay} - ${this._incorrectCount} letter${this._incorrectCount === 1 ? '' : 's'} incorrect`;
@@ -1284,16 +1285,17 @@ class CrosswordPuzzle {
   }
 
   cleanupInput(event, cellIndex) {
-    // Simple cleanup for paste/edge cases - only ensures valid single letter
+    // Simple cleanup for paste/edge cases - only ensures valid single character
     const value = event.target.value.toUpperCase();
-    const firstValidChar = value.match(/[A-Z]/)?.[0] || '';
+    const validCharPattern = this.allowsNumbers ? /[A-Z0-9]/ : /[A-Z]/;
+    const firstValidChar = value.match(validCharPattern)?.[0] || '';
 
     if (firstValidChar && firstValidChar !== value) {
       // Input has invalid characters or multiple characters, clean it
       event.target.value = firstValidChar;
       this.userAnswers[cellIndex] = firstValidChar;
     } else if (firstValidChar) {
-      // Valid single letter - ensure userAnswers is updated (important for mobile browsers)
+      // Valid single character - ensure userAnswers is updated (important for mobile browsers)
       this.userAnswers[cellIndex] = firstValidChar;
     } else if (!firstValidChar && value) {
       // Input has no valid characters but has content, clear it
@@ -1305,7 +1307,7 @@ class CrosswordPuzzle {
     const wrapper = event.target.closest('.cell-wrapper');
     if (wrapper) this.updateCellEmptyState(wrapper, cellIndex);
 
-    // Check completion and provide feedback if the cleanup resulted in a valid letter
+    // Check completion and provide feedback if the cleanup resulted in a valid character
     if (firstValidChar) {
       this.checkPuzzleCompletion();
       // The incorrect count is now shown persistently in the timer display via checkPuzzleCompletion()
@@ -1352,7 +1354,7 @@ class CrosswordPuzzle {
 
     // Track if puzzle is fully filled for display purposes
     this._isPuzzleFullyFilled = allFilled;
-    
+
     // Update the incorrect count only when puzzle is fully filled
     if (allFilled) {
       this._incorrectCount = incorrectCount;
@@ -2156,7 +2158,7 @@ class CrosswordPuzzle {
     if (
       event.key >= '0' &&
       event.key <= '9' &&
-      !this.hasNumbersInAnswers() &&
+      !this.allowsNumbers &&
       !event.ctrlKey &&
       !event.metaKey &&
       !event.altKey
@@ -2176,15 +2178,16 @@ class CrosswordPuzzle {
 
     let nextIndex = null;
 
-    // Handle letter input directly in keydown for immediate response
-    if (event.key.match(/^[A-Za-z]$/)) {
+    // Handle letter (and digit, when answers contain numbers) input directly in keydown
+    const charPattern = this.allowsNumbers ? /^[A-Za-z0-9]$/ : /^[A-Za-z]$/;
+    if (event.key.match(charPattern)) {
       if (this.isCompleted) return;
       const letter = event.key.toUpperCase();
       const currentCell = document.querySelector(`input.cell[data-index="${this.selectedCell}"]`);
       const cell = this.puzzle.cells[this.selectedCell];
 
       if (currentCell && cell) {
-        // Set the letter in the cell
+        // Set the character in the cell
         currentCell.value = letter;
         this.userAnswers[this.selectedCell] = letter;
 
