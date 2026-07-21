@@ -1471,8 +1471,16 @@ class CrosswordPuzzle {
       });
   }
 
+  getSharePuzzleTitle() {
+    const titleEl = document.getElementById('puzzleTitle');
+    if (titleEl?.dataset?.shareTitle) {
+      return titleEl.dataset.shareTitle;
+    }
+    return titleEl?.textContent?.replace(/\*$/, '').trim() || '';
+  }
+
   async shareScore() {
-    const puzzleTitle = document.querySelector('.title').textContent;
+    const puzzleTitle = this.getSharePuzzleTitle();
     const completionTime = this.formatTime(this.elapsedTime);
 
     // Check if puzzle is actually completed
@@ -1632,7 +1640,7 @@ class CrosswordPuzzle {
   }
 
   async shareLeaderboard() {
-    const puzzleTitle = document.querySelector('.title').textContent;
+    const puzzleTitle = this.getSharePuzzleTitle();
 
     // Get current leaderboard data
     const leaderboardData = this.currentLeaderboardData;
@@ -3245,6 +3253,7 @@ class CrosswordLoader {
     this.crosswordInstance = null;
     this.yearOffset = yearOffset; // Number of years to add to publication date for display
     this.currentPuzzleDate = null;
+    this.nonCreditDates = new Set();
     this.setupNavigation();
   }
 
@@ -3366,6 +3375,7 @@ class CrosswordLoader {
     const puzzleTitle = document.getElementById('puzzleTitle');
     if (puzzleTitle) {
       puzzleTitle.textContent = 'Loading Crossword...';
+      delete puzzleTitle.dataset.shareTitle;
     }
   }
 
@@ -3519,6 +3529,7 @@ class CrosswordLoader {
     try {
       // Clean up the previous puzzle instance before loading new one
       this.cleanup();
+      await this.loadNonCreditDates();
 
       // If no specific path provided, determine path from URL parameters or use today's date
       if (!jsonPath) {
@@ -3597,15 +3608,37 @@ class CrosswordLoader {
     return { path: `crosswords/mini_${dateString}.json`, tooRecent: false };
   }
 
+  async loadNonCreditDates() {
+    this.nonCreditDates = new Set();
+    try {
+      const response = await fetch('mini/non-credit-dates', {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-cache',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        (data.dates || []).forEach(date => this.nonCreditDates.add(date));
+      }
+    } catch (error) {
+      console.warn('Failed to fetch non-credit dates:', error);
+    }
+  }
+
   updatePuzzleInfo(puzzleData, jsonPath) {
     const date = puzzleData.publicationDate || 'Unknown';
     const constructor = puzzleData.constructors ? puzzleData.constructors.join(', ') : 'Unknown';
     const puzzleName = jsonPath.split('/').pop().replace('.json', '');
+    const titleText = puzzleName.split('_').join(' ').replace('.json', '');
+    const isNonCredit = this.puzzle?.date && this.nonCreditDates.has(this.puzzle.date);
 
-    document.getElementById('puzzleTitle').textContent = puzzleName
-      .split('_')
-      .join(' ')
-      .replace('.json', '');
+    const puzzleTitle = document.getElementById('puzzleTitle');
+    puzzleTitle.dataset.shareTitle = titleText;
+    if (isNonCredit) {
+      puzzleTitle.innerHTML = `${titleText}<span class="non-credit-marker" title="Does not count for streaks or statistics">*</span>`;
+    } else {
+      puzzleTitle.textContent = titleText;
+    }
     document.getElementById('puzzleInfo').innerHTML =
       `<strong>Date:</strong> ${date} | <strong>Constructor:</strong> ${constructor}`;
     document.title = `${puzzleName} - Interactive Crossword`;
@@ -3673,11 +3706,13 @@ class CrosswordLoader {
 
     // Update page title
     document.getElementById('puzzleTitle').textContent = 'Puzzle Not Available';
+    delete document.getElementById('puzzleTitle').dataset.shareTitle;
     document.getElementById('puzzleInfo').innerHTML = 'This puzzle is not yet available for play.';
   }
 
   showError(message) {
     document.getElementById('puzzleTitle').textContent = 'Error Loading Puzzle';
+    delete document.getElementById('puzzleTitle').dataset.shareTitle;
     document.getElementById('puzzleInfo').innerHTML = `<strong>Error:</strong> ${message}`;
     document.getElementById('crossword').innerHTML =
       `<div style="padding: 20px; text-align: center; color: #ff6b6b;">Failed to load puzzle. Please check the URL or try again later.</div>`;

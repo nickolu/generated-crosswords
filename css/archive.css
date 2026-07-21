@@ -187,6 +187,13 @@
   transform: scale(1.1);
 }
 
+.calendar-day .non-credit-marker {
+  margin-left: 2px;
+  font-size: 0.85em;
+  vertical-align: super;
+  color: #546e7a;
+}
+
 /* Reset replay button on completed tiles */
 .reset-replay-btn {
   position: absolute;
