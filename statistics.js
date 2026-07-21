@@ -18,6 +18,7 @@ class CrosswordStatistics {
     this.allPlayersStatsByYear = {}; // Store stats for all players by year
     this.totalPuzzlesAllTime = 0;
     this.totalPuzzlesByYear = {};
+    this.nonCreditDates = new Set(); // Display dates that don't count for credit
     this.currentYear = null; // Currently selected year for pagination
     this.availableYears = []; // List of years with data
     this.today = new Date();
@@ -141,6 +142,22 @@ class CrosswordStatistics {
     const statsContent = document.getElementById('statsContent');
     statsContent.innerHTML = '<div class="stats-loading">Analyzing your puzzle history...</div>';
 
+    // Load non-credit dates (days that don't count for stats / streaks)
+    this.nonCreditDates = new Set();
+    try {
+      const nonCreditResponse = await fetch('mini/non-credit-dates', {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-cache',
+      });
+      if (nonCreditResponse.ok) {
+        const nonCreditData = await nonCreditResponse.json();
+        (nonCreditData.dates || []).forEach(date => this.nonCreditDates.add(date));
+      }
+    } catch (error) {
+      console.warn('Failed to fetch non-credit dates:', error);
+    }
+
     // Get list of available crossword files
     const puzzleFilesResponse = await fetch('mini/crossword-jsons');
     if (!puzzleFilesResponse.ok) {
@@ -188,6 +205,11 @@ class CrosswordStatistics {
         }
 
         const displayDate = this.calculateDisplayDate(puzzleDate);
+
+        // Non-credit days are excluded from all solve statistics
+        if (this.nonCreditDates.has(displayDate)) {
+          continue;
+        }
 
         // Get leaderboard data from the pre-fetched data
         const leaderboardData = allLeaderboards[displayDate];
