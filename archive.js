@@ -8,6 +8,7 @@ class CrosswordArchive {
     );
     this.yearOffset = 11; // Same offset used in crossword.js
     this.userName = this.getUserName();
+    this.nonCreditDates = new Set();
 
     // Calendar-specific properties
     this.currentDate = new Date(this.elevenYearsAgo);
@@ -89,6 +90,8 @@ class CrosswordArchive {
     const calendarGrid = document.getElementById('calendarGrid');
 
     try {
+      await this.loadNonCreditDates();
+
       // Fetch the list of available crossword JSON files from the API
       const response = await fetch('mini/crossword-jsons');
 
@@ -208,6 +211,31 @@ class CrosswordArchive {
     calendarGrid.innerHTML = calendarHTML;
   }
 
+  async loadNonCreditDates() {
+    this.nonCreditDates = new Set();
+    try {
+      const response = await fetch('mini/non-credit-dates', {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-cache',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        (data.dates || []).forEach(date => this.nonCreditDates.add(date));
+      }
+    } catch (error) {
+      console.warn('Failed to fetch non-credit dates:', error);
+    }
+  }
+
+  isNonCreditPuzzleDate(puzzleDate) {
+    return this.nonCreditDates.has(this.calculateDisplayDate(puzzleDate));
+  }
+
+  getNonCreditMarkerHtml() {
+    return '<span class="non-credit-marker" title="Does not count for streaks or statistics">*</span>';
+  }
+
   async generateCalendarHTML() {
     const year = this.currentDate.getFullYear();
     const month = this.currentDate.getMonth();
@@ -244,6 +272,9 @@ class CrosswordArchive {
       if (puzzleData) {
         // Check if this puzzle is completed
         const completionData = await this.getCompletionData(dateStr);
+        const nonCreditMarker = this.isNonCreditPuzzleDate(dateStr)
+          ? this.getNonCreditMarkerHtml()
+          : '';
 
         // Add star icon if this is today's puzzle
         const todayStarIcon = puzzleData.isToday
@@ -257,7 +288,7 @@ class CrosswordArchive {
           const resetHref = `mini?puzzle=${puzzleData.filename}&reset=true`;
           dayContent = `
                         ${todayStarIcon}
-                        <div class="day-number">${day}</div>
+                        <div class="day-number">${day}${nonCreditMarker}</div>
                         <div class="completion-info">
                             <div class="completion-time">${timeStr}</div>
                             <div class="completion-place-wrapper">
@@ -274,7 +305,7 @@ class CrosswordArchive {
           // Puzzle available but not completed
           dayContent = `
                         ${todayStarIcon}
-                        <div class="day-number">${day}</div>
+                        <div class="day-number">${day}${nonCreditMarker}</div>
                         <div class="play-button">Play</div>
                     `;
           dayClass += ' available';

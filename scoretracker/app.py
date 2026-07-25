@@ -29,6 +29,10 @@ ROOT_DIR = Path(__file__).parent / ".."
 # SQLite database path - store in data directory for proper permissions
 DB_PATH = DATA_DIR / "statistics.db"
 
+# Dates that do not count for credit (streaks, solve stats, etc.)
+# Edit scoretracker/non_credit_dates.json — use display dates (YYYY-MM-DD).
+NON_CREDIT_DATES_PATH = Path(__file__).parent / "non_credit_dates.json"
+
 
 def get_db_connection():
     """Get a connection to the SQLite database."""
@@ -65,6 +69,122 @@ def init_database():
         conn.commit()
     finally:
         conn.close()
+
+
+def load_non_credit_dates():
+    """
+    Load the set of dates that do not count for credit.
+    Dates are display dates (YYYY-MM-DD), matching results.date.
+    """
+    try:
+        if not NON_CREDIT_DATES_PATH.exists():
+            return set()
+        with open(NON_CREDIT_DATES_PATH, encoding='utf-8') as f:
+            data = json.load(f)
+        raw_dates = data.get('dates', []) if isinstance(data, dict) else data
+        if not isinstance(raw_dates, list):
+            app.logger.warning('non_credit_dates.json: expected a list of dates')
+            return set()
+        result = set()
+        for date_str in raw_dates:
+            try:
+                result.add(datetime.strptime(str(date_str), '%Y-%m-%d').date())
+            except ValueError:
+                app.logger.warning(f'Invalid non-credit date: {date_str}')
+        return result
+    except Exception as e:
+        app.logger.warning(f'Failed to load non-credit dates: {e}')
+        return set()
+
+
+def collect_valid_streak_dates(rows, pacific, utc, min_streak_date, non_credit_dates,
+                               year_start=None, year_end=None):
+    """
+    Build the set of puzzle dates where the user completed on the puzzle date itself.
+    Non-credit dates are excluded even if solved (they never add to streak length).
+    """
+    valid_dates = set()
+    for row in rows:
+        puzzle_date_str = row['date']
+        completion_timestamp_str = row['completion_timestamp']
+        try:
+            puzzle_date = datetime.strptime(puzzle_date_str, '%Y-%m-%d').date()
+
+            if puzzle_date < min_streak_date:
+                continue
+            if year_start is not None and puzzle_date < year_start:
+                continue
+            if year_end is not None and puzzle_date > year_end:
+                continue
+            if puzzle_date in non_credit_dates:
+                continue
+
+            completion_dt = datetime.fromisoformat(completion_timestamp_str.replace('Z', '+00:00'))
+            if completion_dt.tzinfo is None:
+                completion_dt = utc.localize(completion_dt)
+            completion_date_pacific = completion_dt.astimezone(pacific).date()
+
+            if completion_date_pacific == puzzle_date:
+                valid_dates.add(puzzle_date)
+        except (ValueError, AttributeError) as e:
+            app.logger.warning(f'Invalid date/timestamp: {e}')
+            continue
+    return valid_dates
+
+
+def count_current_streak(valid_dates, current_date, min_streak_date, non_credit_dates):
+    """
+    Count consecutive credit days going backwards from today.
+    Non-credit days are skipped (do not break or extend the streak).
+    """
+    streak = 0
+    check_date = current_date
+    while check_date >= min_streak_date:
+        if check_date in non_credit_dates:
+            check_date = check_date - timedelta(days=1)
+            continue
+        if check_date in valid_dates:
+            streak += 1
+            check_date = check_date - timedelta(days=1)
+        else:
+            break
+    return streak
+
+
+def is_streak_consecutive(earlier, later, non_credit_dates):
+    """True if later follows earlier with only non-credit days in between (or adjacent)."""
+    days_diff = (later - earlier).days
+    if days_diff == 1:
+        return True
+    if days_diff <= 0:
+        return False
+    d = earlier + timedelta(days=1)
+    while d < later:
+        if d not in non_credit_dates:
+            return False
+        d += timedelta(days=1)
+    return True
+
+
+def calculate_max_streak(valid_dates, non_credit_dates):
+    """Longest streak among credit days, bridging gaps that are only non-credit days."""
+    if not valid_dates:
+        return 0
+
+    sorted_dates = sorted(valid_dates)
+    max_streak = 0
+    current_streak = 0
+    previous_date = None
+
+    for date in sorted_dates:
+        if previous_date is None or not is_streak_consecutive(previous_date, date, non_credit_dates):
+            max_streak = max(max_streak, current_streak)
+            current_streak = 1
+        else:
+            current_streak += 1
+        previous_date = date
+
+    return max(max_streak, current_streak)
 
 
 @app.route('/results', methods=['GET'])
@@ -278,6 +398,7 @@ def get_all_leaderboards():
 def get_average_time(username):
     """
     Get the median completion time for a user across all puzzles.
+    Non-credit days are excluded.
     
     Returns JSON with average_time in seconds (using median calculation), or null if user has no completions.
     """
@@ -285,19 +406,25 @@ def get_average_time(username):
         # Initialize database if it doesn't exist
         init_database()
         
+        non_credit_dates = {d.isoformat() for d in load_non_credit_dates()}
+        
         conn = get_db_connection()
         try:
-            # Fetch all times for this user
+            # Fetch all times for this user (exclude non-credit dates)
             rows = conn.execute(
-                "SELECT time FROM results WHERE username = ? AND time IS NOT NULL",
+                "SELECT date, time FROM results WHERE username = ? AND time IS NOT NULL",
                 (username,)
             ).fetchall()
             
             if not rows:
                 return jsonify({'average_time': None}), 200
             
-            # Calculate median
-            times = [int(row['time']) for row in rows if row['time'] is not None]
+            # Calculate median, skipping non-credit days
+            times = [
+                int(row['time'])
+                for row in rows
+                if row['time'] is not None and row['date'] not in non_credit_dates
+            ]
             if not times:
                 return jsonify({'average_time': None}), 200
             
@@ -318,6 +445,16 @@ def get_average_time(username):
     except Exception as e:
         app.logger.error(f"Error calculating median time for {username}: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
+
+
+@app.route('/non-credit-dates', methods=['GET'])
+def get_non_credit_dates():
+    """
+    Return display dates (YYYY-MM-DD) that do not count for credit.
+    These days do not break streaks when unsolved and are excluded from solve statistics.
+    """
+    dates = sorted(d.isoformat() for d in load_non_credit_dates())
+    return jsonify({'dates': dates}), 200
 
 
 @app.route('/migrate', methods=['GET'])
@@ -512,6 +649,8 @@ def get_streaks():
     
     Expects JSON body with 'usernames' array: {"usernames": ["user1", "user2", ...]}
     Returns JSON with streaks: {"user1": 5, "user2": 3, ...}
+    
+    Non-credit days are skipped (do not break or extend streaks).
     """
     try:
         # Initialize database if it doesn't exist
@@ -534,18 +673,17 @@ def get_streaks():
         if len(usernames) > 100:
             return jsonify({'error': 'Maximum 100 usernames per request'}), 400
         
+        pacific = pytz.timezone('America/Los_Angeles')
+        utc = pytz.UTC
+        min_streak_date = datetime(2026, 1, 1).date()
+        current_date = datetime.now(pacific).date()
+        non_credit_dates = load_non_credit_dates()
+        
         conn = get_db_connection()
         try:
-            # Calculate streaks for all users
-            pacific = pytz.timezone('America/Los_Angeles')
-            utc = pytz.UTC
-            min_streak_date = datetime(2026, 1, 1).date()
-            current_date = datetime.now(pacific).date()
-            
             streaks = {}
             
             for username in usernames:
-                # Get all completions for this user with completion_timestamp
                 rows = conn.execute(
                     "SELECT date, completion_timestamp FROM results WHERE username = ? AND completion_timestamp IS NOT NULL ORDER BY date DESC",
                     (username,)
@@ -555,47 +693,12 @@ def get_streaks():
                     streaks[username] = 0
                     continue
                 
-                # Create a set of dates where user completed on the puzzle date
-                # Only include dates on or after January 1, 2026
-                valid_dates = set()
-                for row in rows:
-                    puzzle_date_str = row['date']
-                    completion_timestamp_str = row['completion_timestamp']
-                    
-                    try:
-                        # Parse puzzle date
-                        puzzle_date = datetime.strptime(puzzle_date_str, '%Y-%m-%d').date()
-                        
-                        # Skip dates before January 1, 2026
-                        if puzzle_date < min_streak_date:
-                            continue
-                        
-                        # Parse completion timestamp and convert to Pacific time
-                        completion_dt = datetime.fromisoformat(completion_timestamp_str.replace('Z', '+00:00'))
-                        if completion_dt.tzinfo is None:
-                            # If no timezone info, assume UTC
-                            completion_dt = utc.localize(completion_dt)
-                        completion_date_pacific = completion_dt.astimezone(pacific).date()
-                        
-                        # Check if completion date matches puzzle date
-                        # Only count if puzzle date is on or after January 1, 2026
-                        if completion_date_pacific == puzzle_date and puzzle_date >= min_streak_date:
-                            valid_dates.add(puzzle_date)
-                    except (ValueError, AttributeError) as e:
-                        # Skip invalid dates/timestamps
-                        app.logger.warning(f"Invalid date/timestamp for user {username}: {e}")
-                        continue
-                
-                # Count consecutive days going backwards from today
-                # Stop if we go before January 1, 2026
-                streak = 0
-                check_date = current_date
-                while check_date in valid_dates and check_date >= min_streak_date:
-                    streak += 1
-                    # Go back one day
-                    check_date = check_date - timedelta(days=1)
-                
-                streaks[username] = streak
+                valid_dates = collect_valid_streak_dates(
+                    rows, pacific, utc, min_streak_date, non_credit_dates
+                )
+                streaks[username] = count_current_streak(
+                    valid_dates, current_date, min_streak_date, non_credit_dates
+                )
             
             return jsonify(streaks), 200
         finally:
@@ -610,8 +713,8 @@ def get_streaks():
 def get_longest_streak(username):
     """
     Get the longest solve streak for a user (all-time, not just current).
-    A streak is the number of consecutive days where the user completed a puzzle 
-    on the puzzle's date itself.
+    A streak is the number of consecutive credit days where the user completed a puzzle
+    on the puzzle's date itself. Non-credit days bridge gaps but do not count toward length.
     No streaks are counted before January 1, 2026.
     
     Returns JSON with longest streak count.
@@ -620,9 +723,13 @@ def get_longest_streak(username):
         # Initialize database if it doesn't exist
         init_database()
         
+        pacific = pytz.timezone('America/Los_Angeles')
+        utc = pytz.UTC
+        min_streak_date = datetime(2026, 1, 1).date()
+        non_credit_dates = load_non_credit_dates()
+        
         conn = get_db_connection()
         try:
-            # Get all completions for this user with completion_timestamp
             rows = conn.execute(
                 "SELECT date, completion_timestamp FROM results WHERE username = ? AND completion_timestamp IS NOT NULL ORDER BY date DESC",
                 (username,)
@@ -631,71 +738,10 @@ def get_longest_streak(username):
             if not rows:
                 return jsonify({'longest_streak': 0}), 200
             
-            # Calculate all streaks and find the longest
-            pacific = pytz.timezone('America/Los_Angeles')
-            utc = pytz.UTC
-            min_streak_date = datetime(2026, 1, 1).date()
-            
-            # Create a set of dates where user completed on the puzzle date
-            # Only include dates on or after January 1, 2026
-            valid_dates = set()
-            for row in rows:
-                puzzle_date_str = row['date']
-                completion_timestamp_str = row['completion_timestamp']
-                
-                try:
-                    # Parse puzzle date
-                    puzzle_date = datetime.strptime(puzzle_date_str, '%Y-%m-%d').date()
-                    
-                    # Skip dates before January 1, 2026
-                    if puzzle_date < min_streak_date:
-                        continue
-                    
-                    # Parse completion timestamp and convert to Pacific time
-                    completion_dt = datetime.fromisoformat(completion_timestamp_str.replace('Z', '+00:00'))
-                    if completion_dt.tzinfo is None:
-                        # If no timezone info, assume UTC
-                        completion_dt = utc.localize(completion_dt)
-                    completion_date_pacific = completion_dt.astimezone(pacific).date()
-                    
-                    # Check if completion date matches puzzle date
-                    # Only count if puzzle date is on or after January 1, 2026
-                    if completion_date_pacific == puzzle_date and puzzle_date >= min_streak_date:
-                        valid_dates.add(puzzle_date)
-                except (ValueError, AttributeError) as e:
-                    # Skip invalid dates/timestamps
-                    app.logger.warning(f"Invalid date/timestamp for user {username}: {e}")
-                    continue
-            
-            if not valid_dates:
-                return jsonify({'longest_streak': 0}), 200
-            
-            # Find all streaks by checking consecutive days
-            # Sort dates to process chronologically
-            sorted_dates = sorted(valid_dates)
-            longest_streak = 0
-            current_streak = 0
-            previous_date = None
-            
-            for date in sorted_dates:
-                if previous_date is None:
-                    # Start of a new streak
-                    current_streak = 1
-                else:
-                    # Check if this date is consecutive to the previous date
-                    days_diff = (date - previous_date).days
-                    if days_diff == 1:
-                        # Consecutive day, continue streak
-                        current_streak += 1
-                    else:
-                        # Gap found, streak broken
-                        longest_streak = max(longest_streak, current_streak)
-                        current_streak = 1
-                
-                previous_date = date
-            
-            # Check the last streak
-            longest_streak = max(longest_streak, current_streak)
+            valid_dates = collect_valid_streak_dates(
+                rows, pacific, utc, min_streak_date, non_credit_dates
+            )
+            longest_streak = calculate_max_streak(valid_dates, non_credit_dates)
             
             return jsonify({'longest_streak': longest_streak}), 200
         finally:
@@ -717,6 +763,7 @@ def get_max_streaks():
     
     If year is provided, returns max streak for that year only.
     If year is not provided, returns all-time max streak (only counting streaks from 2026 onwards).
+    Non-credit days bridge gaps but do not count toward streak length.
     """
     try:
         # Initialize database if it doesn't exist
@@ -740,29 +787,26 @@ def get_max_streaks():
         if len(usernames) > 100:
             return jsonify({'error': 'Maximum 100 usernames per request'}), 400
         
+        pacific = pytz.timezone('America/Los_Angeles')
+        utc = pytz.UTC
+        min_streak_date = datetime(2026, 1, 1).date()
+        non_credit_dates = load_non_credit_dates()
+        
+        # Set date range based on year filter
+        if year:
+            year_start = datetime(int(year), 1, 1).date()
+            year_end = datetime(int(year), 12, 31).date()
+            if year_start < min_streak_date:
+                year_start = min_streak_date
+        else:
+            year_start = min_streak_date
+            year_end = datetime.now(pacific).date()
+        
         conn = get_db_connection()
         try:
-            pacific = pytz.timezone('America/Los_Angeles')
-            utc = pytz.UTC
-            min_streak_date = datetime(2026, 1, 1).date()
-            
-            # Set date range based on year filter
-            if year:
-                # Filter to specific year
-                year_start = datetime(int(year), 1, 1).date()
-                year_end = datetime(int(year), 12, 31).date()
-                # Ensure we don't count before 2026
-                if year_start < min_streak_date:
-                    year_start = min_streak_date
-            else:
-                # All-time, but only from 2026 onwards
-                year_start = min_streak_date
-                year_end = datetime.now(pacific).date()
-            
             max_streaks = {}
             
             for username in usernames:
-                # Get all completions for this user with completion_timestamp
                 rows = conn.execute(
                     "SELECT date, completion_timestamp FROM results WHERE username = ? AND completion_timestamp IS NOT NULL ORDER BY date ASC",
                     (username,)
@@ -772,69 +816,11 @@ def get_max_streaks():
                     max_streaks[username] = 0
                     continue
                 
-                # Create a set of dates where user completed on the puzzle date
-                valid_dates = set()
-                for row in rows:
-                    puzzle_date_str = row['date']
-                    completion_timestamp_str = row['completion_timestamp']
-                    
-                    try:
-                        # Parse puzzle date
-                        puzzle_date = datetime.strptime(puzzle_date_str, '%Y-%m-%d').date()
-                        
-                        # Skip dates outside our range
-                        if puzzle_date < year_start or puzzle_date > year_end:
-                            continue
-                        
-                        # Skip dates before January 1, 2026
-                        if puzzle_date < min_streak_date:
-                            continue
-                        
-                        # Parse completion timestamp and convert to Pacific time
-                        completion_dt = datetime.fromisoformat(completion_timestamp_str.replace('Z', '+00:00'))
-                        if completion_dt.tzinfo is None:
-                            # If no timezone info, assume UTC
-                            completion_dt = utc.localize(completion_dt)
-                        completion_date_pacific = completion_dt.astimezone(pacific).date()
-                        
-                        # Check if completion date matches puzzle date
-                        if completion_date_pacific == puzzle_date and puzzle_date >= min_streak_date:
-                            valid_dates.add(puzzle_date)
-                    except (ValueError, AttributeError) as e:
-                        # Skip invalid dates/timestamps
-                        app.logger.warning(f"Invalid date/timestamp for user {username}: {e}")
-                        continue
-                
-                if not valid_dates:
-                    max_streaks[username] = 0
-                    continue
-                
-                # Find all streaks by checking consecutive days
-                sorted_dates = sorted(valid_dates)
-                max_streak = 0
-                current_streak = 0
-                previous_date = None
-                
-                for date in sorted_dates:
-                    if previous_date is None:
-                        # Start of a new streak
-                        current_streak = 1
-                    else:
-                        # Check if this date is consecutive to the previous date
-                        days_diff = (date - previous_date).days
-                        if days_diff == 1:
-                            # Consecutive day, continue streak
-                            current_streak += 1
-                        else:
-                            # Gap found, streak broken
-                            max_streak = max(max_streak, current_streak)
-                            current_streak = 1
-                    
-                    previous_date = date
-                
-                # Check the last streak
-                max_streak = max(max_streak, current_streak)
-                max_streaks[username] = max_streak
+                valid_dates = collect_valid_streak_dates(
+                    rows, pacific, utc, min_streak_date, non_credit_dates,
+                    year_start=year_start, year_end=year_end
+                )
+                max_streaks[username] = calculate_max_streak(valid_dates, non_credit_dates)
             
             return jsonify(max_streaks), 200
         finally:
@@ -849,8 +835,9 @@ def get_max_streaks():
 def get_streak(username):
     """
     Get the current solve streak for a user.
-    A streak is the number of consecutive days (going backwards from today)
+    A streak is the number of consecutive credit days (going backwards from today)
     where the user completed a puzzle on the puzzle's date itself.
+    Non-credit days are skipped (do not break or extend the streak).
     
     Returns JSON with streak count.
     """
@@ -858,9 +845,14 @@ def get_streak(username):
         # Initialize database if it doesn't exist
         init_database()
         
+        pacific = pytz.timezone('America/Los_Angeles')
+        utc = pytz.UTC
+        min_streak_date = datetime(2026, 1, 1).date()
+        current_date = datetime.now(pacific).date()
+        non_credit_dates = load_non_credit_dates()
+        
         conn = get_db_connection()
         try:
-            # Get all completions for this user with completion_timestamp
             rows = conn.execute(
                 "SELECT date, completion_timestamp FROM results WHERE username = ? AND completion_timestamp IS NOT NULL ORDER BY date DESC",
                 (username,)
@@ -869,58 +861,12 @@ def get_streak(username):
             if not rows:
                 return jsonify({'streak': 0}), 200
             
-            # Calculate streak
-            # A streak counts consecutive days going backwards from today
-            # where completion_timestamp date matches the puzzle date
-            # No streaks are counted before January 1, 2026
-            pacific = pytz.timezone('America/Los_Angeles')
-            utc = pytz.UTC
-            
-            # Minimum date for streak counting
-            min_streak_date = datetime(2026, 1, 1).date()
-            
-            streak = 0
-            # Start from today and work backwards
-            current_date = datetime.now(pacific).date()
-            
-            # Create a set of dates where user completed on the puzzle date
-            # Only include dates on or after January 1, 2026
-            valid_dates = set()
-            for row in rows:
-                puzzle_date_str = row['date']
-                completion_timestamp_str = row['completion_timestamp']
-                
-                try:
-                    # Parse puzzle date
-                    puzzle_date = datetime.strptime(puzzle_date_str, '%Y-%m-%d').date()
-                    
-                    # Skip dates before January 1, 2026
-                    if puzzle_date < min_streak_date:
-                        continue
-                    
-                    # Parse completion timestamp and convert to Pacific time
-                    completion_dt = datetime.fromisoformat(completion_timestamp_str.replace('Z', '+00:00'))
-                    if completion_dt.tzinfo is None:
-                        # If no timezone info, assume UTC
-                        completion_dt = utc.localize(completion_dt)
-                    completion_date_pacific = completion_dt.astimezone(pacific).date()
-                    
-                    # Check if completion date matches puzzle date
-                    # Only count if puzzle date is on or after January 1, 2026
-                    if completion_date_pacific == puzzle_date and puzzle_date >= min_streak_date:
-                        valid_dates.add(puzzle_date)
-                except (ValueError, AttributeError) as e:
-                    # Skip invalid dates/timestamps
-                    app.logger.warning(f"Invalid date/timestamp for user {username}: {e}")
-                    continue
-            
-            # Count consecutive days going backwards from today
-            # Stop if we go before January 1, 2026
-            check_date = current_date
-            while check_date in valid_dates and check_date >= min_streak_date:
-                streak += 1
-                # Go back one day
-                check_date = check_date - timedelta(days=1)
+            valid_dates = collect_valid_streak_dates(
+                rows, pacific, utc, min_streak_date, non_credit_dates
+            )
+            streak = count_current_streak(
+                valid_dates, current_date, min_streak_date, non_credit_dates
+            )
             
             return jsonify({'streak': streak}), 200
         finally:
@@ -946,6 +892,7 @@ def index():
         'endpoints': {
             '/results': 'Store user results (GET with user and time parameters)',
             '/crosswords': 'List all available crossword JSON files',
+            '/non-credit-dates': 'List dates that do not count for credit',
             '/health': 'Health check endpoint'
         }
     }), 200
