@@ -686,7 +686,7 @@ class CrosswordStatistics {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
-  drawBoxPlot(ctx, box, yScale, highlighted = false) {
+  drawBoxPlot(ctx, box, yScale, highlighted = false, parts = 'all') {
     const centerX = box.centerX;
     const left = box.left;
     const right = box.right;
@@ -696,41 +696,48 @@ class CrosswordStatistics {
     const yQ1 = yScale(box.q1);
     const yQ3 = yScale(box.q3);
     const yMedian = yScale(box.median);
-
-    ctx.save();
-    ctx.strokeStyle = highlighted ? '#d35400' : '#e67e22';
-    ctx.fillStyle = highlighted ? 'rgba(230, 126, 34, 0.65)' : 'rgba(230, 126, 34, 0.5)';
-    ctx.lineWidth = highlighted ? 2.5 : 2;
-    ctx.lineCap = 'round';
-
-    // Whisker stem
-    ctx.beginPath();
-    ctx.moveTo(centerX, yHigh);
-    ctx.lineTo(centerX, yLow);
-    ctx.stroke();
-
-    // Whisker caps
-    const capHalf = Math.max(6, width * 0.25);
-    ctx.beginPath();
-    ctx.moveTo(centerX - capHalf, yHigh);
-    ctx.lineTo(centerX + capHalf, yHigh);
-    ctx.moveTo(centerX - capHalf, yLow);
-    ctx.lineTo(centerX + capHalf, yLow);
-    ctx.stroke();
-
-    // IQR box
     const boxTop = Math.min(yQ1, yQ3);
     const boxHeight = Math.max(1, Math.abs(yQ1 - yQ3));
-    ctx.fillRect(left, boxTop, width, boxHeight);
-    ctx.strokeRect(left, boxTop, width, boxHeight);
 
-    // Median line
-    ctx.strokeStyle = highlighted ? '#000' : '#2c3e50';
-    ctx.lineWidth = highlighted ? 3 : 2.5;
-    ctx.beginPath();
-    ctx.moveTo(left, yMedian);
-    ctx.lineTo(right, yMedian);
-    ctx.stroke();
+    ctx.save();
+
+    if (parts === 'fill' || parts === 'all') {
+      ctx.fillStyle = highlighted ? 'rgba(230, 126, 34, 0.65)' : 'rgba(230, 126, 34, 0.5)';
+      ctx.fillRect(left, boxTop, width, boxHeight);
+    }
+
+    if (parts === 'lines' || parts === 'all') {
+      ctx.strokeStyle = highlighted ? '#d35400' : '#e67e22';
+      ctx.lineWidth = highlighted ? 2.5 : 2;
+      ctx.lineCap = 'round';
+
+      // Whisker stem
+      ctx.beginPath();
+      ctx.moveTo(centerX, yHigh);
+      ctx.lineTo(centerX, yLow);
+      ctx.stroke();
+
+      // Whisker caps
+      const capHalf = Math.max(6, width * 0.25);
+      ctx.beginPath();
+      ctx.moveTo(centerX - capHalf, yHigh);
+      ctx.lineTo(centerX + capHalf, yHigh);
+      ctx.moveTo(centerX - capHalf, yLow);
+      ctx.lineTo(centerX + capHalf, yLow);
+      ctx.stroke();
+
+      // IQR box outline
+      ctx.strokeRect(left, boxTop, width, boxHeight);
+
+      // Median line
+      ctx.strokeStyle = highlighted ? '#000' : '#2c3e50';
+      ctx.lineWidth = highlighted ? 3 : 2.5;
+      ctx.beginPath();
+      ctx.moveTo(left, yMedian);
+      ctx.lineTo(right, yMedian);
+      ctx.stroke();
+    }
+
     ctx.restore();
 
     return { ...box, centerX, left, right, medianY: yMedian };
@@ -828,7 +835,7 @@ class CrosswordStatistics {
     ctx.rect(padding.left, padding.top, chartWidth, chartHeight);
     ctx.clip();
 
-    // Box plots per period (drawn under points)
+    // Box fills under points; box lines (whiskers/median/outline) above points
     const typicalPeriodMs =
       boxPlots.length > 0
         ? boxPlots.reduce((sum, b) => sum + (b.endMs - b.startMs), 0) / boxPlots.length
@@ -836,15 +843,19 @@ class CrosswordStatistics {
     const fullSlotWidth = Math.max(12, (typicalPeriodMs / dateRange) * chartWidth);
     const boxWidth = Math.max(10, Math.min(fullSlotWidth * 0.55, 48));
 
-    const boxes = boxPlots.map(plot => {
+    const boxLayouts = boxPlots.map(plot => {
       const centerX = xScale(plot.midMs);
       const left = centerX - boxWidth / 2;
       const right = centerX + boxWidth / 2;
       const isHovered = hover && hover.type === 'box' && hover.key === plot.key;
-      return this.drawBoxPlot(ctx, { ...plot, centerX, left, right }, yScale, isHovered);
+      return { ...plot, centerX, left, right, isHovered };
     });
 
-    // Individual puzzle times as dots (on top for easier hover)
+    boxLayouts.forEach(plot => {
+      this.drawBoxPlot(ctx, plot, yScale, plot.isHovered, 'fill');
+    });
+
+    // Individual puzzle times as dots
     const points = completions.map(point => {
       const x = xScale(this.parseChartDate(point.date));
       const y = yScale(point.time);
@@ -868,6 +879,10 @@ class CrosswordStatistics {
         y,
       };
     });
+
+    const boxes = boxLayouts.map(plot =>
+      this.drawBoxPlot(ctx, plot, yScale, plot.isHovered, 'lines')
+    );
 
     ctx.restore();
 
