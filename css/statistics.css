@@ -156,10 +156,15 @@
   font-family: 'Roboto Condensed', sans-serif;
   font-size: 13px;
   font-weight: 600;
+  line-height: 1.35;
   border-radius: 4px;
   white-space: nowrap;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   z-index: 10;
+}
+
+.time-series-tooltip strong {
+  font-weight: 700;
 }
 
 .time-series-tooltip[hidden] {

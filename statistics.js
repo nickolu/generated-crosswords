@@ -67,6 +67,19 @@ class CrosswordStatistics {
     return this.placeEmojis[rank] || this.placeEmojis.default;
   }
 
+  getPlacePointColors(rank) {
+    switch (rank) {
+      case 1:
+        return { fill: '#f1c40f', stroke: '#b7950b' };
+      case 2:
+        return { fill: '#bdc3c7', stroke: '#7f8c8d' };
+      case 3:
+        return { fill: '#cd7f32', stroke: '#9a5f26' };
+      default:
+        return { fill: '#4a90e2', stroke: '#2c5aa0' };
+    }
+  }
+
   formatTimeFromSeconds(seconds) {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
@@ -287,6 +300,7 @@ class CrosswordStatistics {
             date: displayDate,
             time: userTimeInt,
             rank: userRank,
+            filename,
           });
         }
       } catch (error) {
@@ -386,29 +400,90 @@ class CrosswordStatistics {
     return completions.filter(c => new Date(c.date + 'T00:00:00') >= cutoff);
   }
 
-  medianOf(values) {
-    const sorted = [...values].sort((a, b) => a - b);
-    const mid = Math.floor(sorted.length / 2);
-    return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+  percentile(sorted, p) {
+    if (sorted.length === 1) return sorted[0];
+    const idx = (sorted.length - 1) * p;
+    const lo = Math.floor(idx);
+    const hi = Math.ceil(idx);
+    if (lo === hi) return sorted[lo];
+    return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
   }
 
-  computeMovingMedian(completions, windowDays = 30) {
-    const sorted = [...completions].sort((a, b) => a.date.localeCompare(b.date));
+  computeBoxStats(times) {
+    const sorted = [...times].sort((a, b) => a - b);
+    const q1 = this.percentile(sorted, 0.25);
+    const median = this.percentile(sorted, 0.5);
+    const q3 = this.percentile(sorted, 0.75);
+    const iqr = q3 - q1;
+    const fenceLow = q1 - 1.5 * iqr;
+    const fenceHigh = q3 + 1.5 * iqr;
+    const inFence = sorted.filter(t => t >= fenceLow && t <= fenceHigh);
+    const whiskerLow = inFence.length ? inFence[0] : sorted[0];
+    const whiskerHigh = inFence.length ? inFence[inFence.length - 1] : sorted[sorted.length - 1];
+    return {
+      q1,
+      median,
+      q3,
+      whiskerLow,
+      whiskerHigh,
+      n: sorted.length,
+    };
+  }
 
-    return sorted.map(point => {
-      const pointDate = new Date(point.date + 'T00:00:00');
-      const windowStart = new Date(pointDate);
-      windowStart.setDate(windowStart.getDate() - (windowDays - 1));
+  getWeekPeriod(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    const start = new Date(d);
+    start.setDate(d.getDate() - d.getDay()); // Sunday start
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    const key = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+    const startLabel = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const endLabel = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return {
+      key,
+      label: `${startLabel} – ${endLabel}`,
+      startMs: start.getTime(),
+      endMs: end.getTime() + 24 * 60 * 60 * 1000 - 1,
+      midMs: start.getTime() + 3.5 * 24 * 60 * 60 * 1000,
+    };
+  }
 
-      const timesInWindow = sorted
-        .filter(c => {
-          const d = new Date(c.date + 'T00:00:00');
-          return d >= windowStart && d <= pointDate;
-        })
-        .map(c => c.time);
+  getMonthPeriod(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    const start = new Date(d.getFullYear(), d.getMonth(), 1);
+    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    return {
+      key,
+      label: start.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      startMs: start.getTime(),
+      endMs: end.getTime() + 24 * 60 * 60 * 1000 - 1,
+      midMs: (start.getTime() + end.getTime()) / 2,
+    };
+  }
 
-      return { date: point.date, medianTime: this.medianOf(timesInWindow) };
+  computeBoxPlots(completions, groupBy) {
+    const groups = new Map();
+
+    completions.forEach(c => {
+      const period = groupBy === 'week' ? this.getWeekPeriod(c.date) : this.getMonthPeriod(c.date);
+      if (!groups.has(period.key)) {
+        groups.set(period.key, { ...period, times: [] });
+      }
+      groups.get(period.key).times.push(c.time);
     });
+
+    return [...groups.values()]
+      .sort((a, b) => a.startMs - b.startMs)
+      .map(group => ({
+        key: group.key,
+        label: group.label,
+        startMs: group.startMs,
+        endMs: group.endMs,
+        midMs: group.midMs,
+        ...this.computeBoxStats(group.times),
+      }));
   }
 
   setupTimeSeriesFilters() {
@@ -441,13 +516,14 @@ class CrosswordStatistics {
       this.userStats.completions,
       this.timeSeriesRange
     );
-    const movingMedian = this.computeMovingMedian(filtered, 30);
+    const groupBy = this.timeSeriesRange === 'month' ? 'week' : 'month';
+    const boxPlots = this.computeBoxPlots(filtered, groupBy);
     const ctx = canvas.getContext('2d');
-    this.timeSeriesChartData = { completions: filtered, movingMedian };
+    this.timeSeriesChartData = { completions: filtered, boxPlots, groupBy };
     this.timeSeriesHover = null;
     const tooltip = document.getElementById('timeSeriesTooltip');
     if (tooltip) tooltip.hidden = true;
-    this.drawTimeSeriesChart(ctx, canvas, filtered, movingMedian);
+    this.drawTimeSeriesChart(ctx, canvas, filtered, boxPlots);
     this.setupTimeSeriesHover(canvas);
   }
 
@@ -461,7 +537,7 @@ class CrosswordStatistics {
       if (!this.timeSeriesChartState) return;
 
       const { x, y } = this.getCanvasPointer(canvas, e);
-      const { padding, width, height, smoothCoords } = this.timeSeriesChartState;
+      const { padding, width, height, boxes, points } = this.timeSeriesChartState;
 
       const inPlotArea =
         x >= padding.left &&
@@ -469,33 +545,95 @@ class CrosswordStatistics {
         y >= padding.top &&
         y <= height - padding.bottom;
 
-      if (!inPlotArea || !smoothCoords || smoothCoords.length < 2) {
-        if (this.timeSeriesHover !== null) {
-          this.timeSeriesHover = null;
-          this.redrawTimeSeriesChart(canvas);
-          this.updateTimeSeriesTooltip(null, canvas, tooltip);
-        }
-        canvas.style.cursor = 'default';
+      if (!inPlotArea) {
+        this.clearTimeSeriesHover(canvas, tooltip);
         return;
       }
 
-      const hoverPoint = this.interpolateSmoothAtX(smoothCoords, x);
-      if (!hoverPoint) return;
+      const hoverTarget = this.findTimeSeriesHoverTarget(x, y, points, boxes);
+      if (!hoverTarget) {
+        this.clearTimeSeriesHover(canvas, tooltip);
+        return;
+      }
 
-      this.timeSeriesHover = hoverPoint;
-      canvas.style.cursor = 'crosshair';
+      canvas.style.cursor = hoverTarget.type === 'point' ? 'pointer' : 'default';
+
+      if (this.isSameTimeSeriesHover(this.timeSeriesHover, hoverTarget)) {
+        this.updateTimeSeriesTooltip(hoverTarget, canvas, tooltip);
+        return;
+      }
+
+      this.timeSeriesHover = hoverTarget;
       this.redrawTimeSeriesChart(canvas);
-      this.updateTimeSeriesTooltip(hoverPoint, canvas, tooltip);
+      this.updateTimeSeriesTooltip(hoverTarget, canvas, tooltip);
     });
 
     canvas.addEventListener('mouseleave', () => {
-      this.timeSeriesHover = null;
-      canvas.style.cursor = 'default';
-      this.redrawTimeSeriesChart(canvas);
-      this.updateTimeSeriesTooltip(null, canvas, tooltip);
+      this.clearTimeSeriesHover(canvas, tooltip);
+    });
+
+    canvas.addEventListener('click', e => {
+      if (!this.timeSeriesChartState) return;
+
+      const { x, y } = this.getCanvasPointer(canvas, e);
+      const { padding, width, height, boxes, points } = this.timeSeriesChartState;
+
+      const inPlotArea =
+        x >= padding.left &&
+        x <= width - padding.right &&
+        y >= padding.top &&
+        y <= height - padding.bottom;
+      if (!inPlotArea) return;
+
+      const target = this.findTimeSeriesHoverTarget(x, y, points, boxes);
+      if (target?.type === 'point' && target.filename) {
+        window.open(`mini?puzzle=${encodeURIComponent(target.filename)}`, '_blank');
+      }
     });
 
     this.timeSeriesHoverInitialized = true;
+  }
+
+  clearTimeSeriesHover(canvas, tooltip) {
+    if (this.timeSeriesHover !== null) {
+      this.timeSeriesHover = null;
+      this.redrawTimeSeriesChart(canvas);
+      this.updateTimeSeriesTooltip(null, canvas, tooltip);
+    }
+    canvas.style.cursor = 'default';
+  }
+
+  findTimeSeriesHoverTarget(x, y, points, boxes) {
+    const hitRadius = 10;
+    let nearestPoint = null;
+    let nearestDist = hitRadius;
+
+    (points || []).forEach(point => {
+      const dx = point.x - x;
+      const dy = point.y - y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= nearestDist) {
+        nearestDist = dist;
+        nearestPoint = point;
+      }
+    });
+
+    if (nearestPoint) {
+      return { type: 'point', ...nearestPoint };
+    }
+
+    const hoverBox = (boxes || []).find(box => x >= box.left && x <= box.right);
+    if (hoverBox) {
+      return { type: 'box', ...hoverBox };
+    }
+
+    return null;
+  }
+
+  isSameTimeSeriesHover(a, b) {
+    if (!a || !b || a.type !== b.type) return false;
+    if (a.type === 'point') return a.date === b.date;
+    return a.key === b.key;
   }
 
   getCanvasPointer(canvas, event) {
@@ -508,36 +646,8 @@ class CrosswordStatistics {
     };
   }
 
-  interpolateSmoothAtX(coords, x) {
-    if (!coords.length) return null;
-
-    if (x <= coords[0].x) {
-      return { ...coords[0], x };
-    }
-    if (x >= coords[coords.length - 1].x) {
-      return { ...coords[coords.length - 1], x };
-    }
-
-    for (let i = 0; i < coords.length - 1; i++) {
-      const a = coords[i];
-      const b = coords[i + 1];
-      if (x >= a.x && x <= b.x) {
-        const span = b.x - a.x || 1;
-        const u = (x - a.x) / span;
-        return {
-          x,
-          y: a.y + u * (b.y - a.y),
-          t: a.t + u * (b.t - a.t),
-          v: a.v + u * (b.v - a.v),
-        };
-      }
-    }
-
-    return null;
-  }
-
-  formatTooltipDate(timestamp) {
-    const d = new Date(timestamp);
+  formatTooltipDate(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
@@ -548,11 +658,31 @@ class CrosswordStatistics {
     }
 
     const rect = canvas.getBoundingClientRect();
-    const displayX = (hover.x / canvas.width) * rect.width;
-    const displayY = (hover.y / canvas.height) * rect.height;
+    let displayX;
+    let displayY;
+
+    if (hover.type === 'point') {
+      displayX = (hover.x / canvas.width) * rect.width;
+      displayY = (hover.y / canvas.height) * rect.height;
+      const rankEmoji = this.getRankEmoji(hover.rank);
+      tooltip.innerHTML = [
+        `<strong>${this.formatTooltipDate(hover.date)}</strong>`,
+        `${this.formatTimeFromSeconds(hover.time)}`,
+        `${rankEmoji} ${hover.rank}${this.getOrdinalSuffix(hover.rank)} place`,
+      ].join('<br>');
+    } else {
+      displayX = (hover.centerX / canvas.width) * rect.width;
+      displayY = (hover.medianY / canvas.height) * rect.height;
+      tooltip.innerHTML = [
+        `<strong>${hover.label}</strong>`,
+        `n=${hover.n}`,
+        `Median ${this.formatTimeFromSeconds(Math.round(hover.median))}`,
+        `Q1–Q3 ${this.formatTimeFromSeconds(Math.round(hover.q1))}–${this.formatTimeFromSeconds(Math.round(hover.q3))}`,
+        `Range ${this.formatTimeFromSeconds(Math.round(hover.whiskerLow))}–${this.formatTimeFromSeconds(Math.round(hover.whiskerHigh))}`,
+      ].join('<br>');
+    }
 
     tooltip.hidden = false;
-    tooltip.textContent = `${this.formatTooltipDate(hover.t)} · ${this.formatTimeFromSeconds(Math.round(hover.v))}`;
     tooltip.style.left = `${displayX}px`;
     tooltip.style.top = `${displayY}px`;
     tooltip.style.transform = 'translate(-50%, calc(-100% - 10px))';
@@ -560,9 +690,9 @@ class CrosswordStatistics {
 
   redrawTimeSeriesChart(canvas) {
     if (!this.timeSeriesChartData) return;
-    const { completions, movingMedian } = this.timeSeriesChartData;
+    const { completions, boxPlots } = this.timeSeriesChartData;
     const ctx = canvas.getContext('2d');
-    this.drawTimeSeriesChart(ctx, canvas, completions, movingMedian, this.timeSeriesHover);
+    this.drawTimeSeriesChart(ctx, canvas, completions, boxPlots, this.timeSeriesHover);
   }
 
   parseChartDate(dateStr) {
@@ -577,85 +707,64 @@ class CrosswordStatistics {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
-  catmullRomInterpolate(v0, v1, v2, v3, t) {
-    const t2 = t * t;
-    const t3 = t2 * t;
-    return (
-      0.5 *
-      (2 * v1 +
-        (-v0 + v2) * t +
-        (2 * v0 - 5 * v1 + 4 * v2 - v3) * t2 +
-        (-v0 + 3 * v1 - 3 * v2 + v3) * t3)
-    );
-  }
+  drawBoxPlot(ctx, box, yScale, highlighted = false, parts = 'all') {
+    const centerX = box.centerX;
+    const left = box.left;
+    const right = box.right;
+    const width = right - left;
+    const yLow = yScale(box.whiskerLow);
+    const yHigh = yScale(box.whiskerHigh);
+    const yQ1 = yScale(box.q1);
+    const yQ3 = yScale(box.q3);
+    const yMedian = yScale(box.median);
+    const boxTop = Math.min(yQ1, yQ3);
+    const boxHeight = Math.max(1, Math.abs(yQ1 - yQ3));
 
-  getSmoothMedianCoords(movingMedian, xScale, yScale, segmentsPerSpan = 6) {
-    const pts = movingMedian.map(p => ({
-      t: this.parseChartDate(p.date),
-      v: p.medianTime,
-    }));
-
-    if (pts.length < 2) {
-      return pts.map(p => ({ x: xScale(p.t), y: yScale(p.v), t: p.t, v: p.v }));
-    }
-
-    const smooth = [];
-    for (let i = 0; i < pts.length - 1; i++) {
-      const p0 = pts[Math.max(0, i - 1)];
-      const p1 = pts[i];
-      const p2 = pts[i + 1];
-      const p3 = pts[Math.min(pts.length - 1, i + 2)];
-      const startStep = i === 0 ? 0 : 1;
-
-      for (let s = startStep; s <= segmentsPerSpan; s++) {
-        const u = s / segmentsPerSpan;
-        const t = p1.t + u * (p2.t - p1.t);
-        const v = this.catmullRomInterpolate(p0.v, p1.v, p2.v, p3.v, u);
-        smooth.push({ x: xScale(t), y: yScale(v), t, v });
-      }
-    }
-
-    return smooth;
-  }
-
-  strokeMedianLine(ctx, coords) {
-    if (coords.length < 2) return;
-
-    ctx.beginPath();
-    ctx.moveTo(coords[0].x, coords[0].y);
-    for (let i = 1; i < coords.length; i++) {
-      ctx.lineTo(coords[i].x, coords[i].y);
-    }
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 5.5;
-    ctx.stroke();
-    ctx.strokeStyle = '#e67e22';
-    ctx.lineWidth = 4;
-    ctx.stroke();
-  }
-
-  drawTimeSeriesHoverOverlay(ctx, hover, padding, height) {
     ctx.save();
-    ctx.strokeStyle = 'rgba(230, 126, 34, 0.55)';
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([5, 4]);
-    ctx.beginPath();
-    ctx.moveTo(hover.x, padding.top);
-    ctx.lineTo(hover.x, height - padding.bottom);
-    ctx.stroke();
-    ctx.setLineDash([]);
 
-    ctx.fillStyle = '#e67e22';
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(hover.x, hover.y, 6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
+    if (parts === 'fill' || parts === 'all') {
+      ctx.fillStyle = highlighted ? 'rgba(230, 126, 34, 0.65)' : 'rgba(230, 126, 34, 0.5)';
+      ctx.fillRect(left, boxTop, width, boxHeight);
+    }
+
+    if (parts === 'lines' || parts === 'all') {
+      ctx.strokeStyle = highlighted ? '#d35400' : '#e67e22';
+      ctx.lineWidth = highlighted ? 2.5 : 2;
+      ctx.lineCap = 'round';
+
+      // Whisker stem
+      ctx.beginPath();
+      ctx.moveTo(centerX, yHigh);
+      ctx.lineTo(centerX, yLow);
+      ctx.stroke();
+
+      // Whisker caps
+      const capHalf = Math.max(6, width * 0.25);
+      ctx.beginPath();
+      ctx.moveTo(centerX - capHalf, yHigh);
+      ctx.lineTo(centerX + capHalf, yHigh);
+      ctx.moveTo(centerX - capHalf, yLow);
+      ctx.lineTo(centerX + capHalf, yLow);
+      ctx.stroke();
+
+      // IQR box outline
+      ctx.strokeRect(left, boxTop, width, boxHeight);
+
+      // Median line
+      ctx.strokeStyle = highlighted ? '#000' : '#2c3e50';
+      ctx.lineWidth = highlighted ? 3 : 2.5;
+      ctx.beginPath();
+      ctx.moveTo(left, yMedian);
+      ctx.lineTo(right, yMedian);
+      ctx.stroke();
+    }
+
     ctx.restore();
+
+    return { ...box, centerX, left, right, medianY: yMedian };
   }
 
-  drawTimeSeriesChart(ctx, canvas, completions, movingMedian, hover = null) {
+  drawTimeSeriesChart(ctx, canvas, completions, boxPlots, hover = null) {
     const width = canvas.width;
     const height = canvas.height;
     const padding = { top: 30, right: 30, bottom: 60, left: 70 };
@@ -674,20 +783,29 @@ class CrosswordStatistics {
     }
 
     const dates = completions.map(c => this.parseChartDate(c.date));
-    const times = completions.map(c => c.time);
-    const minDate = Math.min(...dates);
-    const maxDate = Math.max(...dates);
+    const boxStarts = boxPlots.map(b => b.startMs);
+    const boxEnds = boxPlots.map(b => b.endMs);
+    const minDate = Math.min(...dates, ...boxStarts);
+    const maxDate = Math.max(...dates, ...boxEnds);
     const spanDays = (maxDate - minDate) / (1000 * 60 * 60 * 24);
     const dateRange = maxDate - minDate || 1;
+    const xRightPad = 12; // keep latest points from clipping at the right edge
 
-    const minTime = Math.min(...times);
-    const maxTime = Math.max(...times);
-    const timePadding = Math.max(10, Math.round((maxTime - minTime) * 0.1));
+    // Scale Y-axis to box/whisker extent (+2% buffer), not raw point outliers
+    const lowValues = boxPlots.length
+      ? boxPlots.map(b => b.whiskerLow)
+      : completions.map(c => c.time);
+    const highValues = boxPlots.length
+      ? boxPlots.map(b => b.whiskerHigh)
+      : completions.map(c => c.time);
+    const minTime = Math.min(...lowValues);
+    const maxTime = Math.max(...highValues);
+    const timePadding = Math.max(10, Math.round((maxTime - minTime) * 0.02));
     const yMin = Math.max(0, minTime - timePadding);
     const yMax = maxTime + timePadding;
     const timeRange = yMax - yMin || 1;
 
-    const xScale = date => padding.left + ((date - minDate) / dateRange) * chartWidth;
+    const xScale = date => padding.left + ((date - minDate) / dateRange) * (chartWidth - xRightPad);
     const yScale = time => padding.top + chartHeight - ((time - yMin) / timeRange) * chartHeight;
 
     // Grid lines and Y-axis labels
@@ -710,7 +828,7 @@ class CrosswordStatistics {
 
     // X-axis date labels
     ctx.textAlign = 'center';
-    const xTickCount = Math.min(6, completions.length);
+    const xTickCount = Math.min(6, Math.max(1, boxPlots.length));
     for (let i = 0; i <= xTickCount; i++) {
       const date = minDate + (dateRange * i) / xTickCount;
       const x = xScale(date);
@@ -732,62 +850,114 @@ class CrosswordStatistics {
     ctx.lineTo(width - padding.right, height - padding.bottom);
     ctx.stroke();
 
-    // Individual puzzle times as dots (drawn beneath the median line)
-    completions.forEach(point => {
-      const x = xScale(this.parseChartDate(point.date));
-      const y = yScale(point.time);
-      ctx.fillStyle = '#4a90e2';
-      ctx.beginPath();
-      ctx.arc(x, y, 5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#2c5aa0';
-      ctx.lineWidth = 1;
-      ctx.stroke();
+    // Clip plot contents so outlier points don't spill into labels
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(padding.left, padding.top, chartWidth, chartHeight);
+    ctx.clip();
+
+    // Box fills under points; box lines (whiskers/median/outline) above points
+    const typicalPeriodMs =
+      boxPlots.length > 0
+        ? boxPlots.reduce((sum, b) => sum + (b.endMs - b.startMs), 0) / boxPlots.length
+        : dateRange;
+    const fullSlotWidth = Math.max(12, (typicalPeriodMs / dateRange) * chartWidth);
+    const boxWidth = Math.max(10, Math.min(fullSlotWidth * 0.55, 48));
+
+    const boxLayouts = boxPlots.map(plot => {
+      const centerX = xScale(plot.midMs);
+      const left = centerX - boxWidth / 2;
+      const right = centerX + boxWidth / 2;
+      const isHovered = hover && hover.type === 'box' && hover.key === plot.key;
+      return { ...plot, centerX, left, right, isHovered };
     });
 
-    // 30-day moving median line (on top of dots, Catmull-Rom smoothed)
-    let smoothCoords = null;
-    if (movingMedian.length > 1) {
-      ctx.lineJoin = 'round';
-      ctx.lineCap = 'round';
-      smoothCoords = this.getSmoothMedianCoords(movingMedian, xScale, yScale);
-      this.strokeMedianLine(ctx, smoothCoords);
-    }
+    boxLayouts.forEach(plot => {
+      this.drawBoxPlot(ctx, plot, yScale, plot.isHovered, 'fill');
+    });
+
+    // Individual puzzle times as dots
+    const points = completions.map(point => {
+      const x = xScale(this.parseChartDate(point.date));
+      const y = yScale(point.time);
+      const isHovered = hover && hover.type === 'point' && hover.date === point.date;
+      const radius = isHovered ? 6 : 4;
+      const colors = this.getPlacePointColors(point.rank);
+
+      ctx.fillStyle = colors.fill;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = isHovered ? '#000' : colors.stroke;
+      ctx.lineWidth = isHovered ? 2 : 1;
+      ctx.stroke();
+
+      return {
+        date: point.date,
+        time: point.time,
+        rank: point.rank,
+        filename: point.filename,
+        x,
+        y,
+      };
+    });
+
+    const boxes = boxLayouts.map(plot =>
+      this.drawBoxPlot(ctx, plot, yScale, plot.isHovered, 'lines')
+    );
+
+    ctx.restore();
 
     this.timeSeriesChartState = {
       padding,
       width,
       height,
-      smoothCoords,
+      boxes,
+      points,
     };
-
-    if (hover && smoothCoords) {
-      this.drawTimeSeriesHoverOverlay(ctx, hover, padding, height);
-    }
 
     // Legend
     ctx.font = '13px Arial';
     ctx.textAlign = 'left';
     const legendY = padding.top - 8;
-    ctx.fillStyle = '#4a90e2';
-    ctx.beginPath();
-    ctx.arc(padding.left + 6, legendY, 4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#333';
-    ctx.fillText('Puzzle time', padding.left + 16, legendY + 4);
+    let legendX = padding.left;
 
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(padding.left + 110, legendY);
-    ctx.lineTo(padding.left + 140, legendY);
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 5.5;
-    ctx.stroke();
+    const placeLegend = [
+      { rank: 1, label: '1st' },
+      { rank: 2, label: '2nd' },
+      { rank: 3, label: '3rd' },
+      { rank: 4, label: '4th+' },
+    ];
+    placeLegend.forEach(entry => {
+      const colors = this.getPlacePointColors(entry.rank);
+      ctx.fillStyle = colors.fill;
+      ctx.strokeStyle = colors.stroke;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(legendX + 4, legendY, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#333';
+      ctx.fillText(entry.label, legendX + 12, legendY + 4);
+      legendX += 48;
+    });
+
+    legendX += 8;
+    ctx.fillStyle = 'rgba(230, 126, 34, 0.5)';
     ctx.strokeStyle = '#e67e22';
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 2;
+    ctx.fillRect(legendX, legendY - 6, 16, 12);
+    ctx.strokeRect(legendX, legendY - 6, 16, 12);
+    ctx.beginPath();
+    ctx.moveTo(legendX, legendY);
+    ctx.lineTo(legendX + 16, legendY);
+    ctx.strokeStyle = '#2c3e50';
+    ctx.lineWidth = 2;
     ctx.stroke();
     ctx.fillStyle = '#333';
-    ctx.fillText('30-day median', padding.left + 146, legendY + 4);
+    const boxLegend =
+      this.timeSeriesRange === 'month' ? 'Weekly distribution' : 'Monthly distribution';
+    ctx.fillText(boxLegend, legendX + 22, legendY + 4);
   }
 
   getOrdinalSuffix(num) {
