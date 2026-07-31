@@ -300,6 +300,7 @@ class CrosswordStatistics {
             date: displayDate,
             time: userTimeInt,
             rank: userRank,
+            filename,
           });
         }
       } catch (error) {
@@ -555,19 +556,39 @@ class CrosswordStatistics {
         return;
       }
 
+      canvas.style.cursor = hoverTarget.type === 'point' ? 'pointer' : 'default';
+
       if (this.isSameTimeSeriesHover(this.timeSeriesHover, hoverTarget)) {
         this.updateTimeSeriesTooltip(hoverTarget, canvas, tooltip);
         return;
       }
 
       this.timeSeriesHover = hoverTarget;
-      canvas.style.cursor = 'pointer';
       this.redrawTimeSeriesChart(canvas);
       this.updateTimeSeriesTooltip(hoverTarget, canvas, tooltip);
     });
 
     canvas.addEventListener('mouseleave', () => {
       this.clearTimeSeriesHover(canvas, tooltip);
+    });
+
+    canvas.addEventListener('click', e => {
+      if (!this.timeSeriesChartState) return;
+
+      const { x, y } = this.getCanvasPointer(canvas, e);
+      const { padding, width, height, boxes, points } = this.timeSeriesChartState;
+
+      const inPlotArea =
+        x >= padding.left &&
+        x <= width - padding.right &&
+        y >= padding.top &&
+        y <= height - padding.bottom;
+      if (!inPlotArea) return;
+
+      const target = this.findTimeSeriesHoverTarget(x, y, points, boxes);
+      if (target?.type === 'point' && target.filename) {
+        window.open(`mini?puzzle=${encodeURIComponent(target.filename)}`, '_blank');
+      }
     });
 
     this.timeSeriesHoverInitialized = true;
@@ -875,6 +896,7 @@ class CrosswordStatistics {
         date: point.date,
         time: point.time,
         rank: point.rank,
+        filename: point.filename,
         x,
         y,
       };
