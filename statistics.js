@@ -633,7 +633,7 @@ class CrosswordStatistics {
 
     ctx.save();
     ctx.strokeStyle = highlighted ? '#d35400' : '#e67e22';
-    ctx.fillStyle = highlighted ? 'rgba(230, 126, 34, 0.35)' : 'rgba(230, 126, 34, 0.2)';
+    ctx.fillStyle = highlighted ? 'rgba(230, 126, 34, 0.65)' : 'rgba(230, 126, 34, 0.5)';
     ctx.lineWidth = highlighted ? 2.5 : 2;
     ctx.lineCap = 'round';
 
@@ -696,7 +696,7 @@ class CrosswordStatistics {
     const spanDays = (maxDate - minDate) / (1000 * 60 * 60 * 24);
     const dateRange = maxDate - minDate || 1;
 
-    // Scale Y-axis to box/whisker extent (+10% buffer), not raw point outliers
+    // Scale Y-axis to box/whisker extent (+2% buffer), not raw point outliers
     const lowValues = boxPlots.length
       ? boxPlots.map(b => b.whiskerLow)
       : completions.map(c => c.time);
@@ -705,7 +705,7 @@ class CrosswordStatistics {
       : completions.map(c => c.time);
     const minTime = Math.min(...lowValues);
     const maxTime = Math.max(...highValues);
-    const timePadding = Math.max(10, Math.round((maxTime - minTime) * 0.1));
+    const timePadding = Math.max(10, Math.round((maxTime - minTime) * 0.02));
     const yMin = Math.max(0, minTime - timePadding);
     const yMax = maxTime + timePadding;
     const timeRange = yMax - yMin || 1;
@@ -810,7 +810,7 @@ class CrosswordStatistics {
     ctx.fillStyle = '#333';
     ctx.fillText('Puzzle time', padding.left + 16, legendY + 4);
 
-    ctx.fillStyle = 'rgba(230, 126, 34, 0.25)';
+    ctx.fillStyle = 'rgba(230, 126, 34, 0.5)';
     ctx.strokeStyle = '#e67e22';
     ctx.lineWidth = 2;
     ctx.fillRect(padding.left + 110, legendY - 6, 16, 12);
