@@ -761,6 +761,7 @@ class CrosswordStatistics {
     const maxDate = Math.max(...dates, ...boxEnds);
     const spanDays = (maxDate - minDate) / (1000 * 60 * 60 * 24);
     const dateRange = maxDate - minDate || 1;
+    const xRightPad = 12; // keep latest points from clipping at the right edge
 
     // Scale Y-axis to box/whisker extent (+2% buffer), not raw point outliers
     const lowValues = boxPlots.length
@@ -776,7 +777,7 @@ class CrosswordStatistics {
     const yMax = maxTime + timePadding;
     const timeRange = yMax - yMin || 1;
 
-    const xScale = date => padding.left + ((date - minDate) / dateRange) * chartWidth;
+    const xScale = date => padding.left + ((date - minDate) / dateRange) * (chartWidth - xRightPad);
     const yScale = time => padding.top + chartHeight - ((time - yMin) / timeRange) * chartHeight;
 
     // Grid lines and Y-axis labels
