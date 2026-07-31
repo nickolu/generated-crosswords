@@ -674,14 +674,16 @@ class CrosswordStatistics {
     }
 
     const dates = completions.map(c => this.parseChartDate(c.date));
-    const times = completions.map(c => c.time);
     const minDate = Math.min(...dates);
     const maxDate = Math.max(...dates);
     const spanDays = (maxDate - minDate) / (1000 * 60 * 60 * 24);
     const dateRange = maxDate - minDate || 1;
 
-    const minTime = Math.min(...times);
-    const maxTime = Math.max(...times);
+    // Scale Y-axis to the moving median's range (+10% buffer), not individual outliers
+    const medianTimes =
+      movingMedian.length > 0 ? movingMedian.map(p => p.medianTime) : completions.map(c => c.time);
+    const minTime = Math.min(...medianTimes);
+    const maxTime = Math.max(...medianTimes);
     const timePadding = Math.max(10, Math.round((maxTime - minTime) * 0.1));
     const yMin = Math.max(0, minTime - timePadding);
     const yMax = maxTime + timePadding;
