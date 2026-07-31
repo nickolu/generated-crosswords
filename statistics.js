@@ -67,6 +67,19 @@ class CrosswordStatistics {
     return this.placeEmojis[rank] || this.placeEmojis.default;
   }
 
+  getPlacePointColors(rank) {
+    switch (rank) {
+      case 1:
+        return { fill: '#f1c40f', stroke: '#b7950b' };
+      case 2:
+        return { fill: '#bdc3c7', stroke: '#7f8c8d' };
+      case 3:
+        return { fill: '#cd7f32', stroke: '#9a5f26' };
+      default:
+        return { fill: '#4a90e2', stroke: '#2c5aa0' };
+    }
+  }
+
   formatTimeFromSeconds(seconds) {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
@@ -836,12 +849,13 @@ class CrosswordStatistics {
       const y = yScale(point.time);
       const isHovered = hover && hover.type === 'point' && hover.date === point.date;
       const radius = isHovered ? 6 : 4;
+      const colors = this.getPlacePointColors(point.rank);
 
-      ctx.fillStyle = isHovered ? '#2c5aa0' : '#4a90e2';
+      ctx.fillStyle = colors.fill;
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = isHovered ? '#000' : '#2c5aa0';
+      ctx.strokeStyle = isHovered ? '#000' : colors.stroke;
       ctx.lineWidth = isHovered ? 2 : 1;
       ctx.stroke();
 
@@ -868,28 +882,44 @@ class CrosswordStatistics {
     ctx.font = '13px Arial';
     ctx.textAlign = 'left';
     const legendY = padding.top - 8;
-    ctx.fillStyle = '#4a90e2';
-    ctx.beginPath();
-    ctx.arc(padding.left + 6, legendY, 4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#333';
-    ctx.fillText('Puzzle time', padding.left + 16, legendY + 4);
+    let legendX = padding.left;
 
+    const placeLegend = [
+      { rank: 1, label: '1st' },
+      { rank: 2, label: '2nd' },
+      { rank: 3, label: '3rd' },
+      { rank: 4, label: '4th+' },
+    ];
+    placeLegend.forEach(entry => {
+      const colors = this.getPlacePointColors(entry.rank);
+      ctx.fillStyle = colors.fill;
+      ctx.strokeStyle = colors.stroke;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(legendX + 4, legendY, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#333';
+      ctx.fillText(entry.label, legendX + 12, legendY + 4);
+      legendX += 48;
+    });
+
+    legendX += 8;
     ctx.fillStyle = 'rgba(230, 126, 34, 0.5)';
     ctx.strokeStyle = '#e67e22';
     ctx.lineWidth = 2;
-    ctx.fillRect(padding.left + 110, legendY - 6, 16, 12);
-    ctx.strokeRect(padding.left + 110, legendY - 6, 16, 12);
+    ctx.fillRect(legendX, legendY - 6, 16, 12);
+    ctx.strokeRect(legendX, legendY - 6, 16, 12);
     ctx.beginPath();
-    ctx.moveTo(padding.left + 110, legendY);
-    ctx.lineTo(padding.left + 126, legendY);
+    ctx.moveTo(legendX, legendY);
+    ctx.lineTo(legendX + 16, legendY);
     ctx.strokeStyle = '#2c3e50';
     ctx.lineWidth = 2;
     ctx.stroke();
     ctx.fillStyle = '#333';
     const boxLegend =
       this.timeSeriesRange === 'month' ? 'Weekly distribution' : 'Monthly distribution';
-    ctx.fillText(boxLegend, padding.left + 134, legendY + 4);
+    ctx.fillText(boxLegend, legendX + 22, legendY + 4);
   }
 
   getOrdinalSuffix(num) {
